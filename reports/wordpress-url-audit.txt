@@ -1,15 +1,14 @@
 # WordPress URL audit (https://jyotihydraulic.com)
-Generated: 2026-10-06T11:32:12.473Z
+Generated: 2026-10-06T12:00:36.087Z
 
-WordPress paths: 1416
-CMS published routes: 1412
-Missing in CMS: 4
+WordPress paths: 1417
+CMS published routes: 1414
+Missing in CMS: 3
 CMS-only paths: 0
 
 ## Missing in CMS
+/bevel-gear-box-price-in-india-types-applications-buying-guide-jyoti-hydraulic/
 /city/
-/city/worm-gear-screw-jack-manufacturers-in-salem/
 /exports/
-/waste-paper-corrugated-box-baling-press-machine/
 
 ## CMS-only (not in WordPress list)

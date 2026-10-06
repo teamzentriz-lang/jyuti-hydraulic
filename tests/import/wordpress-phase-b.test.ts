@@ -43,6 +43,15 @@ test("buildCatalogGraph marks leaves as products", () => {
   assert.equal(leaf?.isLeaf, true);
 });
 
+test("standalone catalog root without children is a category not a product", () => {
+  const pages = [
+    page(19071, "https://jyotihydraulic.com/waste-paper-corrugated-box-baling-press-machine/", 0, "waste-paper-corrugated-box-baling-press-machine"),
+  ];
+  const graph = buildCatalogGraph(pages);
+  assert.equal(graph.length, 1);
+  assert.equal(graph[0]?.isLeaf, false);
+});
+
 test("products/ prefix tree is included", () => {
   const pages = [
     page(10, "https://jyotihydraulic.com/products/", 0, "products"),

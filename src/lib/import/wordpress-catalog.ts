@@ -111,11 +111,15 @@ export function buildCatalogGraph(pages: WpPageItem[]): CatalogPage[] {
   return catalogPages.map((page) => {
     const path = pagePathFromLink(page.link);
     const childCount = (children.get(page.id) ?? []).length;
+    const root = path.split("/")[0] ?? "";
+    // Lone WordPress roots (no parent, no children) are category landings, not products.
+    const standaloneRoot = page.parent === 0 && CATALOG_ROOT_SLUGS.has(root);
+    const isLeaf = childCount === 0 && !standaloneRoot;
     return {
       ...page,
       path,
       depth: pathDepth(path),
-      isLeaf: childCount === 0,
+      isLeaf,
     };
   });
 }

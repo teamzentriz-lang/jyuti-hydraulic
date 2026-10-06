@@ -178,15 +178,14 @@ async function upsertLocation(
     updatedAt: new Date(),
   };
 
-  if (existing) {
-    await db.update(locationPages).set(values).where(eq(locationPages.id, id));
-    stats.locationsUpdated += 1;
-  } else {
-    await db.insert(locationPages).values({ id, ...values });
-    stats.locationsCreated += 1;
-  }
-
   await db.transaction(async (tx) => {
+    if (existing) {
+      await tx.update(locationPages).set(values).where(eq(locationPages.id, id));
+      stats.locationsUpdated += 1;
+    } else {
+      await tx.insert(locationPages).values({ id, ...values });
+      stats.locationsCreated += 1;
+    }
     await reserveRoute(tx, {
       path: page.path,
       kind: "location",

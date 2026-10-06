@@ -16,6 +16,7 @@
     "import:wordpress:finalize": "tsx scripts/import-wordpress-finalize.ts",
     "import:wordpress:phase-b": "tsx scripts/import-wordpress-phase-b.ts",
     "import:wordpress:phase-b:incremental": "tsx scripts/import-wordpress-phase-b-incremental.ts",
+    "import:wordpress:repair-routes": "tsx scripts/import-wordpress-repair-routes.ts",
     "import:wordpress:phase-c": "tsx scripts/import-wordpress-phase-c.ts",
     "import:wordpress:phase-d": "tsx scripts/import-wordpress-phase-d.ts",
     "import:wordpress:phase-e": "tsx scripts/import-wordpress-phase-e.ts",
