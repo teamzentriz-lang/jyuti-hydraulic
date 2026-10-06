@@ -6,22 +6,46 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed-structure": "tsx scripts/seed-structure.ts",
+    "storage:migrate-to-r2": "tsx scripts/migrate-storage-to-r2.ts",
+    "import:wordpress:phase-a": "tsx scripts/import-wordpress-phase-a.ts",
+    "import:wordpress:finalize": "tsx scripts/import-wordpress-finalize.ts",
+    "import:wordpress:phase-b": "tsx scripts/import-wordpress-phase-b.ts",
+    "import:wordpress:phase-b:incremental": "tsx scripts/import-wordpress-phase-b-incremental.ts",
+    "import:wordpress:phase-c": "tsx scripts/import-wordpress-phase-c.ts",
+    "import:wordpress:phase-d": "tsx scripts/import-wordpress-phase-d.ts",
+    "import:wordpress:phase-e": "tsx scripts/import-wordpress-phase-e.ts",
+    "import:wordpress:audit-urls": "tsx scripts/import-wordpress-audit-urls.ts",
+    "test": "tsx --test tests/storage/*.test.ts tests/import/*.test.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.3",
     "next": "16.3.8",
+    "postgres": "^3.4.9",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "sanitize-html": "^2.18.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv": "^18.0.5",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,15 @@
+# WordPress URL audit (https://jyotihydraulic.com)
+Generated: 2026-10-06T11:32:12.473Z
+
+WordPress paths: 1416
+CMS published routes: 1412
+Missing in CMS: 4
+CMS-only paths: 0
+
+## Missing in CMS
+/city/
+/city/worm-gear-screw-jack-manufacturers-in-salem/
+/exports/
+/waste-paper-corrugated-box-baling-press-machine/
+
+## CMS-only (not in WordPress list)
