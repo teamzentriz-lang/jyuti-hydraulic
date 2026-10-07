@@ -13,7 +13,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const db = getDb();
   const [file] = await db.select().from(media).where(eq(media.id, id)).limit(1);
   if (!file) return new NextResponse("Not found", { status: 404 });
-  if (file.storageDriver === "r2") return NextResponse.redirect(file.url);
+  if (file.storageDriver === "r2" && /^https?:\/\//i.test(file.url)) {
+    return NextResponse.redirect(file.url);
+  }
 
   try {
     const bytes = await storageService.getObject(file.storageKey, file.storageDriver);
@@ -25,6 +27,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       },
     });
   } catch {
+    if (file.legacyUrl && /^https?:\/\//i.test(file.legacyUrl)) {
+      return NextResponse.redirect(file.legacyUrl);
+    }
     return new NextResponse("Not found", { status: 404 });
   }
 }

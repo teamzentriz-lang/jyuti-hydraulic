@@ -536,11 +536,12 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "inquiries",
     label: "Inquiries",
     singular: "Inquiry",
-    description: "Quote and contact submissions. The public form will write here.",
-    searchColumns: ["name", "email", "phone", "message"],
+    description: "Quote requests and newsletter signups. A subject of Newsletter is a signup, not a product quote.",
+    searchColumns: ["name", "email", "phone", "message", "subject"],
     tableColumns: [
       { key: "name", label: "Name" },
       { key: "email", label: "Email" },
+      { key: "subject", label: "Subject" },
       { key: "source", label: "Source" },
       { key: "status", label: "Status" },
       { key: "createdAt", label: "Received" },
@@ -610,7 +611,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "blog-categories",
     label: "Blog categories",
     singular: "Blog category",
-    description: "Blog taxonomy for migration and filtering.",
+    description: "Saved for organisation. The public blog lists every published post and does not filter by these categories yet.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -641,7 +642,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "blog-tags",
     label: "Blog tags",
     singular: "Blog tag",
-    description: "Blog tags for posts.",
+    description: "Saved with posts. The public blog does not filter by tags yet.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -663,7 +664,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "gallery-albums",
     label: "Gallery albums",
     singular: "Album",
-    description: "Grouped gallery content for migration.",
+    description: "Not shown on the public gallery. Photos on /gallery/ come from Gallery photos.",
     searchColumns: ["title", "slug"],
     tableColumns: [
       { key: "title", label: "Title" },
@@ -729,7 +730,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "forms",
     label: "Forms",
     singular: "Form",
-    description: "Configurable enquiry forms (fields managed via migration/API).",
+    description: "Stored form definitions. The public contact form is built into the site and saves each submission under Inquiries.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },

@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ContentView, contentMetadata } from "@/components/site/content-view";
-import { getCataloguePdfUrl } from "@/lib/cms/queries";
-import { findActiveRedirect, getSite, resolvePublishedContent } from "@/lib/cms/site";
+import { cataloguesForSite, getCataloguePdfUrl } from "@/lib/cms/queries";
+import {
+  findActiveRedirect,
+  getSite,
+  resolvePublishedContent,
+} from "@/lib/cms/site";
 
 type PageProps = { params: Promise<{ slug: string[] }> };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const content = await resolvePublishedContent(slug);
   if (!content) return {};
@@ -14,8 +20,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return contentMetadata(content, site.settings.companyName);
 }
 
-export default async function CmsRoutePage({ params }: PageProps) {
-  const { slug } = await params;
+export default async function CmsRoutePage({
+  params,
+  searchParams,
+}: PageProps & { searchParams: Promise<{ product?: string }> }) {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
   const requestPath = `/${slug.join("/")}/`;
   const rule = await findActiveRedirect(requestPath);
   if (rule) {
@@ -27,7 +36,20 @@ export default async function CmsRoutePage({ params }: PageProps) {
   if (!content) notFound();
 
   const cataloguePdfUrl =
-    content.kind === "page" && content.path === "catalogue" ? await getCataloguePdfUrl() : null;
+    content.kind === "page" && content.path === "catalogue"
+      ? await getCataloguePdfUrl()
+      : null;
+  const catalogues =
+    content.kind === "page" && content.path === "catalogue"
+      ? await cataloguesForSite()
+      : [];
 
-  return <ContentView content={content} cataloguePdfUrl={cataloguePdfUrl} />;
+  return (
+    <ContentView
+      content={content}
+      cataloguePdfUrl={cataloguePdfUrl}
+      catalogues={catalogues}
+      inquirySubject={query.product ?? ""}
+    />
+  );
 }

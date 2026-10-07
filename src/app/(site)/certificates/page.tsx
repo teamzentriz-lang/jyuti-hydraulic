@@ -1,48 +1,80 @@
 import type { Metadata } from "next";
-import { CmsImage } from "@/components/site/cms-image";
-import { CmsPageIntro } from "@/components/site/cms-page-intro";
+import { AboutReveal } from "@/components/site/about-reveal";
+import { CertificateBoard, type CertificateCard } from "@/components/site/certificate-board";
 import { contentMetadata } from "@/components/site/content-view";
 import { certificatesForSite, getSettings } from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
+import { mediaDeliveryUrl } from "@/lib/media-url";
+import { siteOrigin } from "@/lib/paths";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("certificates");
-  if (content) {
-    const site = await getSite();
-    return contentMetadata(content, site.settings.companyName);
-  }
-  const settings = await getSettings();
-  return { title: `Certificates | ${settings.companyName}` };
+  if (content)
+    return contentMetadata(content, (await getSite()).settings.companyName);
+  return {
+    title: `Certificates | ${(await getSettings()).companyName}`,
+    alternates: { canonical: `${siteOrigin()}/certificates/` },
+  };
 }
 
 export default async function CertificatesPage() {
-  const [items, cmsPage] = await Promise.all([certificatesForSite(), resolvePublishedContentByPath("certificates")]);
-
+  const [items, page] = await Promise.all([
+    certificatesForSite(),
+    resolvePublishedContentByPath("certificates"),
+  ]);
+  const rawSummary = page?.summary?.trim() ?? "";
+  const summary =
+    rawSummary.length > 40 && rawSummary.length < 180 && /[.!?]/.test(rawSummary)
+      ? rawSummary
+      : "Quality systems, compliance standards and certifications that support dependable hydraulic manufacturing.";
+  const cards: CertificateCard[] = items
+    .filter((item) => !/(?:&#8211;|&ndash;|–|—)\s*Jyoti Hydraulic/i.test(item.title))
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      caption: item.caption,
+      src: item.media ? mediaDeliveryUrl(item.media) : null,
+    }));
   return (
-    <main className="mx-auto max-w-6xl px-6 py-16">
-      <CmsPageIntro content={cmsPage} />
-      {!cmsPage ? (
-        <>
-          <h1 className="text-4xl font-semibold text-navy">Certificates</h1>
-          <p className="mt-3 text-muted">Quality and compliance documents.</p>
-        </>
-      ) : null}
-      {items.length ? (
-        <ul className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <li key={item.id} className="rounded-lg border border-line bg-white p-3 text-center">
-              {item.media ? (
-                <CmsImage item={item.media} alt={item.title} className="mx-auto aspect-[3/4] w-full max-w-[180px] object-contain" />
-              ) : null}
-              <p className="mt-3 text-sm font-semibold text-navy">{item.title}</p>
-              {item.caption ? <p className="mt-1 text-xs text-muted">{item.caption}</p> : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-10 text-sm text-muted">No certificates yet. Add them under Certificates in the admin.</p>
-      )}
+    <main className="listing-page certificates-page motion-page">
+      <AboutReveal />
+      <div className="site-page-banner">
+        <div className="site-container page-banner-inner">
+          <p className="page-kicker about-in">Quality assurance</p>
+          <h1 className="about-in" style={{ animationDelay: "80ms" }}>
+            {page?.title || "Certifications & Compliance"}
+          </h1>
+          <p className="about-in" style={{ animationDelay: "160ms" }}>
+            {summary}
+          </p>
+        </div>
+      </div>
+      <div className="site-container certificate-library">
+        <div className="certificate-intro about-in">
+          <span className="certificate-intro__mark">✓</span>
+          <div>
+            <p className="section-label">Verified quality</p>
+            <h2>Standards You Can Trust</h2>
+            <p>
+              Our certificates reflect a continued commitment to quality,
+              consistency and responsible manufacturing.
+            </p>
+          </div>
+        </div>
+        {cards.length ? (
+          <CertificateBoard items={cards} />
+        ) : (
+          <div className="cms-empty-state">
+            <span>Certificates</span>
+            <h2>Certificate showcase is ready</h2>
+            <p>
+              Upload certificate images from Admin → Certificates and they will
+              populate this layout automatically.
+            </p>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

@@ -18,7 +18,8 @@ export function CmsMedia({
   if (isVideoMimeType(item.mimeType) && item.url) {
     return (
       <video
-        src={mediaDeliveryUrl(item)}        className={videoClassName ?? className}
+        src={mediaDeliveryUrl(item)}
+        className={videoClassName ?? className}
         controls={controls}
         playsInline
         preload="metadata"
