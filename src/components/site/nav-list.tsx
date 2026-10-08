@@ -5,7 +5,13 @@ function isExternal(href: string) {
   return /^https?:\/\//i.test(href);
 }
 
-function NavLink({ item, variant }: { item: NavItem; variant: "header" | "footer" | "default" }) {
+function NavLink({
+  item,
+  variant,
+}: {
+  item: NavItem;
+  variant: "header" | "footer" | "default";
+}) {
   const className =
     variant === "header"
       ? "hover:text-white hover:underline"
@@ -14,7 +20,12 @@ function NavLink({ item, variant }: { item: NavItem; variant: "header" | "footer
         : "hover:underline";
   if (isExternal(item.href)) {
     return (
-      <a href={item.href} className={className} target={item.openInNewTab ? "_blank" : undefined} rel="noopener noreferrer">
+      <a
+        href={item.href}
+        className={className}
+        target={item.openInNewTab ? "_blank" : undefined}
+        rel="noopener noreferrer"
+      >
         {item.label}
       </a>
     );

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   exportPages,
@@ -12,8 +12,13 @@ import {
   routes,
   type SpecRow,
 } from "@/db/schema";
-import { loadPageSections, loadProductPayload, type PageSectionPayload } from "@/lib/cms/entity-data";
+import {
+  loadPageSections,
+  loadProductPayload,
+  type PageSectionPayload,
+} from "@/lib/cms/entity-data";
 import { mediaItems, type MediaItem } from "@/lib/cms/queries";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -74,9 +79,32 @@ export type PublishedContent = {
   image?: MediaItem | null;
   specs?: SpecRow[];
   gallery?: MediaItem[];
-  related?: { id: string; title: string; path: string; summary: string }[];
-  childCategories?: { id: string; title: string; path: string; summary: string }[];
-  categoryProducts?: { id: string; title: string; path: string; summary: string; imageUrl: string | null; imageAlt: string }[];
+  related?: {
+    id: string;
+    title: string;
+    path: string;
+    summary: string;
+    imageUrl: string | null;
+    imageAlt: string;
+  }[];
+  brochureUrl?: string | null;
+  enquiryEnabled?: boolean;
+  filterCategories?: { id: string; title: string; path: string }[];
+  childCategories?: {
+    id: string;
+    title: string;
+    path: string;
+    summary: string;
+    image: MediaItem | null;
+  }[];
+  categoryProducts?: {
+    id: string;
+    title: string;
+    path: string;
+    summary: string;
+    imageUrl: string | null;
+    imageAlt: string;
+  }[];
   meta?: Record<string, string>;
   sections?: RenderedPageSection[];
   detailBlocks?: DetailBlock[];
@@ -90,8 +118,15 @@ export type PublishedContent = {
 
 type PublishedTarget = { kind: RouteKind; entityId: string };
 
-export async function findPublishedTarget(db: Db, path: string): Promise<PublishedTarget | null> {
-  const [route] = await db.select().from(routes).where(eq(routes.path, path)).limit(1);
+export async function findPublishedTarget(
+  db: Db,
+  path: string,
+): Promise<PublishedTarget | null> {
+  const [route] = await db
+    .select()
+    .from(routes)
+    .where(eq(routes.path, path))
+    .limit(1);
   if (route?.status === "published") {
     return { kind: route.kind as RouteKind, entityId: route.entityId };
   }
@@ -113,7 +148,12 @@ export async function findPublishedTarget(db: Db, path: string): Promise<Publish
   const [category] = await db
     .select({ id: productCategories.id })
     .from(productCategories)
-    .where(and(eq(productCategories.path, path), eq(productCategories.status, "published")))
+    .where(
+      and(
+        eq(productCategories.path, path),
+        eq(productCategories.status, "published"),
+      ),
+    )
     .limit(1);
   if (category) return { kind: "category", entityId: category.id };
 
@@ -127,7 +167,9 @@ export async function findPublishedTarget(db: Db, path: string): Promise<Publish
   const [location] = await db
     .select({ id: locationPages.id })
     .from(locationPages)
-    .where(and(eq(locationPages.path, path), eq(locationPages.status, "published")))
+    .where(
+      and(eq(locationPages.path, path), eq(locationPages.status, "published")),
+    )
     .limit(1);
   if (location) return { kind: "location", entityId: location.id };
 
@@ -141,38 +183,47 @@ export async function findPublishedTarget(db: Db, path: string): Promise<Publish
   return null;
 }
 
-async function hydratePageSections(sections: PageSectionPayload[]): Promise<RenderedPageSection[]> {
+async function hydratePageSections(
+  sections: PageSectionPayload[],
+): Promise<RenderedPageSection[]> {
   const active = sections.filter((section) => section.isActive);
   const mediaIds = active.flatMap((section) =>
-    [section.imageId, section.backgroundImageId, section.mobileImageId].filter((id): id is string => Boolean(id)),
+    [section.imageId, section.backgroundImageId, section.mobileImageId].filter(
+      (id): id is string => Boolean(id),
+    ),
   );
   const items = await mediaItems(mediaIds);
   const byId = new Map(items.map((item) => [item.id, item]));
   return active.map((section) => ({
     ...section,
     image: section.imageId ? (byId.get(section.imageId) ?? null) : null,
-    backgroundImage: section.backgroundImageId ? (byId.get(section.backgroundImageId) ?? null) : null,
-    mobileImage: section.mobileImageId ? (byId.get(section.mobileImageId) ?? null) : null,
+    backgroundImage: section.backgroundImageId
+      ? (byId.get(section.backgroundImageId) ?? null)
+      : null,
+    mobileImage: section.mobileImageId
+      ? (byId.get(section.mobileImageId) ?? null)
+      : null,
   }));
 }
 
 function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
-  const pairs: { key: keyof typeof products.$inferSelect; heading: string }[] = [
-    { key: "overview", heading: "Overview" },
-    { key: "richContent", heading: "Details" },
-    { key: "featuresText", heading: "Features" },
-    { key: "benefits", heading: "Benefits" },
-    { key: "advantages", heading: "Advantages" },
-    { key: "applicationsText", heading: "Applications" },
-    { key: "workingPrinciple", heading: "Working principle" },
-    { key: "construction", heading: "Construction" },
-    { key: "material", heading: "Material" },
-    { key: "manufacturingDetails", heading: "Manufacturing" },
-    { key: "qualityInformation", heading: "Quality" },
-    { key: "maintenanceInformation", heading: "Maintenance" },
-    { key: "safetyInformation", heading: "Safety" },
-    { key: "customizationInformation", heading: "Customization" },
-  ];
+  const pairs: { key: keyof typeof products.$inferSelect; heading: string }[] =
+    [
+      { key: "overview", heading: "Overview" },
+      { key: "richContent", heading: "Details" },
+      { key: "featuresText", heading: "Features" },
+      { key: "benefits", heading: "Benefits" },
+      { key: "advantages", heading: "Advantages" },
+      { key: "applicationsText", heading: "Applications" },
+      { key: "workingPrinciple", heading: "Working principle" },
+      { key: "construction", heading: "Construction" },
+      { key: "material", heading: "Material" },
+      { key: "manufacturingDetails", heading: "Manufacturing" },
+      { key: "qualityInformation", heading: "Quality" },
+      { key: "maintenanceInformation", heading: "Maintenance" },
+      { key: "safetyInformation", heading: "Safety" },
+      { key: "customizationInformation", heading: "Customization" },
+    ];
   return pairs.flatMap(({ key, heading }) => {
     const html = row[key];
     return typeof html === "string" && html.trim() ? [{ heading, html }] : [];
@@ -181,9 +232,19 @@ function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
 
 async function categoryProductCards(db: Db, categoryId: string) {
   const productRows = await db
-    .select({ id: products.id, title: products.title, path: products.path, summary: products.summary })
+    .select({
+      id: products.id,
+      title: products.title,
+      path: products.path,
+      summary: products.summary,
+    })
     .from(products)
-    .where(and(eq(products.categoryId, categoryId), eq(products.status, "published")))
+    .where(
+      and(
+        eq(products.categoryId, categoryId),
+        eq(products.status, "published"),
+      ),
+    )
     .orderBy(asc(products.sortOrder), asc(products.title));
 
   if (!productRows.length) return [];
@@ -191,18 +252,27 @@ async function categoryProductCards(db: Db, categoryId: string) {
   const images = await db
     .select({
       productId: productImages.productId,
+      mediaId: media.id,
       url: media.url,
       alt: media.alt,
     })
     .from(productImages)
     .innerJoin(media, eq(productImages.mediaId, media.id))
-    .where(inArray(productImages.productId, productRows.map((row) => row.id)))
+    .where(
+      inArray(
+        productImages.productId,
+        productRows.map((row) => row.id),
+      ),
+    )
     .orderBy(asc(productImages.sortOrder));
 
   const imageByProduct = new Map<string, { url: string; alt: string }>();
   for (const row of images) {
     if (!imageByProduct.has(row.productId)) {
-      imageByProduct.set(row.productId, { url: row.url, alt: row.alt ?? "" });
+      imageByProduct.set(row.productId, {
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        alt: row.alt ?? "",
+      });
     }
   }
 
@@ -216,10 +286,16 @@ async function categoryProductCards(db: Db, categoryId: string) {
   });
 }
 
-async function loadProductExtras(productId: string, row: typeof products.$inferSelect) {
+async function loadProductExtras(
+  productId: string,
+  row: typeof products.$inferSelect,
+) {
   const payload = await loadProductPayload(productId);
   const mediaIds = [
-    ...payload.features.flatMap((item) => [item.iconMediaId, item.imageMediaId]),
+    ...payload.features.flatMap((item) => [
+      item.iconMediaId,
+      item.imageMediaId,
+    ]),
     ...payload.applications.map((item) => item.imageMediaId),
     ...payload.documents.map((item) => item.mediaId),
   ].filter((id): id is string => Boolean(id));
@@ -229,7 +305,9 @@ async function loadProductExtras(productId: string, row: typeof products.$inferS
   const tableSpecs = payload.specifications
     .filter((spec) => spec.label.trim() || spec.value.trim())
     .map((spec) => ({ label: spec.label, value: spec.value }));
-  const jsonSpecs = row.specs.filter((spec) => spec.label.trim() || spec.value.trim());
+  const jsonSpecs = row.specs.filter(
+    (spec) => spec.label.trim() || spec.value.trim(),
+  );
   const specs = tableSpecs.length ? tableSpecs : jsonSpecs;
 
   return {
@@ -251,9 +329,15 @@ async function loadProductExtras(productId: string, row: typeof products.$inferS
         description: item.description,
         image: item.imageMediaId ? (byId.get(item.imageMediaId) ?? null) : null,
       })),
-    faqs: payload.faqs.filter((item) => item.isActive && (item.question.trim() || item.answer.trim())),
-    contentTables: payload.contentTables.filter((table) => table.title.trim() || table.rows.length),
-    technicalTables: payload.technicalTables.filter((table) => table.tableTitle.trim() || table.rows.length),
+    faqs: payload.faqs.filter(
+      (item) => item.isActive && (item.question.trim() || item.answer.trim()),
+    ),
+    contentTables: payload.contentTables.filter(
+      (table) => table.title.trim() || table.rows.length,
+    ),
+    technicalTables: payload.technicalTables.filter(
+      (table) => table.tableTitle.trim() || table.rows.length,
+    ),
     documents: payload.documents
       .filter((doc) => doc.title.trim() || doc.mediaId)
       .map((doc) => ({
@@ -267,14 +351,25 @@ async function loadProductExtras(productId: string, row: typeof products.$inferS
   };
 }
 
-export async function buildPublishedContent(db: Db, target: PublishedTarget): Promise<PublishedContent | null> {
+export async function buildPublishedContent(
+  db: Db,
+  target: PublishedTarget,
+): Promise<PublishedContent | null> {
   const { kind, entityId } = target;
 
   if (kind === "page") {
-    const [row] = await db.select().from(pages).where(eq(pages.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
-    const hero = row.heroMediaId ? (await mediaItems([row.heroMediaId]))[0] : null;
-    const sections = await hydratePageSections(await loadPageSections(entityId));
+    const hero = row.heroMediaId
+      ? (await mediaItems([row.heroMediaId]))[0]
+      : null;
+    const sections = await hydratePageSections(
+      await loadPageSections(entityId),
+    );
     return {
       kind,
       path: row.path,
@@ -289,9 +384,15 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
   }
 
   if (kind === "post") {
-    const [row] = await db.select().from(posts).where(eq(posts.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
-    const cover = row.coverMediaId ? (await mediaItems([row.coverMediaId]))[0] : null;
+    const cover = row.coverMediaId
+      ? (await mediaItems([row.coverMediaId]))[0]
+      : null;
     return {
       kind,
       path: row.path,
@@ -301,18 +402,66 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
       body: row.body,
       summary: row.excerpt,
       cover,
-      meta: row.publishedAt ? { publishedAt: row.publishedAt.toISOString() } : undefined,
+      meta: row.publishedAt
+        ? { publishedAt: row.publishedAt.toISOString() }
+        : undefined,
     };
   }
 
   if (kind === "category") {
-    const [row] = await db.select().from(productCategories).where(eq(productCategories.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
     const image = row.imageId ? (await mediaItems([row.imageId]))[0] : null;
-    const childCategories = await db
-      .select({ id: productCategories.id, title: productCategories.title, path: productCategories.path, summary: productCategories.summary })
+    const childCategoryRows = await db
+      .select({
+        id: productCategories.id,
+        title: productCategories.title,
+        path: productCategories.path,
+        summary: productCategories.summary,
+        imageId: productCategories.imageId,
+        thumbnailId: productCategories.thumbnailId,
+      })
       .from(productCategories)
-      .where(and(eq(productCategories.parentId, row.id), eq(productCategories.status, "published")))
+      .where(
+        and(
+          eq(productCategories.parentId, row.id),
+          eq(productCategories.status, "published"),
+        ),
+      )
+      .orderBy(asc(productCategories.sortOrder), asc(productCategories.title));
+    const childMedia = await mediaItems(
+      childCategoryRows.flatMap((item) =>
+        item.thumbnailId || item.imageId
+          ? [item.thumbnailId || item.imageId!]
+          : [],
+      ),
+    );
+    const childMediaById = new Map(childMedia.map((item) => [item.id, item]));
+    const childCategories = childCategoryRows.map(
+      ({ imageId, thumbnailId, ...item }) => ({
+        ...item,
+        image: childMediaById.get(thumbnailId || imageId || "") ?? null,
+      }),
+    );
+    const filterCategories = await db
+      .select({
+        id: productCategories.id,
+        title: productCategories.title,
+        path: productCategories.path,
+      })
+      .from(productCategories)
+      .where(
+        and(
+          eq(productCategories.status, "published"),
+          row.parentId
+            ? eq(productCategories.parentId, row.parentId)
+            : isNull(productCategories.parentId),
+        ),
+      )
       .orderBy(asc(productCategories.sortOrder), asc(productCategories.title));
     return {
       kind,
@@ -325,24 +474,79 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
       image,
       childCategories,
       categoryProducts: await categoryProductCards(db, row.id),
+      filterCategories,
     };
   }
 
   if (kind === "product") {
-    const [row] = await db.select().from(products).where(eq(products.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
     const extras = await loadProductExtras(entityId, row);
-    const relatedIds = extras.relatedProductIds.filter((item) => item.relatedProductId !== entityId);
+    const relatedIds = extras.relatedProductIds.filter(
+      (item) => item.relatedProductId !== entityId,
+    );
     const relatedRows = relatedIds.length
       ? await db
-          .select({ id: products.id, title: products.title, path: products.path, summary: products.summary })
+          .select({
+            id: products.id,
+            title: products.title,
+            path: products.path,
+            summary: products.summary,
+          })
           .from(products)
-          .where(and(eq(products.status, "published"), inArray(products.id, relatedIds.map((r) => r.relatedProductId))))
+          .where(
+            and(
+              eq(products.status, "published"),
+              inArray(
+                products.id,
+                relatedIds.map((r) => r.relatedProductId),
+              ),
+            ),
+          )
       : [];
-    const relatedOrder = new Map(relatedIds.map((item, index) => [item.relatedProductId, index]));
-    const related = [...relatedRows].sort(
+    const relatedOrder = new Map(
+      relatedIds.map((item, index) => [item.relatedProductId, index]),
+    );
+    const relatedSorted = [...relatedRows].sort(
       (a, b) => (relatedOrder.get(a.id) ?? 0) - (relatedOrder.get(b.id) ?? 0),
     );
+    const relatedImages = relatedSorted.length
+      ? await db
+          .select({
+            productId: productImages.productId,
+            mediaId: media.id,
+            url: media.url,
+            alt: media.alt,
+          })
+          .from(productImages)
+          .innerJoin(media, eq(productImages.mediaId, media.id))
+          .where(
+            inArray(
+              productImages.productId,
+              relatedSorted.map((item) => item.id),
+            ),
+          )
+          .orderBy(asc(productImages.sortOrder))
+      : [];
+    const relatedImageByProduct = new Map<
+      string,
+      { url: string; alt: string }
+    >();
+    for (const image of relatedImages) {
+      if (!relatedImageByProduct.has(image.productId)) {
+        relatedImageByProduct.set(image.productId, {
+          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url }),
+          alt: image.alt ?? "",
+        });
+      }
+    }
+    const brochure = row.brochureMediaId
+      ? (await mediaItems([row.brochureMediaId]))[0]
+      : null;
     return {
       kind,
       path: row.path,
@@ -353,7 +557,16 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
       summary: row.summary,
       specs: extras.specs,
       gallery: extras.gallery,
-      related,
+      related: relatedSorted.map((item) => {
+        const image = relatedImageByProduct.get(item.id);
+        return {
+          ...item,
+          imageUrl: image?.url ?? null,
+          imageAlt: image?.alt || item.title,
+        };
+      }),
+      brochureUrl: brochure ? mediaDeliveryUrl(brochure) : null,
+      enquiryEnabled: row.enquiryEnabled,
       sections: extras.sections,
       detailBlocks: extras.detailBlocks,
       features: extras.features,
@@ -366,7 +579,11 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
   }
 
   if (kind === "location") {
-    const [row] = await db.select().from(locationPages).where(eq(locationPages.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(locationPages)
+      .where(eq(locationPages.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
     return {
       kind,
@@ -380,7 +597,11 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
   }
 
   if (kind === "export") {
-    const [row] = await db.select().from(exportPages).where(eq(exportPages.id, entityId)).limit(1);
+    const [row] = await db
+      .select()
+      .from(exportPages)
+      .where(eq(exportPages.id, entityId))
+      .limit(1);
     if (!row || row.status !== "published") return null;
     return {
       kind,
@@ -396,7 +617,9 @@ export async function buildPublishedContent(db: Db, target: PublishedTarget): Pr
   return null;
 }
 
-export async function resolvePublishedContentByPath(path: string): Promise<PublishedContent | null> {
+export async function resolvePublishedContentByPath(
+  path: string,
+): Promise<PublishedContent | null> {
   const db = getDb();
   const target = await findPublishedTarget(db, path);
   if (!target) return null;

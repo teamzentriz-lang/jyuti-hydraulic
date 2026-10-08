@@ -35,7 +35,7 @@ const groups = [
       { href: "/admin/posts", label: "Blog posts" },
       { href: "/admin/blog-categories", label: "Blog categories" },
       { href: "/admin/blog-tags", label: "Blog tags" },
-      { href: "/admin/gallery", label: "Gallery (legacy)" },
+      { href: "/admin/gallery", label: "Gallery photos" },
       { href: "/admin/gallery-albums", label: "Gallery albums" },
       { href: "/admin/certificates", label: "Certificates" },
       { href: "/admin/catalogues", label: "Catalogues" },

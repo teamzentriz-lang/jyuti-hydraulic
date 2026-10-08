@@ -1,50 +1,80 @@
 import type { Metadata } from "next";
-import { CmsMedia } from "@/components/site/cms-media";
-import { CmsPageIntro } from "@/components/site/cms-page-intro";
+import { AboutReveal } from "@/components/site/about-reveal";
 import { contentMetadata } from "@/components/site/content-view";
+import { GalleryGrid, type GalleryCard } from "@/components/site/gallery-grid";
 import { galleryForSite, getSettings } from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
+import { isVideoMimeType } from "@/lib/media-upload";
+import { mediaDeliveryUrl } from "@/lib/media-url";
+import { siteOrigin } from "@/lib/paths";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("gallery");
-  if (content) {
-    const site = await getSite();
-    return contentMetadata(content, site.settings.companyName);
-  }
-  const settings = await getSettings();
-  return { title: `Gallery | ${settings.companyName}` };
+  if (content)
+    return contentMetadata(content, (await getSite()).settings.companyName);
+  return {
+    title: `Gallery | ${(await getSettings()).companyName}`,
+    alternates: { canonical: `${siteOrigin()}/gallery/` },
+  };
 }
 
 export default async function GalleryPage() {
-  const [items, cmsPage] = await Promise.all([galleryForSite(), resolvePublishedContentByPath("gallery")]);
+  const [items, page] = await Promise.all([
+    galleryForSite(),
+    resolvePublishedContentByPath("gallery"),
+  ]);
+  const rawSummary = page?.summary?.trim() ?? "";
+  const summary =
+    rawSummary.length > 40 && rawSummary.length < 180 && /[.!?]/.test(rawSummary)
+      ? rawSummary
+      : "A closer look at our manufacturing capabilities, hydraulic systems, installations and engineering work.";
+  const cards: GalleryCard[] = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    caption: item.caption,
+    src: item.media ? mediaDeliveryUrl(item.media) : null,
+    kind: !item.media ? "empty" : isVideoMimeType(item.media.mimeType) ? "video" : "image",
+  }));
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-16">
-      <CmsPageIntro content={cmsPage} />
-      {!cmsPage ? (
-        <>
-          <h1 className="text-4xl font-semibold text-navy">Gallery</h1>
-          <p className="mt-3 text-muted">Photos and videos from the shop floor and installations.</p>
-        </>
-      ) : null}
-      {items.length ? (
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <li key={item.id} className="overflow-hidden rounded-lg border border-line bg-white">
-              {item.media ? (
-                <CmsMedia item={item.media} alt={item.title} className="aspect-[4/3] w-full object-cover" />
-              ) : null}
-              <div className="p-3">
-                <p className="font-semibold text-navy">{item.title || "Gallery item"}</p>
-                {item.caption ? <p className="mt-1 text-sm text-muted">{item.caption}</p> : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-10 text-sm text-muted">No gallery items yet. Add photos or videos under Gallery in the admin.</p>
-      )}
+    <main className="listing-page gallery-page motion-page">
+      <AboutReveal />
+      <div className="site-page-banner">
+        <div className="site-container page-banner-inner">
+          <p className="page-kicker about-in">Inside Jyoti Hydraulic</p>
+          <h1 className="about-in" style={{ animationDelay: "80ms" }}>
+            {page?.title || "Our Work in Action"}
+          </h1>
+          <p className="about-in" style={{ animationDelay: "160ms" }}>
+            {summary}
+          </p>
+        </div>
+      </div>
+      <div className="site-container media-library">
+        <div className="media-library__heading about-in">
+          <div>
+            <p className="section-label">Manufacturing &amp; installations</p>
+            <h2>Built with Precision. Proven in Industry.</h2>
+          </div>
+          <p>
+            Every image represents the people, processes and engineering behind
+            our hydraulic solutions.
+          </p>
+        </div>
+        {cards.length ? (
+          <GalleryGrid items={cards} />
+        ) : (
+          <div className="cms-empty-state">
+            <span>Gallery</span>
+            <h2>Your project gallery is ready</h2>
+            <p>
+              Add images or videos from Admin → Gallery. They will automatically
+              appear in this professional layout.
+            </p>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

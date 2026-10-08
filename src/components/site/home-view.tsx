@@ -1,235 +1,334 @@
-import Link from "next/link";
-import { CmsImage } from "@/components/site/cms-image";
-import { ProductCard } from "@/components/site/product-card";
-import { RichTextHtml } from "@/components/site/rich-text-html";
-import {
-  featuredProductsForHome,
-  getHome,
-  homePageCategoryShowcases,
-  mediaItems,
-  publishedPosts,
-} from "@/lib/cms/queries";
-import { publicPath } from "@/lib/paths";
-
-function SectionTitle({ children, as = "h2" }: { children: React.ReactNode; as?: "h1" | "h2" }) {
-  const Tag = as;
-  return (
-    <Tag className="relative pl-4 text-2xl font-bold uppercase tracking-tight text-navy before:absolute before:left-0 before:top-1 before:h-[calc(100%-0.25rem)] before:w-1 before:bg-signal md:text-3xl">
-      {children}
-    </Tag>
-  );
-}
-
-export async function HomeView() {
-  const home = await getHome();
-  const mediaIds = [...home.heroMediaIds, ...(home.aboutMediaId ? [home.aboutMediaId] : [])];
-  const pillars = home.aboutPillars?.length ? home.aboutPillars : [];
-  const [media, featured, showcases, posts] = await Promise.all([
-    mediaItems(mediaIds),
-    featuredProductsForHome(home.featuredProductIds),
-    homePageCategoryShowcases(home.showcaseCategoryPaths ?? [], 6, 3),
-    publishedPosts(3),
-  ]);
-  const mediaById = new Map(media.map((item) => [item.id, item]));
-  const heroImages = home.heroMediaIds.flatMap((id) => {
-    const item = mediaById.get(id);
-    return item ? [item] : [];
-  });
-  const aboutImage = home.aboutMediaId ? mediaById.get(home.aboutMediaId) : undefined;
-  const aboutIntro = home.aboutBody.trim() ? home.aboutBody : home.heroSubcopy ? `<p>${home.heroSubcopy}</p>` : "";
-
-  return (
-    <main>
-      <section className="border-b border-line bg-paper">
-        <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6 lg:py-20">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-            <div>
-              {home.heroEyebrow ? (
-                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-signal">{home.heroEyebrow}</p>
-              ) : null}
-              <h1 className="mt-3 text-3xl font-bold tracking-tight text-navy lg:text-4xl">
-                {home.heroHeadline || home.aboutTitle}
-              </h1>
-              {aboutIntro ? (
-                <RichTextHtml html={aboutIntro} className="rich-text mt-5 max-w-xl text-base leading-8 text-muted" />
-              ) : null}
-              <Link
-                href="/about-us/"
-                className="site-btn-primary mt-8 inline-flex"
-              >
-                Read more
-              </Link>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {heroImages.length ? (
-                heroImages.map((image) => (
-                  <CmsImage
-                    key={image.id}
-                    item={image}
-                    alt={home.heroHeadline}
-                    className="aspect-[4/3] w-full rounded-sm border border-line object-cover shadow-sm"
-                  />
-                ))
-              ) : aboutImage ? (
-                <CmsImage
-                  item={aboutImage}
-                  alt={home.aboutTitle}
-                  className="col-span-2 aspect-[16/9] w-full rounded-sm border border-line object-cover"
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src="/placeholders/product.svg"
-                  alt=""
-                  className="col-span-2 aspect-[16/9] w-full rounded-sm border border-line object-cover"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {pillars.length ? (
-        <section className="border-b border-line bg-white">
-          <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6">
-            <ul className="grid gap-6 md:grid-cols-3">
-              {pillars.map((item, index) => (
-                <li key={item.title} className="group relative border border-line bg-paper p-6 pt-8">
-                  <span className="absolute -top-4 left-6 flex h-10 w-10 items-center justify-center rounded-full bg-signal text-sm font-bold text-white">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="text-lg font-bold text-navy">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted">{item.body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-
-      {showcases.map((section, sectionIndex) => (
-        <section
-          key={section.id}
-          className={`border-b border-line ${sectionIndex % 2 === 0 ? "bg-white" : "bg-paper"}`}
-        >
-          <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6">
-            <SectionTitle as="h2">{section.title}</SectionTitle>
-            {section.products.length ? (
-              <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {section.products.map((product) => (
-                  <li key={product.id}>
-                    <ProductCard
-                      title={product.title}
-                      path={product.path}
-                      summary={product.summary}
-                      imageUrl={product.imageUrl}
-                      imageAlt={product.imageAlt}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-8 text-sm text-muted">
-                No products in this category yet. Add categories in the CMS or run npm run db:seed-structure.
-              </p>
-            )}
-          </div>
-        </section>
-      ))}
-
-      {featured.length ? (
-        <section className="border-b border-line bg-paper">
-          <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6">
-            <SectionTitle>Featured products</SectionTitle>
-            <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((product) => (
-                <li key={product.id}>
-                  <ProductCard
-                    title={product.title}
-                    path={product.path}
-                    summary={product.summary}
-                    imageUrl={product.imageUrl}
-                    imageAlt={product.imageAlt}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-
-      {home.whyChooseUs.length ? (
-        <section className="border-b border-line bg-navy text-white">
-          <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-signal">Why choose us</p>
-            {home.whyChooseTitle ? (
-              <h2 className="mt-2 max-w-3xl text-2xl font-bold md:text-3xl">{home.whyChooseTitle}</h2>
-            ) : null}
-            {home.whyChooseIntro ? (
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-white/85">{home.whyChooseIntro}</p>
-            ) : null}
-            <ul className="mt-10 grid gap-6 md:grid-cols-3">
-              {home.whyChooseUs.map((item, index) => (
-                <li key={`${item.title}-${index}`} className="border border-white/15 bg-white/5 p-5">
-                  <h3 className="font-semibold">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-white/85">{item.body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-
-      {(home.visionBody || home.missionBody) && (
-        <section className="border-b border-line bg-white">
-          <div className="mx-auto grid max-w-[1200px] gap-8 px-4 py-14 lg:grid-cols-2 lg:px-6">
-            <div className="border border-line bg-paper p-6">
-              <h2 className="text-lg font-bold uppercase text-navy">{home.visionTitle}</h2>
-              <p className="mt-3 text-sm leading-7 text-muted">{home.visionBody}</p>
-            </div>
-            <div className="border border-line bg-paper p-6">
-              <h2 className="text-lg font-bold uppercase text-navy">{home.missionTitle}</h2>
-              <p className="mt-3 text-sm leading-7 text-muted">{home.missionBody}</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {posts.length ? (
-        <section className="bg-paper">
-          <div className="mx-auto max-w-[1200px] px-4 py-14 lg:px-6">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionTitle>Our blogs</SectionTitle>
-              <Link href="/blogs/" className="text-sm font-semibold text-signal hover:underline">
-                View all posts
-              </Link>
-            </div>
-            <ul className="mt-10 grid gap-6 md:grid-cols-3">
-              {posts.map((post) => (
-                <li key={post.id} className="border border-line bg-white p-5 shadow-sm">
-                  {post.publishedAt ? (
-                    <time className="text-xs font-semibold uppercase tracking-wide text-muted">
-                      {post.publishedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                    </time>
-                  ) : null}
-                  <h3 className="mt-2 text-lg font-semibold text-navy">
-                    <Link href={publicPath(post.path)} className="hover:text-signal hover:underline">
-                      {post.title}
-                    </Link>
-                  </h3>
-                  {post.excerpt ? <p className="mt-2 text-sm leading-6 text-muted">{post.excerpt}</p> : null}
-                  <Link
-                    href={publicPath(post.path)}
-                    className="mt-4 inline-block text-sm font-semibold text-signal hover:underline"
-                  >
-                    Read more
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-    </main>
-  );
-}
+import Link from "next/link";
+import { AboutReveal } from "@/components/site/about-reveal";
+import { CmsImage } from "@/components/site/cms-image";
+import { CountUp } from "@/components/site/count-up";
+import { ProductCard } from "@/components/site/product-card";
+import {
+  featuredProductsForHome,
+  getHome,
+  homePageCategoryShowcases,
+  mediaItems,
+  publishedPosts,
+} from "@/lib/cms/queries";
+import { publicPath } from "@/lib/paths";
+
+const Arrow = () => <span aria-hidden>→</span>;
+
+function plainExcerpt(html: string, max = 220) {
+  const plain = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/this is placeholder copy for layout preview\.?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return "";
+  if (plain.length <= max) return plain;
+  const cut = plain.slice(0, max);
+  const stop = cut.lastIndexOf(". ");
+  return stop > 70 ? cut.slice(0, stop + 1) : `${cut.trim()}…`;
+}
+
+function LineIcon({
+  type,
+}: {
+  type: "quality" | "custom" | "supply" | "support" | "trusted";
+}) {
+  const paths = {
+    quality: (
+      <path d="M12 2l2.2 2.2 3.1-.1.7 3 2.3 2-1.3 2.8.8 3-2.7 1.6-.9 3-3.1-.4L12 22l-2.2-2.2-3.1.4-.9-3-2.7-1.6.8-3-1.3-2.8 2.3-2 .7-3 3.1.1L12 2zm-3 10l2 2 4-4" />
+    ),
+    custom: (
+      <path d="M9.5 4.5l2 2-5 5-2-2 5-5zm5 8l5 5-2 2-5-5M13 3l2 2-3 3-2-2 3-3zM5 13l2 2-3 6-1-1 2-7z" />
+    ),
+    supply: (
+      <>
+        <path d="M12 21s7-5.1 7-12A7 7 0 105 9c0 6.9 7 12 7 12z" />
+        <circle cx="12" cy="9" r="2.3" />
+      </>
+    ),
+    support: (
+      <>
+        <path d="M4 13v-2a8 8 0 0116 0v2M4 13h3v6H5a2 2 0 01-2-2v-2a2 2 0 012-2zm16 0h-3v6h2a2 2 0 002-2v-2a2 2 0 00-2-2zM17 19c-1 2-3 2-5 2" />
+      </>
+    ),
+    trusted: (
+      <>
+        <path d="M12 3l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 15.8 7.2 17.6l.9-5.3L4.3 8.6l5.3-.8L12 3z" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {paths[type]}
+    </svg>
+  );
+}
+
+export async function HomeView() {
+  const home = await getHome();
+  const mediaIds = [
+    ...home.heroMediaIds,
+    ...(home.aboutMediaId ? [home.aboutMediaId] : []),
+  ];
+  const [media, featured, showcases, posts] = await Promise.all([
+    mediaItems(mediaIds),
+    featuredProductsForHome(home.featuredProductIds),
+    homePageCategoryShowcases(home.showcaseCategoryPaths ?? [], 6, 3),
+    publishedPosts(3),
+  ]);
+  const mediaById = new Map(media.map((item) => [item.id, item]));
+  const heroImages = home.heroMediaIds.flatMap((id) =>
+    mediaById.get(id) ? [mediaById.get(id)!] : [],
+  );
+  const heroImage =
+    heroImages[0] ??
+    (home.aboutMediaId ? mediaById.get(home.aboutMediaId) : undefined);
+  const aboutImage = home.aboutMediaId
+    ? mediaById.get(home.aboutMediaId)
+    : heroImages[1];
+  const products = showcases
+    .flatMap((section) => section.products)
+    .filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i)
+    .slice(0, 8);
+  const displayProducts = products.length ? products : featured.slice(0, 8);
+  const intro = plainExcerpt(home.heroSubcopy.trim() || home.aboutBody);
+  const strengths = [
+    ["quality", "High Quality", "Manufacturing"],
+    ["custom", "Custom-Built", "Solutions"],
+    ["supply", "Pan India", "Supply"],
+    ["support", "Technical", "Support"],
+    ["trusted", "Trusted by", "Industries"],
+  ] as const;
+
+  const stats = [
+    ["20+", "Years of Experience"],
+    ["1000+", "Products Delivered"],
+    ["500+", "Happy Clients"],
+    ["Pan India", "Supply Network"],
+  ] as const;
+
+  return (
+    <main className="home-page motion-page">
+      <AboutReveal />
+      <section className="hero-industrial">
+        {heroImage ? (
+          <CmsImage
+            item={heroImage}
+            alt=""
+            className="hero-industrial__image about-photo"
+          />
+        ) : null}
+        <div className="hero-industrial__shade" />
+        <div className="site-container hero-industrial__content">
+          <div className="hero-copy">
+            <p className="eyebrow about-rule">
+              {home.heroEyebrow || "Industrial hydraulic solutions"}
+            </p>
+            <h1 className="about-in" style={{ animationDelay: "80ms" }}>
+              {home.heroHeadline ||
+                "Engineered for power. Built for your industry."}
+            </h1>
+            {intro ? (
+              <p className="hero-intro about-in" style={{ animationDelay: "160ms" }}>
+                {intro}
+              </p>
+            ) : null}
+            <div className="hero-actions about-in" style={{ animationDelay: "240ms" }}>
+              <Link href="/products/" className="site-btn-primary">
+                Explore products <Arrow />
+              </Link>
+              <Link href="/contact/" className="site-btn-ghost">
+                Request a quote
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section className="trust-strip" aria-label="Company strengths">
+        <div className="site-container trust-grid">
+          {strengths.map(([type, title, caption], index) => (
+            <div
+              className="trust-item about-check"
+              key={title}
+              style={{ animationDelay: `${index * 70}ms` }}
+            >
+              <span className="trust-icon">
+                <LineIcon type={type} />
+              </span>
+              <span>
+                <b>{title}</b>
+                <small>{caption}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+      {displayProducts.length ? (
+        <section className="section-shell products-section">
+          <div className="site-container">
+            <div className="section-heading about-in">
+              <div>
+                <p className="eyebrow dark">Built for demanding applications</p>
+                <h2>Our Product Range</h2>
+                <p>
+                  Explore dependable hydraulic solutions engineered for
+                  performance, safety and long service life.
+                </p>
+              </div>
+              <Link href="/products/" className="site-btn-outline">
+                View all products <Arrow />
+              </Link>
+            </div>
+            <ul className="product-grid">
+              {displayProducts.map((product, index) => (
+                <li
+                  key={product.id}
+                  className="about-tile"
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
+                  <ProductCard {...product} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+      <section className="custom-band">
+        {aboutImage ? (
+          <CmsImage
+            item={aboutImage}
+            alt="Hydraulic engineering"
+            className="custom-band__image about-photo"
+          />
+        ) : null}
+        <div className="site-container custom-band__inner">
+          <div className="custom-band__panel about-in">
+            <p className="eyebrow">Made around your application</p>
+            <h2>Custom Hydraulic Solutions for Every Industry</h2>
+            <p>
+              From standard power packs to fully customized systems, our team
+              designs and manufactures equipment that meets your exact
+              requirements.
+            </p>
+            <Link href="/contact/" className="site-btn-primary">
+              Get a custom solution <Arrow />
+            </Link>
+          </div>
+        </div>
+      </section>
+      <section className="stats-strip">
+        <div className="site-container stats-grid">
+          {stats.map(([value, label], index) => (
+            <div key={label} className="about-in" style={{ animationDelay: `${index * 90}ms` }}>
+              <CountUp value={value} as="strong" />
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+      {home.whyChooseUs.length || home.visionBody || home.missionBody ? (
+        <section className="section-shell why-section">
+          <div className="site-container">
+            <div className="section-heading centered about-in">
+              <div>
+                <p className="eyebrow dark">The Jyoti advantage</p>
+                <h2>{home.whyChooseTitle || "Why Choose Us?"}</h2>
+                <p>{home.whyChooseIntro}</p>
+              </div>
+            </div>
+            <ul className="why-grid">
+              {(home.whyChooseUs.length
+                ? home.whyChooseUs
+                : [
+                    { title: home.visionTitle, body: home.visionBody },
+                    { title: home.missionTitle, body: home.missionBody },
+                  ]
+              ).map((item, index) => (
+                <li
+                  key={`${item.title}-${index}`}
+                  className="about-slide"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
+                  <CountUp value={String(index + 1)} pad={2} />
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+      {posts.length ? (
+        <section className="section-shell insights-section">
+          <div className="site-container">
+            <div className="section-heading about-in">
+              <div>
+                <p className="eyebrow dark">Knowledge centre</p>
+                <h2>Insights &amp; Articles</h2>
+                <p>
+                  Practical knowledge, product guidance and industry updates
+                  from our engineering team.
+                </p>
+              </div>
+              <form className="insights-search" action="/blogs/" method="get">
+                <input
+                  name="q"
+                  placeholder="Search articles..."
+                  aria-label="Search articles"
+                  suppressHydrationWarning
+                />
+              </form>
+            </div>
+            <ul className="insights-grid">
+              {posts.map((post, index) => (
+                <li key={post.id} className="about-tile" style={{ animationDelay: `${index * 80}ms` }}>
+                  <article>
+                    <Link
+                      href={publicPath(post.path)}
+                      className={`article-visual article-visual--${index + 1}`}
+                    >
+                      {post.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.coverUrl} alt="" />
+                      ) : (
+                        <span>Technical guide</span>
+                      )}
+                    </Link>
+                    <div className="article-body">
+                      {post.publishedAt ? (
+                        <time>
+                          {post.publishedAt.toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </time>
+                      ) : null}
+                      <h3>
+                        <Link href={publicPath(post.path)}>{post.title}</Link>
+                      </h3>
+                      {post.excerpt ? <p>{post.excerpt}</p> : null}
+                      <Link
+                        className="article-link"
+                        href={publicPath(post.path)}
+                      >
+                        Read more <Arrow />
+                      </Link>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+    </main>
+  );
+}

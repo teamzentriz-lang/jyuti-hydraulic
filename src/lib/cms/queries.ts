@@ -1,7 +1,20 @@
-import { and, asc, desc, eq, getTableColumns, ilike, inArray, isNotNull, or, sql, type AnyColumn } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  isNotNull,
+  or,
+  sql,
+  type AnyColumn,
+} from "drizzle-orm";
 import type { AnyPgTable } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { classifyDatabaseError, type DatabaseFailure } from "@/db/errors";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 import {
   blogCategories,
   blogTags,
@@ -32,7 +45,11 @@ import {
 } from "@/db/schema";
 import { brand, homeDefaults } from "@/lib/brand";
 import { loadProductPayload, loadPageSections } from "@/lib/cms/entity-data";
-import { type RelationName, type ResourceKey, resources } from "@/lib/cms/resources";
+import {
+  type RelationName,
+  type ResourceKey,
+  resources,
+} from "@/lib/cms/resources";
 
 export const tables = {
   pages,
@@ -68,15 +85,29 @@ export async function loadDatabase<T>(
 export async function ensureSingletons() {
   const db = getDb();
   await db.insert(siteSettings).values({ id: "default" }).onConflictDoNothing();
-  await db.insert(homeContent).values({ id: "default", ...homeDefaults }).onConflictDoNothing();
-  await db.insert(headerSettings).values({ id: "default" }).onConflictDoNothing();
-  await db.insert(footerSettings).values({ id: "default" }).onConflictDoNothing();
-  await db.insert(contactSettings).values({ id: "default" }).onConflictDoNothing();
+  await db
+    .insert(homeContent)
+    .values({ id: "default", ...homeDefaults })
+    .onConflictDoNothing();
+  await db
+    .insert(headerSettings)
+    .values({ id: "default" })
+    .onConflictDoNothing();
+  await db
+    .insert(footerSettings)
+    .values({ id: "default" })
+    .onConflictDoNothing();
+  await db
+    .insert(contactSettings)
+    .values({ id: "default" })
+    .onConflictDoNothing();
 }
 
 export async function countUsers() {
   const db = getDb();
-  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(users);
   return row?.count ?? 0;
 }
 
@@ -89,11 +120,17 @@ function serializeRow(row: Record<string, unknown>) {
   return out;
 }
 
-export async function listRecords(resource: ResourceKey, input: { q?: string; page?: number }) {
+export async function listRecords(
+  resource: ResourceKey,
+  input: { q?: string; page?: number },
+) {
   const config = resources[resource];
   const db = getDb();
   const table = tables[resource];
-  const columns = getTableColumns(table) as Record<string, AnyColumn | undefined>;
+  const columns = getTableColumns(table) as Record<
+    string,
+    AnyColumn | undefined
+  >;
   const pageSize = 20;
   const page = Math.max(1, input.page ?? 1);
   const q = input.q?.trim().replace(/[%_]/g, "") ?? "";
@@ -107,8 +144,10 @@ export async function listRecords(resource: ResourceKey, input: { q?: string; pa
     : undefined;
 
   const orderColumn = columns[config.orderBy.column];
-  if (!orderColumn) throw new Error(`Missing sort column ${config.orderBy.column}`);
-  const order = config.orderBy.direction === "asc" ? asc(orderColumn) : desc(orderColumn);
+  if (!orderColumn)
+    throw new Error(`Missing sort column ${config.orderBy.column}`);
+  const order =
+    config.orderBy.direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
   const [rows, countRows] = await Promise.all([
     db
@@ -118,7 +157,10 @@ export async function listRecords(resource: ResourceKey, input: { q?: string; pa
       .orderBy(order)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ count: sql<number>`count(*)::int` }).from(table).where(search),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(table)
+      .where(search),
   ]);
 
   return {
@@ -141,9 +183,13 @@ export async function getRecord(resource: ResourceKey, id: string) {
 
   if (resource === "products") {
     record.productPayload = await loadProductPayload(id);
-    record.galleryMediaIds = (record.productPayload as { galleryMediaIds: string[] }).galleryMediaIds;
+    record.galleryMediaIds = (
+      record.productPayload as { galleryMediaIds: string[] }
+    ).galleryMediaIds;
     record.relatedProductIds = (
-      record.productPayload as { relatedProducts: { relatedProductId: string }[] }
+      record.productPayload as {
+        relatedProducts: { relatedProductId: string }[];
+      }
     ).relatedProducts.map((item) => item.relatedProductId);
   }
 
@@ -158,7 +204,11 @@ export async function relationOptions(name: RelationName, excludeId?: string) {
   const db = getDb();
   if (name === "product-categories") {
     const rows = await db
-      .select({ id: productCategories.id, title: productCategories.title, path: productCategories.path })
+      .select({
+        id: productCategories.id,
+        title: productCategories.title,
+        path: productCategories.path,
+      })
       .from(productCategories)
       .orderBy(asc(productCategories.path))
       .limit(2000);
@@ -177,7 +227,11 @@ export async function relationOptions(name: RelationName, excludeId?: string) {
       .map((row) => ({ value: row.id, label: `${row.title}   /${row.path}/` }));
   }
   const rows = await db
-    .select({ id: navLinks.id, label: navLinks.label, location: navLinks.location })
+    .select({
+      id: navLinks.id,
+      label: navLinks.label,
+      location: navLinks.location,
+    })
     .from(navLinks)
     .orderBy(asc(navLinks.sortOrder))
     .limit(2000);
@@ -189,10 +243,18 @@ export async function relationOptions(name: RelationName, excludeId?: string) {
 export async function fieldsFor(resource: ResourceKey, currentId?: string) {
   const fields = [];
   for (const field of resources[resource].fields) {
-    if ((field.type === "relation" || field.type === "relationMany") && field.relation) {
+    if (
+      (field.type === "relation" || field.type === "relationMany") &&
+      field.relation
+    ) {
       const exclude =
-        field.name === "parentId" || field.name === "relatedProductIds" ? currentId : undefined;
-      fields.push({ ...field, options: await relationOptions(field.relation, exclude) });
+        field.name === "parentId" || field.name === "relatedProductIds"
+          ? currentId
+          : undefined;
+      fields.push({
+        ...field,
+        options: await relationOptions(field.relation, exclude),
+      });
     } else {
       fields.push(field);
     }
@@ -232,7 +294,11 @@ export async function mediaItems(ids: string[]) {
 export async function getSettings() {
   await ensureSingletons();
   const db = getDb();
-  const [row] = await db.select().from(siteSettings).where(eq(siteSettings.id, "default")).limit(1);
+  const [row] = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.id, "default"))
+    .limit(1);
   if (!row) throw new Error("Site settings are missing.");
   return row;
 }
@@ -240,10 +306,20 @@ export async function getSettings() {
 export async function getHome() {
   await ensureSingletons();
   const db = getDb();
-  const [row] = await db.select().from(homeContent).where(eq(homeContent.id, "default")).limit(1);
+  const [row] = await db
+    .select()
+    .from(homeContent)
+    .where(eq(homeContent.id, "default"))
+    .limit(1);
   if (!row) throw new Error("Home content is missing.");
-  const heroes = await db.select().from(homeHeroImages).orderBy(asc(homeHeroImages.sortOrder));
-  const featured = await db.select().from(homeFeaturedProducts).orderBy(asc(homeFeaturedProducts.sortOrder));
+  const heroes = await db
+    .select()
+    .from(homeHeroImages)
+    .orderBy(asc(homeHeroImages.sortOrder));
+  const featured = await db
+    .select()
+    .from(homeFeaturedProducts)
+    .orderBy(asc(homeFeaturedProducts.sortOrder));
   return {
     ...row,
     heroMediaIds: heroes.map((item) => item.mediaId),
@@ -260,28 +336,52 @@ export type FeaturedProductCard = {
   imageAlt: string;
 };
 
-export async function publishedPosts(limit = 6, wpImportedOnly = false) {
+export async function publishedPosts(
+  limit = 6,
+  wpImportedOnly = false,
+  query = "",
+) {
   const db = getDb();
   const conditions = [eq(posts.status, "published")];
   if (wpImportedOnly) conditions.push(isNotNull(posts.legacyId));
-  return db
+  const search = query.trim();
+  if (search) {
+    const pattern = `%${search}%`;
+    const match = or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern));
+    if (match) conditions.push(match);
+  }
+  const rows = await db
     .select({
       id: posts.id,
       title: posts.title,
       path: posts.path,
       excerpt: posts.excerpt,
       publishedAt: posts.publishedAt,
+      author: posts.author,
+      readingTime: posts.readingTime,
+      featured: posts.featured,
+      coverMediaId: posts.coverMediaId,
+      coverAlt: media.alt,
     })
     .from(posts)
+    .leftJoin(media, eq(posts.coverMediaId, media.id))
     .where(and(...conditions))
     .orderBy(desc(posts.publishedAt))
     .limit(limit);
+  return rows.map((row) => ({
+    ...row,
+    coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null,
+  }));
 }
 
 export async function getHeaderSettings() {
   await ensureSingletons();
   const db = getDb();
-  const [row] = await db.select().from(headerSettings).where(eq(headerSettings.id, "default")).limit(1);
+  const [row] = await db
+    .select()
+    .from(headerSettings)
+    .where(eq(headerSettings.id, "default"))
+    .limit(1);
   if (!row) throw new Error("Header settings are missing.");
   return row;
 }
@@ -289,7 +389,11 @@ export async function getHeaderSettings() {
 export async function getFooterSettings() {
   await ensureSingletons();
   const db = getDb();
-  const [row] = await db.select().from(footerSettings).where(eq(footerSettings.id, "default")).limit(1);
+  const [row] = await db
+    .select()
+    .from(footerSettings)
+    .where(eq(footerSettings.id, "default"))
+    .limit(1);
   if (!row) throw new Error("Footer settings are missing.");
   return row;
 }
@@ -297,7 +401,11 @@ export async function getFooterSettings() {
 export async function getContactSettings() {
   await ensureSingletons();
   const db = getDb();
-  const [row] = await db.select().from(contactSettings).where(eq(contactSettings.id, "default")).limit(1);
+  const [row] = await db
+    .select()
+    .from(contactSettings)
+    .where(eq(contactSettings.id, "default"))
+    .limit(1);
   if (!row) throw new Error("Contact settings are missing.");
   return row;
 }
@@ -308,22 +416,60 @@ export async function getCataloguePdfUrl(): Promise<string | null> {
   const [row] = await db
     .select({ documentId: catalogues.documentId })
     .from(catalogues)
-    .where(and(eq(catalogues.status, "published"), isNotNull(catalogues.documentId)))
+    .where(
+      and(eq(catalogues.status, "published"), isNotNull(catalogues.documentId)),
+    )
     .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
     .limit(1);
   if (row?.documentId) {
     const items = await mediaItems([row.documentId]);
     const file = items[0];
-    if (file?.url && file.mimeType === "application/pdf") return file.url;
+    if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
   }
 
   const settings = await getSettings();
   if (settings.catalogueId) {
     const items = await mediaItems([settings.catalogueId]);
     const file = items[0];
-    if (file?.url && file.mimeType === "application/pdf") return file.url;
+    if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
   }
   return null;
+}
+
+export async function cataloguesForSite(limit = 24) {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: catalogues.id,
+      title: catalogues.title,
+      description: catalogues.description,
+      coverImageId: catalogues.coverImageId,
+      documentId: catalogues.documentId,
+      version: catalogues.version,
+      language: catalogues.language,
+    })
+    .from(catalogues)
+    .where(eq(catalogues.status, "published"))
+    .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
+    .limit(limit);
+  const mediaRows = await mediaItems(
+    rows.flatMap((row) =>
+      [row.coverImageId, row.documentId].filter((id): id is string =>
+        Boolean(id),
+      ),
+    ),
+  );
+  const mediaById = new Map(mediaRows.map((item) => [item.id, item]));
+  return rows.map((row) => ({
+    ...row,
+    cover: row.coverImageId ? (mediaById.get(row.coverImageId) ?? null) : null,
+    documentUrl: row.documentId
+      ? (() => {
+          const file = mediaById.get(row.documentId);
+          return file ? mediaDeliveryUrl(file) : null;
+        })()
+      : null,
+  }));
 }
 
 export async function galleryForSite(limit = 48) {
@@ -373,7 +519,10 @@ export type CategoryShowcase = {
   products: FeaturedProductCard[];
 };
 
-export async function homeCategoryShowcases(categoryPaths: readonly string[], productsPerCategory = 6) {
+export async function homeCategoryShowcases(
+  categoryPaths: readonly string[],
+  productsPerCategory = 6,
+) {
   const db = getDb();
   if (!categoryPaths.length) return [] as CategoryShowcase[];
   const categories = await db
@@ -383,7 +532,12 @@ export async function homeCategoryShowcases(categoryPaths: readonly string[], pr
       path: productCategories.path,
     })
     .from(productCategories)
-    .where(and(eq(productCategories.status, "published"), inArray(productCategories.path, [...categoryPaths])));
+    .where(
+      and(
+        eq(productCategories.status, "published"),
+        inArray(productCategories.path, [...categoryPaths]),
+      ),
+    );
 
   const order = new Map(categoryPaths.map((path, index) => [path, index]));
   const sortedCategories = [...categories].sort(
@@ -400,7 +554,12 @@ export async function homeCategoryShowcases(categoryPaths: readonly string[], pr
         summary: products.summary,
       })
       .from(products)
-      .where(and(eq(products.categoryId, category.id), eq(products.status, "published")))
+      .where(
+        and(
+          eq(products.categoryId, category.id),
+          eq(products.status, "published"),
+        ),
+      )
       .orderBy(asc(products.sortOrder), asc(products.title))
       .limit(productsPerCategory);
 
@@ -412,7 +571,12 @@ export async function homeCategoryShowcases(categoryPaths: readonly string[], pr
       })
       .from(productImages)
       .innerJoin(media, eq(productImages.mediaId, media.id))
-      .where(inArray(productImages.productId, productRows.map((row) => row.id)))
+      .where(
+        inArray(
+          productImages.productId,
+          productRows.map((row) => row.id),
+        ),
+      )
       .orderBy(asc(productImages.sortOrder));
 
     const imageByProduct = new Map<string, { url: string; alt: string }>();
@@ -443,7 +607,10 @@ export async function homePageCategoryShowcases(
   productsPerCategory = 6,
   categoryLimit = 3,
 ) {
-  const migrated = await migratedCategoryShowcases(productsPerCategory, categoryLimit);
+  const migrated = await migratedCategoryShowcases(
+    productsPerCategory,
+    categoryLimit,
+  );
   if (migrated.length) return migrated;
 
   const paths = configuredPaths.filter(Boolean);
@@ -457,7 +624,10 @@ export async function homePageCategoryShowcases(
 }
 
 /** Product grids on the home page — only categories imported from WordPress (legacy_id set). */
-export async function migratedCategoryShowcases(productsPerCategory = 5, categoryLimit = 3) {
+export async function migratedCategoryShowcases(
+  productsPerCategory = 5,
+  categoryLimit = 3,
+) {
   const db = getDb();
   const categories = await db
     .select({
@@ -466,7 +636,12 @@ export async function migratedCategoryShowcases(productsPerCategory = 5, categor
       path: productCategories.path,
     })
     .from(productCategories)
-    .where(and(eq(productCategories.status, "published"), isNotNull(productCategories.legacyId)))
+    .where(
+      and(
+        eq(productCategories.status, "published"),
+        isNotNull(productCategories.legacyId),
+      ),
+    )
     .orderBy(asc(productCategories.sortOrder), asc(productCategories.title))
     .limit(categoryLimit);
 
@@ -499,7 +674,12 @@ export async function migratedCategoryShowcases(productsPerCategory = 5, categor
       })
       .from(productImages)
       .innerJoin(media, eq(productImages.mediaId, media.id))
-      .where(inArray(productImages.productId, productRows.map((row) => row.id)))
+      .where(
+        inArray(
+          productImages.productId,
+          productRows.map((row) => row.id),
+        ),
+      )
       .orderBy(asc(productImages.sortOrder));
 
     const imageByProduct = new Map<string, { url: string; alt: string }>();
@@ -556,7 +736,10 @@ export async function featuredProductsForHome(productIds: string[]) {
   const imageByProduct = new Map<string, { url: string; alt: string }>();
   for (const row of images) {
     if (!imageByProduct.has(row.productId)) {
-      imageByProduct.set(row.productId, { url: `/api/media/${row.mediaId}`, alt: row.alt ?? "" });
+      imageByProduct.set(row.productId, {
+        url: `/api/media/${row.mediaId}`,
+        alt: row.alt ?? "",
+      });
     }
   }
 
@@ -573,6 +756,148 @@ export async function featuredProductsForHome(productIds: string[]) {
       },
     ];
   });
+}
+
+export type CatalogueGroup = {
+  id: string;
+  title: string;
+  path: string;
+  summary: string;
+  imageUrl: string | null;
+  imageAlt: string;
+};
+
+export type CatalogueItem = CatalogueGroup & {
+  groupId: string;
+  kind: "category" | "product";
+};
+
+export async function catalogueListing() {
+  const db = getDb();
+  const categoryRows = await db
+    .select({
+      id: productCategories.id,
+      title: productCategories.title,
+      path: productCategories.path,
+      summary: productCategories.summary,
+      parentId: productCategories.parentId,
+      imageId: productCategories.imageId,
+      thumbnailId: productCategories.thumbnailId,
+    })
+    .from(productCategories)
+    .where(eq(productCategories.status, "published"))
+    .orderBy(asc(productCategories.sortOrder), asc(productCategories.title));
+
+  const categoryMedia = await mediaItems(
+    categoryRows.flatMap((row) =>
+      [row.thumbnailId, row.imageId].filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const categoryMediaById = new Map(categoryMedia.map((item) => [item.id, item]));
+  const categoryImage = (row: (typeof categoryRows)[number]) => {
+    const item =
+      (row.thumbnailId ? categoryMediaById.get(row.thumbnailId) : undefined) ??
+      (row.imageId ? categoryMediaById.get(row.imageId) : undefined);
+    return item
+      ? { url: mediaDeliveryUrl(item), alt: item.alt || row.title }
+      : { url: null, alt: row.title };
+  };
+
+  const parentOf = new Map(categoryRows.map((row) => [row.id, row.parentId]));
+  const rootOf = (id: string | null) => {
+    let current = id;
+    const seen = new Set<string>();
+    while (current && parentOf.get(current) && !seen.has(current)) {
+      seen.add(current);
+      current = parentOf.get(current) ?? null;
+    }
+    return current ?? "";
+  };
+
+  const topLevel = categoryRows.filter((row) => !row.parentId);
+  const groups = (topLevel.length ? topLevel : categoryRows).map((row) => {
+    const image = categoryImage(row);
+    return {
+      id: row.id,
+      title: row.title,
+      path: row.path,
+      summary: row.summary,
+      imageUrl: image.url,
+      imageAlt: image.alt,
+    };
+  });
+
+  const productRows = await db
+    .select({
+      id: products.id,
+      title: products.title,
+      path: products.path,
+      summary: products.summary,
+      categoryId: products.categoryId,
+    })
+    .from(products)
+    .where(eq(products.status, "published"))
+    .orderBy(asc(products.sortOrder), asc(products.title));
+
+  const productImageRows = productRows.length
+    ? await db
+        .select({
+          productId: productImages.productId,
+          mediaId: media.id,
+          url: media.url,
+          alt: media.alt,
+        })
+        .from(productImages)
+        .innerJoin(media, eq(productImages.mediaId, media.id))
+        .where(
+          inArray(
+            productImages.productId,
+            productRows.map((row) => row.id),
+          ),
+        )
+        .orderBy(asc(productImages.sortOrder))
+    : [];
+  const productImageById = new Map<string, { url: string; alt: string }>();
+  for (const row of productImageRows) {
+    if (!productImageById.has(row.productId)) {
+      productImageById.set(row.productId, {
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        alt: row.alt ?? "",
+      });
+    }
+  }
+
+  const childCategories: CatalogueItem[] = categoryRows
+    .filter((row) => row.parentId)
+    .map((row) => {
+      const image = categoryImage(row);
+      return {
+        id: row.id,
+        title: row.title,
+        path: row.path,
+        summary: row.summary,
+        imageUrl: image.url,
+        imageAlt: image.alt,
+        groupId: rootOf(row.id),
+        kind: "category" as const,
+      };
+    });
+
+  const productItems: CatalogueItem[] = productRows.map((row) => {
+    const image = productImageById.get(row.id);
+    return {
+      id: row.id,
+      title: row.title,
+      path: row.path,
+      summary: row.summary,
+      imageUrl: image?.url ?? null,
+      imageAlt: image?.alt || row.title,
+      groupId: rootOf(row.categoryId),
+      kind: "product" as const,
+    };
+  });
+
+  return { groups, items: [...childCategories, ...productItems] };
 }
 
 export async function dashboardSummary() {
@@ -601,12 +926,18 @@ export async function dashboardSummary() {
   const counts = Object.fromEntries(
     await Promise.all(
       pairs.map(async ([key, table]) => {
-        const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(table);
+        const [row] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(table);
         return [key, row?.count ?? 0] as const;
       }),
     ),
   ) as Record<(typeof pairs)[number][0], number>;
 
-  const recent = await db.select().from(inquiries).orderBy(desc(inquiries.createdAt)).limit(5);
+  const recent = await db
+    .select()
+    .from(inquiries)
+    .orderBy(desc(inquiries.createdAt))
+    .limit(5);
   return { counts, recent };
 }

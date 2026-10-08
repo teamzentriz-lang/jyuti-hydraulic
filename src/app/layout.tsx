@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import { getSettings } from "@/lib/cms/queries";
+import { siteOrigin } from "@/lib/paths";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -14,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   try {
     const settings = await getSettings();
     return {
+      metadataBase: new URL(siteOrigin()),
       title: {
         default: settings.companyName,
         template: `%s · ${settings.companyName}`,
@@ -22,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch {
     return {
+      metadataBase: new URL(siteOrigin()),
       title: { default: "Jyoti Hydraulic", template: "%s · Jyoti Hydraulic" },
       description: "Hydraulic machines and power packs manufactured in Faridabad, India.",
     };
