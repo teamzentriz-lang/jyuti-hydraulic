@@ -741,6 +741,9 @@ body {
   width: auto;
   max-width: 240px;
   object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 8px;
 }
 .site-footer__name {
   font-size: 1.25rem;
@@ -3751,8 +3754,8 @@ body {
   }
   .header-logo,
   .header-wordmark {
-    height: 46px;
-    max-width: 196px;
+    height: 48px;
+    max-width: 210px;
     font-size: 1rem;
   }
   .header-bar {

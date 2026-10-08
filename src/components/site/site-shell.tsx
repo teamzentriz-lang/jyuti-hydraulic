@@ -6,8 +6,6 @@ import { NewsletterForm } from "@/components/site/newsletter-form";
 import { SiteHeader } from "@/components/site/site-header";
 import { WhatsAppFloat } from "@/components/site/whatsapp-float";
 
-import { CmsImage } from "@/components/site/cms-image";
-
 import type { SiteContext } from "@/lib/cms/site";
 
 import { publicPath } from "@/lib/paths";
@@ -84,7 +82,6 @@ export function SiteShell({
     footer,
     logo,
     mobileLogo,
-    footerLogo,
     headerNav,
     footerNav,
   } = site;
@@ -173,15 +170,8 @@ export function SiteShell({
       <footer className="site-footer">
         <div className="site-container site-footer__main">
           <div className="site-footer__brand">
-            {footerLogo || logo ? (
-              <CmsImage
-                item={(footerLogo ?? logo)!}
-                alt={settings.companyName}
-                className="site-footer__logo"
-              />
-            ) : (
-              <p className="site-footer__name">{settings.companyName}</p>
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo.jpg" alt={settings.companyName} className="site-footer__logo" />
             <p>{footerBlurb}</p>
           </div>
 
