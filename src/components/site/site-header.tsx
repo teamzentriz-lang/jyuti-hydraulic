@@ -9,6 +9,8 @@ import type { NavItem } from "@/lib/cms/site";
 import { isProductsNavItem } from "@/lib/cms/product-nav";
 import { publicPath } from "@/lib/paths";
 
+import { cleanPublicTitle } from "@/lib/cms/clean-copy";
+
 function NavAnchor({
   item,
   className,
@@ -27,13 +29,13 @@ function NavAnchor({
         rel="noopener noreferrer"
         onClick={onClick}
       >
-        {item.label}
+        {cleanPublicTitle(item.label)}
       </a>
     );
   }
   return (
     <Link href={item.href} className={className} onClick={onClick}>
-      {item.label}
+      {cleanPublicTitle(item.label)}
     </Link>
   );
 }
@@ -339,7 +341,7 @@ export function SiteHeader({
     <header
       className={`z-30 border-b border-line bg-white text-navy shadow-sm ${sticky ? "sticky top-0" : ""}`}
     >
-      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:px-6">
+      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:flex-nowrap lg:px-6">
         <Link
           href="/"
           className="flex shrink-0 items-center gap-3"
@@ -358,8 +360,8 @@ export function SiteHeader({
           )}
         </Link>
 
-        <nav className="hidden flex-1 justify-center lg:flex" aria-label="Main">
-          <ul className="flex flex-wrap items-center justify-center gap-x-1 gap-y-2">
+        <nav className="hidden min-w-0 flex-1 justify-center lg:flex" aria-label="Main">
+          <ul className="flex flex-nowrap items-center justify-center gap-x-1">
             {nav.map((item) => (
               <li key={item.id} className="group relative">
                 <div className="inline-flex items-center gap-0.5 px-3 py-2">
@@ -375,7 +377,7 @@ export function SiteHeader({
           </ul>
         </nav>
 
-        <div className="hidden items-center gap-4 lg:flex">
+        <div className="hidden shrink-0 items-center gap-4 lg:flex">
           {phone ? (
             <a href={`tel:${phone.replace(/\s/g, "")}`} className="header-call">
               <span className="header-call__icon" aria-hidden>
@@ -392,10 +394,7 @@ export function SiteHeader({
               </span>
             </a>
           ) : null}
-          <Link
-            href={publicPath(quoteHref)}
-            className="rounded-md bg-signal px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#e45a0a]"
-          >
+          <Link href={publicPath(quoteHref)} className="header-quote">
             {quoteLabel}
           </Link>
         </div>

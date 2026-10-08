@@ -29,9 +29,50 @@ export function cleanPublicExcerpt(input: string, max = 280) {
       break;
     }
   }
-  const sentences = text.split(/(?<=[.!?])\s+/).filter((part) => part.length > 24);
-  const lead = (sentences.slice(0, 2).join(" ") || text).trim();
+  text = text
+    .replace(/^.{0,160}?\bmanufacturers?(?:\s+in\s+india)?\s*,\s*/i, "")
+    .replace(/^.{0,160}?\bmanufacturers?(?:\s+in\s+india)?\s+(?:are|is)\b[^.?!]*[.?!]\s*/i, "")
+    .replace(/^(?:offering)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[,.;:\-–—]+\s*/, "")
+    .trim();
+  const boast =
+    /\b(sought after|leading manufacturer|benchmark|decades of experience|strong reputation|unwavering commitment)\b/i;
+  const application =
+    /\b(for|used|ideal|suitable|applications?|machines?|equipment|lifting|pressure|industrial)\b/i;
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 24 && !boast.test(part));
+  const useful = sentences.find((part) => application.test(part));
+  const ordered = useful ? [useful, ...sentences.filter((part) => part !== useful)] : sentences;
+  const count = max <= 180 ? 1 : 2;
+  let lead = (ordered.slice(0, count).join(" ") || text).trim();
+  if (lead) lead = lead.charAt(0).toUpperCase() + lead.slice(1);
   if (!lead) return "";
   if (lead.length <= max) return lead;
   return `${lead.slice(0, max).replace(/\s+\S*$/, "")}…`;
+}
+
+export function cleanPublicTitle(input: string) {
+  const text = input
+    .replace(/\s*[|–—-]\s*Jyoti Hydraulic\s*$/i, "")
+    .replace(/\s+price\s*$/i, "")
+    .replace(/\s+manufacturers?(?:\s+in\s+india)?\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text || input.trim();
+}
+
+export function cleanPublicBody(input: string) {
+  const text = input
+    .replace(/\S+/g, (word) => {
+      if (/[a-z][A-Z]/.test(word)) return "";
+      if (/[bcdfghjklmnpqrstvwxz]{5,}/i.test(word)) return "";
+      return word;
+    })
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.])/g, "$1")
+    .trim();
+  return text;
 }

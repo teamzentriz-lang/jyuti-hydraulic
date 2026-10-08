@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CmsImage } from "@/components/site/cms-image";
 import { RichTextHtml } from "@/components/site/rich-text-html";
-import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
+import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
 
 function formatDate(value: string | undefined) {
@@ -29,6 +29,7 @@ export function StoryView({ content }: { content: PublishedContent }) {
     content.meta?.country,
     content.meta?.productLine,
   ].filter((item): item is string => Boolean(item));
+  const title = cleanPublicTitle(content.title);
   const lead = cleanPublicExcerpt(content.summary ?? "", 320);
 
   return (
@@ -36,7 +37,7 @@ export function StoryView({ content }: { content: PublishedContent }) {
       <div className="site-page-banner">
         <div className="site-container page-banner-inner">
           <p className="page-kicker">{kicker}</p>
-          <h1>{content.title}</h1>
+          <h1>{title}</h1>
           {date ? <p className="story-page__date">{date}</p> : null}
           {lead ? <p>{lead}</p> : null}
           {chips.length ? (
@@ -65,7 +66,7 @@ export function StoryView({ content }: { content: PublishedContent }) {
             {isPost ? "All articles" : "Browse products"}
           </Link>
           <Link href="/contact/" className="site-btn-primary">
-            Enquire a Quote
+            Request a quote
           </Link>
         </div>
       </div>

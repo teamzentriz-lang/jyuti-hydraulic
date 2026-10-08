@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
+import { Breadcrumbs } from "@/components/site/breadcrumbs";
+import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import { publicPath } from "@/lib/paths";
 
 export type CatalogueCard = {
@@ -47,6 +48,7 @@ export function CatalogueBrowser({
   initialQuery = "",
   initialChip = "all",
   activeChip,
+  crumbs,
 }: {
   eyebrow?: string;
   title: string;
@@ -56,6 +58,7 @@ export function CatalogueBrowser({
   initialQuery?: string;
   initialChip?: string;
   activeChip?: string;
+  crumbs?: { href?: string; label: string }[];
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState(initialChip);
@@ -86,8 +89,9 @@ export function CatalogueBrowser({
       <div className="site-container catalogue-page__inner">
         <div className="catalogue-page__heading">
           <div>
+            {crumbs?.length ? <Breadcrumbs items={crumbs} /> : null}
             <p className="eyebrow dark">{eyebrow}</p>
-            <h1>{title}</h1>
+            <h1>{cleanPublicTitle(title)}</h1>
             {summary ? (
               <HeadingSummary text={cleanPublicExcerpt(summary, 320)} />
             ) : null}
@@ -119,7 +123,7 @@ export function CatalogueBrowser({
                   className={item.id === selected ? "is-active" : ""}
                   aria-current={item.id === selected ? "page" : undefined}
                 >
-                  {item.label}
+                  {cleanPublicTitle(item.label)}
                 </Link>
               ) : (
                 <button
@@ -129,7 +133,7 @@ export function CatalogueBrowser({
                   aria-pressed={item.id === selected}
                   onClick={() => setChip(item.id)}
                 >
-                  {item.label}
+                  {cleanPublicTitle(item.label)}
                 </button>
               ),
             )}
@@ -151,7 +155,7 @@ export function CatalogueBrowser({
                   </Link>
                   <div className="catalogue-card__body">
                     <h2>
-                      <Link href={publicPath(card.path)}>{card.title}</Link>
+                      <Link href={publicPath(card.path)}>{cleanPublicTitle(card.title)}</Link>
                     </h2>
                     {excerpt ? <p>{excerpt}</p> : null}
                     <Link href={publicPath(card.path)} className="catalogue-card__cta">

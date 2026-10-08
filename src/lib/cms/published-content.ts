@@ -114,6 +114,9 @@ export type PublishedContent = {
   contentTables?: PublishedContentTable[];
   technicalTables?: PublishedTechnicalTable[];
   documents?: PublishedDocument[];
+  parent?: { title: string; path: string } | null;
+  robotsIndex?: boolean;
+  robotsFollow?: boolean;
 };
 
 type PublishedTarget = { kind: RouteKind; entityId: string };
@@ -547,6 +550,13 @@ export async function buildPublishedContent(
     const brochure = row.brochureMediaId
       ? (await mediaItems([row.brochureMediaId]))[0]
       : null;
+    const [parentCategory] = row.categoryId
+      ? await db
+          .select({ title: productCategories.title, path: productCategories.path })
+          .from(productCategories)
+          .where(eq(productCategories.id, row.categoryId))
+          .limit(1)
+      : [];
     return {
       kind,
       path: row.path,
@@ -575,6 +585,9 @@ export async function buildPublishedContent(
       contentTables: extras.contentTables,
       technicalTables: extras.technicalTables,
       documents: extras.documents,
+      parent: parentCategory ?? null,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
     };
   }
 

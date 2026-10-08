@@ -46,6 +46,10 @@ export default async function ProductsPage({
 
   return (
     <CatalogueBrowser
+      crumbs={[
+        { href: "/", label: "Home" },
+        { label: "Products" },
+      ]}
       title="Our Products"
       summary="Discover our complete range of hydraulic products designed for various industrial applications."
       chips={chips}

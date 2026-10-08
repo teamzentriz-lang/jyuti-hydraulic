@@ -3,6 +3,7 @@ import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
 import { CountUp } from "@/components/site/count-up";
 import { ProductCard } from "@/components/site/product-card";
+import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
   featuredProductsForHome,
   getHome,
@@ -107,8 +108,12 @@ export async function HomeView() {
     ["trusted", "Trusted by", "Industries"],
   ] as const;
 
+  const heroFallback =
+    displayProducts.find((item) => item.imageUrl && /cylinder/i.test(item.title))?.imageUrl ??
+    displayProducts.find((item) => item.imageUrl && /power pack/i.test(item.title))?.imageUrl ??
+    null;
   const stats = [
-    ["20+", "Years of Experience"],
+    ["12+", "Years of Experience"],
     ["1000+", "Products Delivered"],
     ["500+", "Happy Clients"],
     ["Pan India", "Supply Network"],
@@ -124,6 +129,9 @@ export async function HomeView() {
             alt=""
             className="hero-industrial__image about-photo"
           />
+        ) : heroFallback ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={heroFallback} alt="" className="hero-industrial__image about-photo" />
         ) : null}
         <div className="hero-industrial__shade" />
         <div className="site-container hero-industrial__content">
@@ -258,7 +266,7 @@ export async function HomeView() {
                 >
                   <CountUp value={String(index + 1)} pad={2} />
                   <h3>{item.title}</h3>
-                  <p>{item.body}</p>
+                  <p>{cleanPublicBody(item.body)}</p>
                 </li>
               ))}
             </ul>
@@ -312,7 +320,7 @@ export async function HomeView() {
                         </time>
                       ) : null}
                       <h3>
-                        <Link href={publicPath(post.path)}>{post.title}</Link>
+                        <Link href={publicPath(post.path)}>{cleanPublicTitle(post.title)}</Link>
                       </h3>
                       {post.excerpt ? <p>{post.excerpt}</p> : null}
                       <Link
