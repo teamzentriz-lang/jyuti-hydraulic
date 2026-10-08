@@ -1,13 +1,13 @@
 import { cache } from "react";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { footerSettings, headerSettings, navLinks, redirects } from "@/db/schema";
+import { footerSettings, headerSettings, media, navLinks, redirects } from "@/db/schema";
+import { storageService } from "@/lib/storage";
 import {
   ensureSingletons,
   getFooterSettings,
   getHeaderSettings,
   getSettings,
-  mediaItems,
   type MediaItem,
 } from "@/lib/cms/queries";
 import {
@@ -76,6 +76,43 @@ function buildNavTree(
   return roots;
 }
 
+async function loadAvailableMedia(ids: string[]) {
+  const available = new Map<string, MediaItem>();
+  if (!ids.length) return available;
+  const rows = await getDb()
+    .select({
+      id: media.id,
+      url: media.url,
+      filename: media.filename,
+      alt: media.alt,
+      mimeType: media.mimeType,
+      storageKey: media.storageKey,
+      storageDriver: media.storageDriver,
+      legacyUrl: media.legacyUrl,
+    })
+    .from(media)
+    .where(inArray(media.id, ids));
+  for (const row of rows) {
+    const remote =
+      /^https?:\/\//i.test(row.url) || Boolean(row.legacyUrl && /^https?:\/\//i.test(row.legacyUrl));
+    let local = false;
+    try {
+      local = await storageService.exists(row.storageKey, row.storageDriver);
+    } catch {
+      local = false;
+    }
+    if (!local && !remote) continue;
+    available.set(row.id, {
+      id: row.id,
+      url: row.url,
+      filename: row.filename,
+      alt: row.alt,
+      mimeType: row.mimeType,
+    });
+  }
+  return available;
+}
+
 export const getSite = cache(async (): Promise<SiteContext> => {
   await ensureSingletons();
   const [settings, header, footer] = await Promise.all([getSettings(), getHeaderSettings(), getFooterSettings()]);
@@ -92,14 +129,13 @@ export const getSite = cache(async (): Promise<SiteContext> => {
     (id): id is string => Boolean(id),
   );
   const uniqueMediaIds = [...new Set(mediaIds)];
-  const media = uniqueMediaIds.length ? await mediaItems(uniqueMediaIds) : [];
-  const mediaById = new Map(media.map((item) => [item.id, item]));
+  const mediaById = await loadAvailableMedia(uniqueMediaIds);
   const siteLogo = settings.logoId ? mediaById.get(settings.logoId) : undefined;
   return {
     settings,
     header,
     footer,
-    logo: (header.logoId ? mediaById.get(header.logoId) : undefined) ?? siteLogo ?? null,
+    logo: header.logoId ? (mediaById.get(header.logoId) ?? null) : (siteLogo ?? null),
     mobileLogo: header.mobileLogoId ? (mediaById.get(header.mobileLogoId) ?? null) : null,
     footerLogo: footer.logoId ? (mediaById.get(footer.logoId) ?? null) : null,
     headerNav: mergeProductsNavChildren(headerNavTree, productsMenuNav),

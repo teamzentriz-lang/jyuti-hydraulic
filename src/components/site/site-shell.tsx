@@ -173,9 +173,9 @@ export function SiteShell({
       <footer className="site-footer">
         <div className="site-container site-footer__main">
           <div className="site-footer__brand">
-            {footerLogo ? (
+            {footerLogo || logo ? (
               <CmsImage
-                item={footerLogo}
+                item={(footerLogo ?? logo)!}
                 alt={settings.companyName}
                 className="site-footer__logo"
               />
