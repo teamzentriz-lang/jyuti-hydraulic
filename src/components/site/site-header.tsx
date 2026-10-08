@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { MediaItem } from "@/lib/cms/queries";
-import { mediaDeliveryUrl } from "@/lib/media-url";
 import type { NavItem } from "@/lib/cms/site";
 import { isProductsNavItem } from "@/lib/cms/product-nav";
 import { publicPath } from "@/lib/paths";
@@ -305,8 +304,6 @@ function TabIcon({ name }: { name: "home" | "grid" | "image" | "mail" | "menu" }
 
 export function SiteHeader({
   companyName,
-  logo,
-  mobileLogo,
   nav,
   phone,
   quoteLabel,
@@ -324,7 +321,6 @@ export function SiteHeader({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const brandLogo = logo ?? mobileLogo;
   const [logoFailed, setLogoFailed] = useState(false);
   const current = pathname.replace(/\/$/, "") || "/";
   const closeMenu = () => setOpen(false);
@@ -348,11 +344,11 @@ export function SiteHeader({
           className="flex shrink-0 items-center gap-3"
           onClick={() => setOpen(false)}
         >
-          {brandLogo && !logoFailed ? (
+          {!logoFailed ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={mediaDeliveryUrl(brandLogo)}
+                src="/brand/logo.jpg"
                 alt={companyName}
                 className="header-logo"
                 onError={() => setLogoFailed(true)}
