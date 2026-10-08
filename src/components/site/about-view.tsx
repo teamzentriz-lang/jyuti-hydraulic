@@ -91,7 +91,7 @@ export async function AboutView({ content }: { content: PublishedContent }) {
     <main className="about-page motion-page">
       <AboutReveal />
       <section className="bg-[#f3f4f6]">
-        <div className="site-container grid items-center gap-10 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
+        <div className="site-container grid items-center gap-8 py-10 md:grid-cols-[1.05fr_0.95fr] md:py-14 lg:gap-10 lg:py-20">
           <div>
             <p className="about-rule w-fit border-b-2 border-[#2f6fed] pb-1 text-sm font-semibold text-[#243044]">
               About Us
@@ -103,12 +103,12 @@ export async function AboutView({ content }: { content: PublishedContent }) {
               ) : null}
             </h1>
             {about.intro ? (
-              <p className="about-in mt-5 max-w-xl text-[15px] leading-7 text-[#5c6775]" style={{ animationDelay: "160ms" }}>
+              <p className="about-in mt-5 text-[15px] leading-7 text-[#5c6775] lg:max-w-xl" style={{ animationDelay: "160ms" }}>
                 {about.intro}
               </p>
             ) : null}
             {about.products.length ? (
-              <ul className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+              <ul className="mt-6 grid gap-y-3">
                 {about.products.map((name, index) => (
                   <li
                     key={name}
@@ -133,11 +133,11 @@ export async function AboutView({ content }: { content: PublishedContent }) {
               </ul>
             ) : null}
             <Link
-              href="/about-us/"
+              href="/products/"
               className="about-in mt-8 inline-block bg-[#0d3b78] px-7 py-3 text-[13px] font-bold uppercase tracking-[0.04em] text-white transition hover:bg-[#062747]"
               style={{ animationDelay: "480ms" }}
             >
-              Read More
+              View products
             </Link>
           </div>
           {about.welcomeImage ? (
@@ -156,7 +156,7 @@ export async function AboutView({ content }: { content: PublishedContent }) {
         <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
           <div className="about-in" style={{ animationDelay: "80ms" }}>
             <span className="about-rule mb-4 block h-[3px] w-12 bg-[#2456a6]" aria-hidden="true" />
-            <h3 className="max-w-md text-3xl font-semibold leading-tight text-[#2456a6]">{about.whyTitle}</h3>
+            <h3 className="text-3xl font-semibold leading-tight text-[#2456a6] lg:max-w-md">{about.whyTitle}</h3>
             <div className="mt-6 flex items-start gap-4">
               {about.whyImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -176,14 +176,14 @@ export async function AboutView({ content }: { content: PublishedContent }) {
       </section>
 
       {(about.vision || about.mission) && (
-        <section className="site-container grid gap-6 pb-16 lg:grid-cols-2">
+        <section className="site-container grid gap-4 pb-10 lg:grid-cols-2">
           {about.vision ? (
             <article className="about-statement" style={{ animationDelay: "40ms" }}>
               <span className="about-statement__slash about-statement__slash--top" aria-hidden="true" />
               <span className="about-statement__slash about-statement__slash--bottom" aria-hidden="true" />
               <div className="about-statement__body">
                 <span className="about-statement__icon">
-                  <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
                     <path
                       d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
                       fill="none"
@@ -193,8 +193,8 @@ export async function AboutView({ content }: { content: PublishedContent }) {
                     <circle cx="12" cy="12" r="2.6" fill="currentColor" />
                   </svg>
                 </span>
-                <h2 className="mt-8 text-2xl font-bold tracking-wide">VISION</h2>
-                <p className="mt-4 max-w-md text-sm leading-7 text-white/95">{about.vision}</p>
+                <h2 className="mt-3 text-xl font-bold tracking-wide">VISION</h2>
+                <p className="mt-2 text-sm leading-6 text-white/95">{about.vision}</p>
               </div>
             </article>
           ) : null}
@@ -204,14 +204,14 @@ export async function AboutView({ content }: { content: PublishedContent }) {
               <span className="about-statement__slash about-statement__slash--bottom" aria-hidden="true" />
               <div className="about-statement__body">
                 <span className="about-statement__icon">
-                  <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
                     <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
                     <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
                     <circle cx="12" cy="12" r="1" fill="currentColor" />
                   </svg>
                 </span>
-                <h2 className="mt-8 text-2xl font-bold tracking-wide">Mission</h2>
-                <p className="mt-4 max-w-md text-sm leading-7 text-white/95">{about.mission}</p>
+                <h2 className="mt-3 text-xl font-bold tracking-wide">Mission</h2>
+                <p className="mt-2 text-sm leading-6 text-white/95">{about.mission}</p>
               </div>
             </article>
           ) : null}
@@ -237,17 +237,17 @@ export async function AboutView({ content }: { content: PublishedContent }) {
       ) : null}
 
       {about.offers.length ? (
-        <section className="bg-gradient-to-b from-[#f0b429] via-[#c9b15a] to-[#3d8f86] py-16">
+        <section className="bg-gradient-to-b from-[#f0b429] via-[#c9b15a] to-[#3d8f86] py-8">
           <div className="site-container">
-            <h2 className="about-in text-center text-3xl font-semibold text-[#2456a6]">We Offer</h2>
-            <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <h2 className="about-in text-center text-2xl font-semibold text-[#2456a6]">We Offer</h2>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {about.offers.map((src, index) => (
                 <li key={src} className="about-offer" style={{ animationDelay: `${index * 80}ms` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={src}
                     alt={offerLabels[index] || "What we offer"}
-                    className="mx-auto h-auto w-full max-w-[280px] object-contain"
+                    className="mx-auto h-44 w-full object-contain sm:h-52"
                   />
                 </li>
               ))}

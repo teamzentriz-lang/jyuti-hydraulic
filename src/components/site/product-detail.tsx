@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { CmsImage } from "@/components/site/cms-image";
 import { ProductCard } from "@/components/site/product-card";
 import { ProductTabs } from "@/components/site/product-tabs";
 import { RichTextHtml } from "@/components/site/rich-text-html";
+import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
+import { getSettings } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
+import { mediaDeliveryUrl } from "@/lib/media-url";
+import { publicPath, siteOrigin } from "@/lib/paths";
 
 function normalizeCopy(html: string) {
   return textOf(html)
@@ -32,19 +37,9 @@ function dedupedHtml(parts: Array<string | undefined>) {
   return cleaned.filter((part) => kept.includes(part)).join("");
 }
 
-function shortLead(summary: string) {
-  const plain = summary
-    .replace(/inquiry now/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const repeated = plain.match(/^(.{20,}?)\s+\1(?:\s+|$)/);
-  const withoutRepeat = repeated ? plain.slice(repeated[1].length).trim() : plain;
-  const keyAt = withoutRepeat.search(/\bKey Features\b/i);
-  const source = keyAt > 80 ? withoutRepeat.slice(0, keyAt).trim() : withoutRepeat;
-  const sentences = source.split(/(?<=\.)\s+/).filter(Boolean);
-  const lead = (sentences.slice(0, 2).join(" ") || source).trim();
-  if (lead.length <= 420) return lead;
-  return `${lead.slice(0, 400).replace(/\s+\S*$/, "")}…`;
+function absoluteUrl(url: string) {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${siteOrigin()}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
 function readableArticle(html: string) {
@@ -137,7 +132,8 @@ function ArticleBlocks({ html, pageTitle }: { html: string; pageTitle: string })
   );
 }
 
-export function ProductDetail({ content }: { content: PublishedContent }) {
+export async function ProductDetail({ content }: { content: PublishedContent }) {
+  const settings = await getSettings();
   const image = content.gallery?.[0];
   const pills = (content.features ?? [])
     .map((item) => item.title.trim())
@@ -152,7 +148,22 @@ export function ProductDetail({ content }: { content: PublishedContent }) {
         .map((block) => `<h2>${block.heading}</h2>${block.html}`),
     ]),
   );
-  const lead = content.summary ? shortLead(content.summary) : "";
+  const lead = content.summary ? cleanPublicExcerpt(content.summary, 320) : "";
+  const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: cleanPublicTitle(content.title),
+    description: lead || undefined,
+    image: imageUrl,
+    url: `${siteOrigin()}${publicPath(content.path)}`,
+    brand: { "@type": "Brand", name: settings.companyName },
+    manufacturer: {
+      "@type": "Organization",
+      name: settings.companyName,
+      url: siteOrigin(),
+    },
+  };
   const applicationsHtml = readableArticle(
     dedupedHtml([
       content.detailBlocks?.find((block) => block.heading === "Applications")?.html,
@@ -298,22 +309,39 @@ export function ProductDetail({ content }: { content: PublishedContent }) {
       : null,
   ].filter((tab) => tab !== null);
 
-  const enquireHref = `/contact/?product=${encodeURIComponent(content.title)}`;
+  const title = cleanPublicTitle(content.title);
+  const enquireHref = `/contact/?product=${encodeURIComponent(title)}`;
 
   return (
     <main className="product-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="site-container product-page__hero">
         <div className="product-stage">
           {image ? (
-            <CmsImage item={image} alt={content.title} />
+            <CmsImage item={image} alt={title} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src="/placeholders/product.svg" alt="" />
+            <img src="/placeholders/product.svg" alt={title} />
           )}
         </div>
         <div className="product-summary">
+          <Breadcrumbs
+            items={[
+              { href: "/", label: "Home" },
+              { href: "/products/", label: "Products" },
+              ...(content.parent
+                ? [{ href: publicPath(content.parent.path), label: cleanPublicTitle(content.parent.title) }]
+                : []),
+              { label: title },
+            ]}
+          />
           <p className="eyebrow dark">Jyoti Hydraulic</p>
-          <h1>{content.title}</h1>
+          <h1>{title}</h1>
           {lead ? <p className="product-summary__lead">{lead}</p> : null}
           {pills.length ? (
             <ul className="feature-pills">
@@ -325,7 +353,7 @@ export function ProductDetail({ content }: { content: PublishedContent }) {
           <div className="product-summary__actions">
             {content.enquiryEnabled !== false ? (
               <Link href={enquireHref} className="site-btn-primary">
-                Enquire a Quote
+                Request a quote
               </Link>
             ) : null}
             {content.brochureUrl ? (

@@ -65,6 +65,11 @@ export function CategoryListing({ content }: { content: PublishedContent }) {
     <>
       <CatalogueBrowser
         eyebrow="Products"
+        crumbs={[
+          { href: "/", label: "Home" },
+          { href: "/products/", label: "Products" },
+          { label: content.title },
+        ]}
         title={content.title}
         summary={
           cleanPublicExcerpt(content.summary ?? "", 320) ||

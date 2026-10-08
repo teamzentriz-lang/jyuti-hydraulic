@@ -4,6 +4,7 @@ import { NavList } from "@/components/site/nav-list";
 
 import { NewsletterForm } from "@/components/site/newsletter-form";
 import { SiteHeader } from "@/components/site/site-header";
+import { WhatsAppFloat } from "@/components/site/whatsapp-float";
 
 import { CmsImage } from "@/components/site/cms-image";
 
@@ -138,10 +139,7 @@ export function SiteShell({
               ) : null}
             </p>
 
-            <Link
-              href={publicPath(quoteHref)}
-              className="font-semibold text-signal hover:underline"
-            >
+            <Link href={publicPath(quoteHref)} className="top-quote">
               {quoteLabel}
             </Link>
           </div>
@@ -168,36 +166,8 @@ export function SiteShell({
 
       {children}
 
-      {topPhone || settings.whatsapp ? (
-        <div className="float-actions">
-          {topPhone ? (
-            <a
-              className="float-actions__phone"
-              href={`tel:${topPhone.replace(/\s/g, "")}`}
-              aria-label={`Call ${topPhone}`}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M7.5 3.8c.4-.4 1-.5 1.5-.2l2.1 1.2c.5.3.8.9.7 1.5l-.4 2.2a1.4 1.4 0 0 1-.8 1l-1.2.6a9.6 9.6 0 0 0 4.8 4.8l.6-1.2c.2-.4.6-.7 1-.8l2.2-.4c.6-.1 1.2.2 1.5.7l1.2 2.1c.3.5.2 1.1-.2 1.5l-1.4 1.4c-.4.4-1 .6-1.6.5C10.2 18.4 5.6 13.8 4.3 7.4c-.1-.6.1-1.2.5-1.6L7.5 3.8Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </a>
-          ) : null}
-          {settings.whatsapp ? (
-            <a
-              className="float-actions__whatsapp"
-              href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="WhatsApp"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.41a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2Zm5.76 13.9c-.24.68-1.4 1.3-1.94 1.38-.5.07-1.12.1-1.81-.11-.41-.13-.95-.31-1.63-.6-2.87-1.24-4.74-4.13-4.88-4.32-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07 1-2.35.24-.25.64-.36.85-.36h.61c.2 0 .46-.07.72.55.27.64.91 2.22.99 2.38.08.16.13.35.03.56-.1.21-.15.34-.3.52-.15.18-.31.4-.45.54-.15.15-.3.31-.13.6.17.3.76 1.25 1.63 2.03 1.12 1 2.06 1.31 2.36 1.46.3.15.47.13.65-.08.18-.2.76-.88.96-1.18.2-.3.4-.25.67-.15.27.1 1.73.82 2.03.96.3.15.5.22.57.34.08.13.08.74-.16 1.42Z" />
-              </svg>
-            </a>
-          ) : null}
-        </div>
+      {settings.whatsapp ? (
+        <WhatsAppFloat href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}`} />
       ) : null}
 
       <footer className="site-footer">

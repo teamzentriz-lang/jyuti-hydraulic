@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import {
   submitInquiryAction,
@@ -19,7 +20,13 @@ export function QuoteForm({
   );
 
   if (state && "ok" in state && state.ok) {
-    return <p className="quote-success">{state.message}</p>;
+    return (
+      <div className="quote-success">
+        <p>{state.message}</p>
+        <p>We reply on the next working day. You can also call or email the details on this page.</p>
+        <Link href="/products/">Browse products</Link>
+      </div>
+    );
   }
 
   return (
@@ -58,7 +65,7 @@ export function QuoteForm({
       </label>
       {state && "error" in state ? <p className="quote-error">{state.error}</p> : null}
       <button className="site-btn-primary quote-form__wide sm:col-span-2" type="submit" disabled={pending}>
-        {pending ? "Sending..." : "Submit Enquiry"}
+        {pending ? "Sending..." : "Request a quote"}
       </button>
     </form>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { NavItem } from "@/lib/cms/site";
 
 function isExternal(href: string) {
@@ -26,13 +27,13 @@ function NavLink({
         target={item.openInNewTab ? "_blank" : undefined}
         rel="noopener noreferrer"
       >
-        {item.label}
+        {cleanPublicTitle(item.label)}
       </a>
     );
   }
   return (
     <Link href={item.href} className={className}>
-      {item.label}
+      {cleanPublicTitle(item.label)}
     </Link>
   );
 }

@@ -9,7 +9,9 @@ import { OpenPdfInNewTab } from "@/components/site/open-pdf-tab";
 import { PageSectionsView } from "@/components/site/page-sections-view";
 import { ProductCard } from "@/components/site/product-card";
 import { RichTextHtml } from "@/components/site/rich-text-html";
+import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
 import type { MediaItem } from "@/lib/cms/queries";
 
@@ -58,9 +60,9 @@ export function ContentView({
     <main className={`content-page content-page--${content.kind}`}>
       <div className="site-page-banner">
         <div className="site-container page-banner-inner">
-          <p className="page-kicker">Jyoti Hydraulic / {content.kind}</p>
+          <p className="page-kicker">Jyoti Hydraulic</p>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            {content.title}
+            {cleanPublicTitle(content.title)}
           </h1>
           {bannerSummary ? (
             <p className="mt-3 max-w-3xl text-base leading-7 text-white/85">
@@ -510,6 +512,11 @@ export function ContentView({
   );
 }
 
+function absoluteUrl(url: string) {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${siteOrigin()}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 export function contentMetadata(
   content: PublishedContent,
   companyName: string,
@@ -517,10 +524,23 @@ export function contentMetadata(
   const title = content.seoTitle || content.title;
   const description = content.seoDescription || content.summary || undefined;
   const url = `${siteOrigin()}${publicPath(content.path)}`;
+  const visual = content.gallery?.[0] ?? content.image ?? content.cover ?? content.hero ?? null;
+  const image = visual ? absoluteUrl(mediaDeliveryUrl(visual)) : undefined;
+  const robots =
+    content.robotsIndex === false || content.robotsFollow === false
+      ? { index: content.robotsIndex !== false, follow: content.robotsFollow !== false }
+      : undefined;
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, siteName: companyName, url },
+    robots,
+    openGraph: {
+      title,
+      description,
+      siteName: companyName,
+      url,
+      images: image ? [{ url: image }] : undefined,
+    },
   };
 }

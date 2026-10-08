@@ -1,8 +1,11 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { inquiries } from "@/db/schema";
+import { inquiries, products } from "@/db/schema";
+import { sendEnquiryEmail } from "@/lib/mail";
+import { getSettings } from "@/lib/cms/queries";
 
 export type InquiryState = { ok: true; message: string } | { error: string } | null;
 
@@ -56,6 +59,39 @@ export async function submitInquiryAction(
       });
   } catch {
     return { error: "We could not save your enquiry. Please call us or try again." };
+  }
+
+  try {
+    const settings = await getSettings();
+    const savedProductId = z.string().uuid().safeParse(productId).success ? productId : "";
+    const [product] = savedProductId
+      ? await getDb()
+          .select({ enquiryEmail: products.enquiryEmail })
+          .from(products)
+          .where(eq(products.id, savedProductId))
+          .limit(1)
+      : [];
+    const to = product?.enquiryEmail || settings.enquiryToEmail || settings.emailPrimary;
+    const lines = [
+      `Name: ${parsed.data.name}`,
+      `Email: ${parsed.data.email}`,
+      parsed.data.phone ? `Phone: ${parsed.data.phone}` : "",
+      parsed.data.company ? `Company: ${parsed.data.company}` : "",
+      parsed.data.subject ? `Product: ${parsed.data.subject}` : "",
+      parsed.data.pagePath ? `Page: ${parsed.data.pagePath}` : "",
+      "",
+      parsed.data.message,
+    ].filter((line) => line !== "");
+    await sendEnquiryEmail({
+      to,
+      replyTo: parsed.data.email,
+      subject: parsed.data.subject
+        ? `Quote enquiry: ${parsed.data.subject}`
+        : `Quote enquiry from ${parsed.data.name}`,
+      text: lines.join("\n"),
+    });
+  } catch {
+    // The enquiry is already saved for the admin inbox.
   }
 
   return { ok: true, message: "Thanks. Our team will contact you shortly." };
