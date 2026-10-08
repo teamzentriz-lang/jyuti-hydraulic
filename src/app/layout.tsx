@@ -11,15 +11,12 @@ const sourceSans = Source_Sans_3({
 
 export const dynamic = "force-dynamic";
 
-// Apply noindex/nofollow to every page under this root layout
-export const metadata: Metadata = {
-  robots: {
+const robots: Metadata["robots"] = {
+  index: false,
+  follow: false,
+  googleBot: {
     index: false,
     follow: false,
-    googleBot: {
-      index: false,
-      follow: false,
-    },
   },
 };
 
@@ -34,6 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s · ${settings.companyName}`,
       },
       description: settings.footerText,
+      robots,
     };
   } catch {
     return {
@@ -44,6 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       description:
         "Hydraulic machines and power packs manufactured in Faridabad, India.",
+      robots,
     };
   }
 }
