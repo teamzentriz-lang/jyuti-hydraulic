@@ -8,6 +8,7 @@ import { getSite } from "@/lib/cms/site";
 import { isVideoMimeType } from "@/lib/media-upload";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("gallery");
@@ -16,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Gallery | ${(await getSettings()).companyName}`,
     alternates: { canonical: `${siteOrigin()}/gallery/` },
+    robots: noIndexRobots,
   };
 }
 

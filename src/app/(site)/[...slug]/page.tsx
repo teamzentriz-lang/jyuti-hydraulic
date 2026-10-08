@@ -7,6 +7,7 @@ import {
   getSite,
   resolvePublishedContent,
 } from "@/lib/cms/site";
+import { noIndexRobots } from "@/lib/seo-robots";
 
 type PageProps = { params: Promise<{ slug: string[] }> };
 
@@ -15,7 +16,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const content = await resolvePublishedContent(slug);
-  if (!content) return {};
+  if (!content) return { robots: noIndexRobots };
   const site = await getSite();
   return contentMetadata(content, site.settings.companyName);
 }

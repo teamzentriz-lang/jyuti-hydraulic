@@ -13,6 +13,7 @@ import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 import type { MediaItem } from "@/lib/cms/queries";
 
 type CatalogueCard = {
@@ -526,15 +527,11 @@ export function contentMetadata(
   const url = `${siteOrigin()}${publicPath(content.path)}`;
   const visual = content.gallery?.[0] ?? content.image ?? content.cover ?? content.hero ?? null;
   const image = visual ? absoluteUrl(mediaDeliveryUrl(visual)) : undefined;
-  const robots =
-    content.robotsIndex === false || content.robotsFollow === false
-      ? { index: content.robotsIndex !== false, follow: content.robotsFollow !== false }
-      : undefined;
   return {
     title,
     description,
     alternates: { canonical: url },
-    robots,
+    robots: noIndexRobots,
     openGraph: {
       title,
       description,

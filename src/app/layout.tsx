@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import { getSettings } from "@/lib/cms/queries";
 import { siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -10,15 +11,6 @@ const sourceSans = Source_Sans_3({
 });
 
 export const dynamic = "force-dynamic";
-
-const robots: Metadata["robots"] = {
-  index: false,
-  follow: false,
-  googleBot: {
-    index: false,
-    follow: false,
-  },
-};
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -31,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s · ${settings.companyName}`,
       },
       description: settings.footerText,
-      robots,
+      robots: noIndexRobots,
     };
   } catch {
     return {
@@ -42,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       description:
         "Hydraulic machines and power packs manufactured in Faridabad, India.",
-      robots,
+      robots: noIndexRobots,
     };
   }
 }

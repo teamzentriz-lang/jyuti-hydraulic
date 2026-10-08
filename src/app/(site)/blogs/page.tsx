@@ -5,6 +5,7 @@ import { getSettings, publishedPosts } from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
 import { publicPath, siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("blogs");
@@ -16,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Blogs | ${settings.companyName}`,
     alternates: { canonical: `${siteOrigin()}/blogs/` },
+    robots: noIndexRobots,
   };
 }
 

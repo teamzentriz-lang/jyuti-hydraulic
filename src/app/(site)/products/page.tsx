@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CatalogueBrowser } from "@/components/site/catalogue-browser";
 import { catalogueListing, getSettings } from "@/lib/cms/queries";
 import { publicPath, siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
@@ -10,6 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       "Discover hydraulic power packs, cylinders, screw jacks, pumps and rotary joints engineered for industrial use.",
     alternates: { canonical: `${siteOrigin()}/products/` },
+    robots: noIndexRobots,
   };
 }
 
