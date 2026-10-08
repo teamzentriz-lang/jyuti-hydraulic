@@ -3,6 +3,7 @@ import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
 import { cataloguesForSite, getCataloguePdfUrl, getSettings } from "@/lib/cms/queries";
 import { siteOrigin } from "@/lib/paths";
+import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
@@ -11,6 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       "Download product catalogues and technical documents from Jyoti Hydraulic.",
     alternates: { canonical: `${siteOrigin()}/catalogue/` },
+    robots: noIndexRobots,
   };
 }
 
