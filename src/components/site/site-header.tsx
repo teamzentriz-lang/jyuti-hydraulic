@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CmsImage } from "@/components/site/cms-image";
 import type { MediaItem } from "@/lib/cms/queries";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 import type { NavItem } from "@/lib/cms/site";
 import { isProductsNavItem } from "@/lib/cms/product-nav";
 import { publicPath } from "@/lib/paths";
@@ -325,6 +325,7 @@ export function SiteHeader({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const brandLogo = logo ?? mobileLogo;
+  const [logoFailed, setLogoFailed] = useState(false);
   const current = pathname.replace(/\/$/, "") || "/";
   const closeMenu = () => setOpen(false);
 
@@ -341,22 +342,24 @@ export function SiteHeader({
     <header
       className={`z-30 border-b border-line bg-white text-navy shadow-sm ${sticky ? "sticky top-0" : ""}`}
     >
-      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:flex-nowrap lg:px-6">
+      <div className="header-bar mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:flex-nowrap lg:px-6">
         <Link
           href="/"
           className="flex shrink-0 items-center gap-3"
           onClick={() => setOpen(false)}
         >
-          {brandLogo ? (
-            <CmsImage
-              item={brandLogo}
-              alt={companyName}
-              className="h-11 w-auto max-w-[180px] object-contain"
-            />
+          {brandLogo && !logoFailed ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mediaDeliveryUrl(brandLogo)}
+                alt={companyName}
+                className="header-logo"
+                onError={() => setLogoFailed(true)}
+              />
+            </>
           ) : (
-            <span className="text-xl font-extrabold tracking-tight lg:text-2xl">
-              {companyName}
-            </span>
+            <span className="header-wordmark">{companyName}</span>
           )}
         </Link>
 
