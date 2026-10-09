@@ -43,7 +43,7 @@ import {
   siteSettings,
   users,
 } from "@/db/schema";
-import { brand, homeDefaults } from "@/lib/brand";
+import { homeDefaults } from "@/lib/brand";
 import { loadProductPayload, loadPageSections } from "@/lib/cms/entity-data";
 import {
   type RelationName,

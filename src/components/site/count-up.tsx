@@ -23,12 +23,13 @@ export function CountUp({
 }) {
   const ref = useRef<HTMLElement>(null);
   const parsed = parseCount(value);
+  const target = parsed?.target;
+  const suffix = parsed?.suffix;
   const [current, setCurrent] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!parsed || !ref.current) return;
+    if (target === undefined || suffix === undefined || !ref.current) return;
     const node = ref.current;
-    const target = parsed.target;
     let frame = 0;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const start = () => {
@@ -57,7 +58,7 @@ export function CountUp({
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [parsed?.target, parsed?.suffix]);
+  }, [target, suffix]);
 
   const text =
     current === null || !parsed

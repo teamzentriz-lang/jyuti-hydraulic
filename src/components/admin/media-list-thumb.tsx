@@ -5,7 +5,6 @@ export function MediaListThumb({
   id,
   url,
   mimeType,
-  filename,
 }: {
   id: string;
   url: string;
