@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const items = [];
     for (const file of files) {
       const id = randomUUID();
-      let stored = await saveUpload(file, id, { prefix });
+      const stored = await saveUpload(file, id, { prefix });
 
       try {
         const [row] = await db

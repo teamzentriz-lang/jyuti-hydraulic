@@ -331,7 +331,8 @@ export function SiteHeader({
   }, [open]);
 
   useEffect(() => {
-    setOpen(false);
+    const frame = requestAnimationFrame(() => setOpen(false));
+    return () => cancelAnimationFrame(frame);
   }, [pathname]);
 
   return (

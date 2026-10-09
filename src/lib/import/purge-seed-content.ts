@@ -38,11 +38,6 @@ import { isPlaceholderMedia } from "@/lib/media-url";
 
 type Db = ReturnType<typeof getDb>;
 
-async function idsWithoutLegacy<T extends { id: string }>(db: Db, table: { id: typeof products.id; legacyId: typeof products.legacyId }, legacyColumn = "legacyId") {
-  const rows = await db.select({ id: table.id }).from(table as typeof products).where(isNull(table.legacyId));
-  return rows.map((row) => row.id);
-}
-
 export async function purgeSeedContent(db: Db) {
   const productIds = await db.select({ id: products.id }).from(products).where(isNull(products.legacyId)).then((r) => r.map((x) => x.id));
   const pageIds = await db.select({ id: pages.id }).from(pages).where(isNull(pages.legacyId)).then((r) => r.map((x) => x.id));

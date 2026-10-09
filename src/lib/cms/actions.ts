@@ -71,10 +71,6 @@ function adminHref(resource: string, id?: string) {
   return id ? `/admin/${resource}/${id}/` : `/admin/${resource}/`;
 }
 
-function asIdList(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
 async function assertNoParentCycle(
   tx: Pick<ReturnType<typeof getDb>, "select">,
   table: typeof productCategories | typeof navLinks,
