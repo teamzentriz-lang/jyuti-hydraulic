@@ -3,7 +3,6 @@ import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
 import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
-import { ContactSection } from "@/components/site/contact-section";
 import { ProductCard } from "@/components/site/product-card";
 import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
@@ -339,40 +338,50 @@ export async function HomeView() {
         </div>
       </section>
       <section className="section-shell why-section">
-          <div className="site-container">
-            <div className="section-heading centered about-in">
-              <div>
-                <p className="eyebrow dark">The Jyoti advantage</p>
-                <h2>{home.whyChooseTitle || "Why Choose Us?"}</h2>
-                <p>{home.whyChooseIntro}</p>
-              </div>
+        <div className="site-container">
+          <div className="section-heading centered about-in">
+            <div>
+              <p className="eyebrow dark">The Jyoti advantage</p>
+              <h2>{home.whyChooseTitle || "Why Choose Us?"}</h2>
+              <p>{home.whyChooseIntro}</p>
             </div>
-            <ul className="why-grid">
-              {(home.whyChooseUs.length
-                ? home.whyChooseUs
-                : home.visionBody || home.missionBody ? [
+          </div>
+          <ul className="why-grid">
+            {(home.whyChooseUs.length
+              ? home.whyChooseUs
+              : home.visionBody || home.missionBody
+                ? [
                     { title: home.visionTitle, body: home.visionBody },
                     { title: home.missionTitle, body: home.missionBody },
-                  ] : [
-                    { title: "Unmatched quality and durability", body: "Carefully selected materials and consistent manufacturing for equipment that stays in service." },
-                    { title: "Exceptional customer support", body: "Responsive help with product selection, technical questions and after-sales requirements." },
-                    { title: "Innovative engineering", body: "Standard products and custom hydraulic systems engineered around your specification." },
                   ]
-              ).map((item, index) => (
-                <li
-                  key={`${item.title}-${index}`}
-                  className="about-slide"
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
-                  <CountUp value={String(index + 1)} pad={2} />
-                  <h3>{item.title}</h3>
-                  <p>{cleanPublicBody(item.body)}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
+                : [
+                    {
+                      title: "Unmatched quality and durability",
+                      body: "Carefully selected materials and consistent manufacturing for equipment that stays in service.",
+                    },
+                    {
+                      title: "Exceptional customer support",
+                      body: "Responsive help with product selection, technical questions and after-sales requirements.",
+                    },
+                    {
+                      title: "Innovative engineering",
+                      body: "Standard products and custom hydraulic systems engineered around your specification.",
+                    },
+                  ]
+            ).map((item, index) => (
+              <li
+                key={`${item.title}-${index}`}
+                className="about-slide"
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <CountUp value={String(index + 1)} pad={2} />
+                <h3>{item.title}</h3>
+                <p>{cleanPublicBody(item.body)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
       <section
         className="section-shell usp-section"
         aria-labelledby="usp-title"
