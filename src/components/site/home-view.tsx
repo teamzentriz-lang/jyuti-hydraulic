@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
+import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
 import { ContactSection } from "@/components/site/contact-section";
 import { ProductCard } from "@/components/site/product-card";
@@ -110,8 +111,12 @@ export async function HomeView() {
   ] as const;
 
   const heroFallback =
-    displayProducts.find((item) => item.imageUrl && /cylinder/i.test(item.title))?.imageUrl ??
-    displayProducts.find((item) => item.imageUrl && /power pack/i.test(item.title))?.imageUrl ??
+    displayProducts.find(
+      (item) => item.imageUrl && /cylinder/i.test(item.title),
+    )?.imageUrl ??
+    displayProducts.find(
+      (item) => item.imageUrl && /power pack/i.test(item.title),
+    )?.imageUrl ??
     null;
   const stats = [
     ["12+", "Years of Experience"],
@@ -122,32 +127,56 @@ export async function HomeView() {
   const clients = [
     ["Konica Minolta", "/clients/konica-minolta.jpg"],
     ["Crompton", "/clients/crompton.jpg"],
-    ["Bisleri", "https://www.google.com/s2/favicons?domain=bisleri.com&sz=256"],
     ["Maruti Suzuki", "/clients/maruti-suzuki.jpg"],
     ["Nestlé", "/clients/nestle.jpg"],
     ["Philips", "/clients/philips.jpg"],
     ["Tupperware", "/clients/tupperware.jpg"],
     ["Surya", "/clients/surya.jpg"],
     ["Honda", "/clients/honda.jpg"],
-    ["Borosil", "https://www.google.com/s2/favicons?domain=borosil.com&sz=256"],
-    ["DFM Foods", "https://www.google.com/s2/favicons?domain=dfmfoods.com&sz=256"],
     ["JCB", "/clients/jcb.jpg"],
-    ["Oman Refco", "https://www.google.com/s2/favicons?domain=omanrefco.com&sz=256"],
-    ["BOBST", "https://www.google.com/s2/favicons?domain=bobst.com&sz=256"],
     ["Campus", "/clients/campus.jpg"],
   ] as const;
   const usps = [
-    ["01", "Application-first engineering", "Hydraulic systems selected and configured around real operating requirements."],
-    ["02", "Pan-India supply", "Reliable product availability and delivery support across industrial regions."],
-    ["03", "Responsive support", "Practical guidance for selection, commissioning and after-sales requirements."],
-    ["04", "Experienced team", "Hands-on hydraulic knowledge backed by manufacturing and field experience."],
-    ["05", "In-house solutions", "Standard products and custom-built assemblies from one dependable partner."],
-  ];
+    [
+      "01",
+      "Application-first engineering",
+      "Hydraulic systems selected and configured around real operating requirements.",
+    ],
+    [
+      "02",
+      "Pan-India supply",
+      "Reliable product availability and delivery support across industrial regions.",
+    ],
+    [
+      "03",
+      "Responsive support",
+      "Practical guidance for selection, commissioning and after-sales requirements.",
+    ],
+    [
+      "04",
+      "Experienced team",
+      "Hands-on hydraulic knowledge backed by manufacturing and field experience.",
+    ],
+    [
+      "05",
+      "In-house solutions",
+      "Standard products and custom-built assemblies from one dependable partner.",
+    ],
+  ] as const;
   const testimonials = [
-    ["The team understood our application quickly and recommended a practical hydraulic solution that integrated smoothly with our equipment.", "Industrial equipment customer"],
-    ["Clear technical communication, dependable product quality and responsive support made the entire procurement process straightforward.", "Manufacturing customer"],
-    ["Jyoti Hydraulic has been a reliable partner for custom requirements, delivery coordination and after-sales assistance.", "OEM customer"],
-  ];
+    [
+      "The team understood our application quickly and recommended a practical hydraulic solution that integrated smoothly with our equipment.",
+      "Industrial equipment customer",
+    ],
+    [
+      "Clear technical communication, dependable product quality and responsive support made the entire procurement process straightforward.",
+      "Manufacturing customer",
+    ],
+    [
+      "Jyoti Hydraulic has been a reliable partner for custom requirements, delivery coordination and after-sales assistance.",
+      "OEM customer",
+    ],
+  ] as const;
 
   return (
     <main className="home-page motion-page">
@@ -161,7 +190,11 @@ export async function HomeView() {
           />
         ) : heroFallback ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroFallback} alt="" className="hero-industrial__image about-photo" />
+          <img
+            src={heroFallback}
+            alt=""
+            className="hero-industrial__image about-photo"
+          />
         ) : null}
         <div className="hero-industrial__shade" />
         <div className="site-container hero-industrial__content">
@@ -174,11 +207,17 @@ export async function HomeView() {
                 "Engineered for power. Built for your industry."}
             </h1>
             {intro ? (
-              <p className="hero-intro about-in" style={{ animationDelay: "160ms" }}>
+              <p
+                className="hero-intro about-in"
+                style={{ animationDelay: "160ms" }}
+              >
                 {intro}
               </p>
             ) : null}
-            <div className="hero-actions about-in" style={{ animationDelay: "240ms" }}>
+            <div
+              className="hero-actions about-in"
+              style={{ animationDelay: "240ms" }}
+            >
               <Link href="/products/" className="site-btn-primary">
                 Explore products <Arrow />
               </Link>
@@ -191,20 +230,23 @@ export async function HomeView() {
       </section>
       <section className="clients-rail" aria-labelledby="clients-title">
         <div className="site-container clients-rail__heading">
-          <p className="eyebrow dark">Industries we serve</p>
+          <p className="eyebrow dark">Trusted across industries</p>
           <h2 id="clients-title">Our Clients</h2>
         </div>
         <div className="clients-rail__viewport">
           <div className="clients-rail__track">
             {[...clients, ...clients].map(([name, logo], index) => (
-              <div className="client-logo" key={`${name}-${index}`} aria-hidden={index >= clients.length}>
+              <div
+                className="client-logo"
+                key={`${name}-${index}`}
+                aria-hidden={index >= clients.length}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logo}
                   alt={index < clients.length ? `${name} logo` : ""}
                   loading="lazy"
                 />
-                <span>{name}</span>
               </div>
             ))}
           </div>
@@ -285,7 +327,11 @@ export async function HomeView() {
       <section className="stats-strip">
         <div className="site-container stats-grid">
           {stats.map(([value, label], index) => (
-            <div key={label} className="about-in" style={{ animationDelay: `${index * 90}ms` }}>
+            <div
+              key={label}
+              className="about-in"
+              style={{ animationDelay: `${index * 90}ms` }}
+            >
               <CountUp value={value} as="strong" />
               <span>{label}</span>
             </div>
@@ -325,60 +371,60 @@ export async function HomeView() {
               ))}
             </ul>
           </div>
-      </section>
-      <section className="home-about" aria-labelledby="home-about-title">
-        <div className="site-container home-about__grid">
-          <div className="home-about__media about-photo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://lh3.googleusercontent.com/gps-cs-s/AHRPTWkNsnR1TJFL86eK3NE2hWklc9trohfI02NpM6sUHRI34orZy65fQHf0dH-hKw97FEyJi1PN-e_J8QNOXYm4i7_S3_dgg9rzO7pKCpzHTm4c7Uz0RJhrL9i1_0fLO233O12npfyRgwI77HU=s1360-w1360-h1020-rw"
-              alt="Jyoti Hydraulic manufacturing facility"
-            />
-          </div>
-          <div className="home-about__copy about-in">
-            <p className="eyebrow">About Jyoti Hydraulic</p>
-            <h2 id="home-about-title">Hydraulic engineering built around your application</h2>
-            <p>
-              Jyoti Hydraulic manufactures dependable hydraulic cylinders,
-              power packs, screw jacks, balers and rotary unions for demanding
-              industrial and mobile applications.
-            </p>
-            <p>
-              Our team combines practical engineering, quality manufacturing
-              and responsive support to deliver standard as well as custom-built
-              solutions across India.
-            </p>
-            <Link href="/about-us/" className="site-btn-primary">Know more about us <Arrow /></Link>
-          </div>
-        </div>
-      </section>
-      <section className="section-shell usp-section" aria-labelledby="usp-title">
+        </section>
+      ) : null}
+      <section
+        className="section-shell usp-section"
+        aria-labelledby="usp-title"
+      >
         <div className="site-container">
-          <div className="section-heading centered about-in"><div>
-            <p className="eyebrow dark">What sets us apart</p>
-            <h2 id="usp-title">Our USPs</h2>
-          </div></div>
+          <div className="section-heading centered about-in">
+            <div>
+              <p className="eyebrow dark">What sets us apart</p>
+              <h2 id="usp-title">Our USPs</h2>
+            </div>
+          </div>
           <ul className="usp-grid">
             {usps.map(([number, title, body], index) => (
-              <li key={title} className="about-tile" style={{ animationDelay: `${index * 70}ms` }}>
-                <span>{number}</span><div className="usp-icon" aria-hidden>✓</div>
-                <h3>{title}</h3><p>{body}</p>
+              <li
+                key={title}
+                className="about-tile"
+                style={{ animationDelay: `${index * 70}ms` }}
+              >
+                <span>{number}</span>
+                <div className="usp-icon" aria-hidden>
+                  ✓
+                </div>
+                <h3>{title}</h3>
+                <p>{body}</p>
               </li>
             ))}
           </ul>
         </div>
       </section>
-      <section className="testimonials-section" aria-labelledby="testimonials-title">
+      <section
+        className="testimonials-section"
+        aria-labelledby="testimonials-title"
+      >
         <div className="site-container">
-          <div className="section-heading centered about-in"><div>
-            <p className="eyebrow">Customer feedback</p>
-            <h2 id="testimonials-title">What Our Customers Say</h2>
-          </div></div>
+          <div className="section-heading centered about-in">
+            <div>
+              <p className="eyebrow">Customer feedback</p>
+              <h2 id="testimonials-title">What Our Customers Say</h2>
+            </div>
+          </div>
           <ul className="testimonials-grid">
             {testimonials.map(([quote, customer], index) => (
-              <li key={customer} className="about-slide" style={{ animationDelay: `${index * 80}ms` }}>
-                <span className="quote-mark" aria-hidden>“</span>
-                <blockquote>{quote}</blockquote><p>{customer}</p>
+              <li
+                key={customer}
+                className="about-slide"
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <span className="quote-mark" aria-hidden>
+                  “
+                </span>
+                <blockquote>{quote}</blockquote>
+                <p>{customer}</p>
               </li>
             ))}
           </ul>
@@ -407,7 +453,11 @@ export async function HomeView() {
             </div>
             <ul className="insights-grid">
               {posts.map((post, index) => (
-                <li key={post.id} className="about-tile" style={{ animationDelay: `${index * 80}ms` }}>
+                <li
+                  key={post.id}
+                  className="about-tile"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
                   <article>
                     <Link
                       href={publicPath(post.path)}
@@ -431,7 +481,9 @@ export async function HomeView() {
                         </time>
                       ) : null}
                       <h3>
-                        <Link href={publicPath(post.path)}>{cleanPublicTitle(post.title)}</Link>
+                        <Link href={publicPath(post.path)}>
+                          {cleanPublicTitle(post.title)}
+                        </Link>
                       </h3>
                       {post.excerpt ? <p>{post.excerpt}</p> : null}
                       <Link

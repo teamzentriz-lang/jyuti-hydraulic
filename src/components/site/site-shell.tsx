@@ -109,6 +109,7 @@ export function SiteShell({
 
   return (
     <div className="public-site min-h-screen bg-white text-ink">
+      <div className={header.stickyHeader ? "site-header-stack" : undefined}>
       {header.topBarEnabled !== false ? (
         <div className="hidden border-b border-line bg-navy text-xs text-white/90 lg:block">
           <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-2 lg:px-6">
@@ -158,8 +159,9 @@ export function SiteShell({
 
         quoteHref={quoteHref}
 
-        sticky={header.stickyHeader}
+        sticky={false}
       />
+      </div>
 
       {children}
 
