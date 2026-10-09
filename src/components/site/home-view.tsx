@@ -3,6 +3,7 @@ import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
 import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
+import { ContactSection } from "@/components/site/contact-section";
 import { ProductCard } from "@/components/site/product-card";
 import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
@@ -337,8 +338,7 @@ export async function HomeView() {
           ))}
         </div>
       </section>
-      {home.whyChooseUs.length || home.visionBody || home.missionBody ? (
-        <section className="section-shell why-section">
+      <section className="section-shell why-section">
           <div className="site-container">
             <div className="section-heading centered about-in">
               <div>
@@ -350,9 +350,13 @@ export async function HomeView() {
             <ul className="why-grid">
               {(home.whyChooseUs.length
                 ? home.whyChooseUs
-                : [
+                : home.visionBody || home.missionBody ? [
                     { title: home.visionTitle, body: home.visionBody },
                     { title: home.missionTitle, body: home.missionBody },
+                  ] : [
+                    { title: "Unmatched quality and durability", body: "Carefully selected materials and consistent manufacturing for equipment that stays in service." },
+                    { title: "Exceptional customer support", body: "Responsive help with product selection, technical questions and after-sales requirements." },
+                    { title: "Innovative engineering", body: "Standard products and custom hydraulic systems engineered around your specification." },
                   ]
               ).map((item, index) => (
                 <li
