@@ -20,9 +20,11 @@ import { getContactSettings, getSettings } from "@/lib/cms/queries";
 export async function ContactSection({
   subject = "",
   pagePath = "/contact/",
+  embedded = false,
 }: {
   subject?: string;
   pagePath?: string;
+  embedded?: boolean;
 }) {
   const [contact, settings] = await Promise.all([
     getContactSettings(),
@@ -51,7 +53,9 @@ export async function ContactSection({
               {phoneSecondary ? (
                 <>
                   <br />
-                  <a href={`tel:${phoneSecondary.replace(/\s/g, "")}`}>{phoneSecondary}</a>
+                  <a href={`tel:${phoneSecondary.replace(/\s/g, "")}`}>
+                    {phoneSecondary}
+                  </a>
                 </>
               ) : null}
             </>
@@ -82,20 +86,26 @@ export async function ContactSection({
     (item): item is { label: string; value: ReactNode } => item !== null,
   );
 
+  const Wrapper = embedded ? "section" : "main";
+
   return (
-    <main className="contact-page motion-page">
-      <AboutReveal />
-      <div className="site-page-banner">
-        <div className="site-container page-banner-inner">
-          <p className="page-kicker about-in">Get in touch</p>
-          <h1 className="about-in" style={{ animationDelay: "80ms" }}>
-            {contact.title?.trim() || "Contact"}
-          </h1>
-          <p className="about-in" style={{ animationDelay: "160ms" }}>
-            {summary}
-          </p>
+    <Wrapper
+      className={`contact-page motion-page${embedded ? " home-contact" : ""}`}
+    >
+      {!embedded ? <AboutReveal /> : null}
+      {embedded ? null : (
+        <div className="site-page-banner">
+          <div className="site-container page-banner-inner">
+            <p className="page-kicker about-in">Get in touch</p>
+            <h1 className="about-in" style={{ animationDelay: "80ms" }}>
+              {contact.title?.trim() || "Contact"}
+            </h1>
+            <p className="about-in" style={{ animationDelay: "160ms" }}>
+              {summary}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
       <div className="site-container contact-layout">
         <section className="contact-details">
           <p className="section-label about-in">Reach the team</p>
@@ -109,37 +119,59 @@ export async function ContactSection({
                 className="contact-row"
                 style={{ animationDelay: `${160 + index * 80}ms` }}
               >
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
+                <span className="contact-row__icon" aria-hidden>
+                  {index === 0
+                    ? "⌖"
+                    : index === 1
+                      ? "☎"
+                      : index === 2
+                        ? "✉"
+                        : "◷"}
+                </span>
+                <span className="contact-row__content">
+                  <span className="contact-row__label">{item.label}</span>
+                  <strong>{item.value}</strong>
+                </span>
               </li>
             ))}
           </ul>
-          {address ? (
-            <div className="contact-map">
-              <iframe
-                title="Map showing the Jyoti Hydraulic address"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(address.replace(/&amp;/g, "&"))}&z=15&output=embed`}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+        </section>
+        <section className="contact-form-wrap">
+          <div
+            className="contact-form-card about-in"
+            style={{ animationDelay: "180ms" }}
+          >
+            <h2>Request a Quote</h2>
+            <p>
+              Fill in the details and our team will get back to you shortly.
+            </p>
+            <QuoteForm subject={subject} pagePath={pagePath} />
+          </div>
+        </section>
+        {address ? (
+          <section className="contact-map" aria-label="Our location">
+            <div className="contact-map__heading">
+              <div>
+                <p className="section-label">Visit our facility</p>
+                <h2>Find Jyoti Hydraulic</h2>
+              </div>
               <a
                 href={`https://maps.google.com/?q=${encodeURIComponent(address.replace(/&amp;/g, "&"))}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Open in Google Maps
+                Open in Google Maps ↗
               </a>
             </div>
-          ) : null}
-        </section>
-        <section className="contact-form-wrap">
-          <div className="contact-form-card about-in" style={{ animationDelay: "180ms" }}>
-            <h2>Request a Quote</h2>
-            <p>Fill in the details and our team will get back to you shortly.</p>
-            <QuoteForm subject={subject} pagePath={pagePath} />
-          </div>
-        </section>
+            <iframe
+              title="Map showing the Jyoti Hydraulic address"
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(address.replace(/&amp;/g, "&"))}&z=15&output=embed`}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </section>
+        ) : null}
       </div>
-    </main>
+    </Wrapper>
   );
 }

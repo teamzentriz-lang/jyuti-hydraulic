@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
+import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
 import { ProductCard } from "@/components/site/product-card";
 import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
@@ -109,14 +110,71 @@ export async function HomeView() {
   ] as const;
 
   const heroFallback =
-    displayProducts.find((item) => item.imageUrl && /cylinder/i.test(item.title))?.imageUrl ??
-    displayProducts.find((item) => item.imageUrl && /power pack/i.test(item.title))?.imageUrl ??
+    displayProducts.find(
+      (item) => item.imageUrl && /cylinder/i.test(item.title),
+    )?.imageUrl ??
+    displayProducts.find(
+      (item) => item.imageUrl && /power pack/i.test(item.title),
+    )?.imageUrl ??
     null;
   const stats = [
     ["12+", "Years of Experience"],
     ["1000+", "Products Delivered"],
     ["500+", "Happy Clients"],
     ["Pan India", "Supply Network"],
+  ] as const;
+  const clients = [
+    ["Konica Minolta", "/clients/konica-minolta.jpg"],
+    ["Crompton", "/clients/crompton.jpg"],
+    ["Maruti Suzuki", "/clients/maruti-suzuki.jpg"],
+    ["Nestlé", "/clients/nestle.jpg"],
+    ["Philips", "/clients/philips.jpg"],
+    ["Tupperware", "/clients/tupperware.jpg"],
+    ["Surya", "/clients/surya.jpg"],
+    ["Honda", "/clients/honda.jpg"],
+    ["JCB", "/clients/jcb.jpg"],
+    ["Campus", "/clients/campus.jpg"],
+  ] as const;
+  const usps = [
+    [
+      "01",
+      "Application-first engineering",
+      "Hydraulic systems selected and configured around real operating requirements.",
+    ],
+    [
+      "02",
+      "Pan-India supply",
+      "Reliable product availability and delivery support across industrial regions.",
+    ],
+    [
+      "03",
+      "Responsive support",
+      "Practical guidance for selection, commissioning and after-sales requirements.",
+    ],
+    [
+      "04",
+      "Experienced team",
+      "Hands-on hydraulic knowledge backed by manufacturing and field experience.",
+    ],
+    [
+      "05",
+      "In-house solutions",
+      "Standard products and custom-built assemblies from one dependable partner.",
+    ],
+  ] as const;
+  const testimonials = [
+    [
+      "The team understood our application quickly and recommended a practical hydraulic solution that integrated smoothly with our equipment.",
+      "Industrial equipment customer",
+    ],
+    [
+      "Clear technical communication, dependable product quality and responsive support made the entire procurement process straightforward.",
+      "Manufacturing customer",
+    ],
+    [
+      "Jyoti Hydraulic has been a reliable partner for custom requirements, delivery coordination and after-sales assistance.",
+      "OEM customer",
+    ],
   ] as const;
 
   return (
@@ -131,7 +189,11 @@ export async function HomeView() {
           />
         ) : heroFallback ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroFallback} alt="" className="hero-industrial__image about-photo" />
+          <img
+            src={heroFallback}
+            alt=""
+            className="hero-industrial__image about-photo"
+          />
         ) : null}
         <div className="hero-industrial__shade" />
         <div className="site-container hero-industrial__content">
@@ -144,11 +206,17 @@ export async function HomeView() {
                 "Engineered for power. Built for your industry."}
             </h1>
             {intro ? (
-              <p className="hero-intro about-in" style={{ animationDelay: "160ms" }}>
+              <p
+                className="hero-intro about-in"
+                style={{ animationDelay: "160ms" }}
+              >
                 {intro}
               </p>
             ) : null}
-            <div className="hero-actions about-in" style={{ animationDelay: "240ms" }}>
+            <div
+              className="hero-actions about-in"
+              style={{ animationDelay: "240ms" }}
+            >
               <Link href="/products/" className="site-btn-primary">
                 Explore products <Arrow />
               </Link>
@@ -156,6 +224,30 @@ export async function HomeView() {
                 Request a quote
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+      <section className="clients-rail" aria-labelledby="clients-title">
+        <div className="site-container clients-rail__heading">
+          <p className="eyebrow dark">Trusted across industries</p>
+          <h2 id="clients-title">Our Clients</h2>
+        </div>
+        <div className="clients-rail__viewport">
+          <div className="clients-rail__track">
+            {[...clients, ...clients].map(([name, logo], index) => (
+              <div
+                className="client-logo"
+                key={`${name}-${index}`}
+                aria-hidden={index >= clients.length}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logo}
+                  alt={index < clients.length ? `${name} logo` : ""}
+                  loading="lazy"
+                />
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -234,7 +326,11 @@ export async function HomeView() {
       <section className="stats-strip">
         <div className="site-container stats-grid">
           {stats.map(([value, label], index) => (
-            <div key={label} className="about-in" style={{ animationDelay: `${index * 90}ms` }}>
+            <div
+              key={label}
+              className="about-in"
+              style={{ animationDelay: `${index * 90}ms` }}
+            >
               <CountUp value={value} as="strong" />
               <span>{label}</span>
             </div>
@@ -273,6 +369,63 @@ export async function HomeView() {
           </div>
         </section>
       ) : null}
+      <section
+        className="section-shell usp-section"
+        aria-labelledby="usp-title"
+      >
+        <div className="site-container">
+          <div className="section-heading centered about-in">
+            <div>
+              <p className="eyebrow dark">What sets us apart</p>
+              <h2 id="usp-title">Our USPs</h2>
+            </div>
+          </div>
+          <ul className="usp-grid">
+            {usps.map(([number, title, body], index) => (
+              <li
+                key={title}
+                className="about-tile"
+                style={{ animationDelay: `${index * 70}ms` }}
+              >
+                <span>{number}</span>
+                <div className="usp-icon" aria-hidden>
+                  ✓
+                </div>
+                <h3>{title}</h3>
+                <p>{body}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+      <section
+        className="testimonials-section"
+        aria-labelledby="testimonials-title"
+      >
+        <div className="site-container">
+          <div className="section-heading centered about-in">
+            <div>
+              <p className="eyebrow">Customer feedback</p>
+              <h2 id="testimonials-title">What Our Customers Say</h2>
+            </div>
+          </div>
+          <ul className="testimonials-grid">
+            {testimonials.map(([quote, customer], index) => (
+              <li
+                key={customer}
+                className="about-slide"
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <span className="quote-mark" aria-hidden>
+                  “
+                </span>
+                <blockquote>{quote}</blockquote>
+                <p>{customer}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
       {posts.length ? (
         <section className="section-shell insights-section">
           <div className="site-container">
@@ -296,7 +449,11 @@ export async function HomeView() {
             </div>
             <ul className="insights-grid">
               {posts.map((post, index) => (
-                <li key={post.id} className="about-tile" style={{ animationDelay: `${index * 80}ms` }}>
+                <li
+                  key={post.id}
+                  className="about-tile"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
                   <article>
                     <Link
                       href={publicPath(post.path)}
@@ -320,7 +477,9 @@ export async function HomeView() {
                         </time>
                       ) : null}
                       <h3>
-                        <Link href={publicPath(post.path)}>{cleanPublicTitle(post.title)}</Link>
+                        <Link href={publicPath(post.path)}>
+                          {cleanPublicTitle(post.title)}
+                        </Link>
                       </h3>
                       {post.excerpt ? <p>{post.excerpt}</p> : null}
                       <Link
@@ -337,6 +496,7 @@ export async function HomeView() {
           </div>
         </section>
       ) : null}
+      <ContactSection embedded pagePath="/" />
     </main>
   );
 }
