@@ -20,9 +20,11 @@ import { getContactSettings, getSettings } from "@/lib/cms/queries";
 export async function ContactSection({
   subject = "",
   pagePath = "/contact/",
+  embedded = false,
 }: {
   subject?: string;
   pagePath?: string;
+  embedded?: boolean;
 }) {
   const [contact, settings] = await Promise.all([
     getContactSettings(),
@@ -82,10 +84,12 @@ export async function ContactSection({
     (item): item is { label: string; value: ReactNode } => item !== null,
   );
 
+  const Wrapper = embedded ? "section" : "main";
+
   return (
-    <main className="contact-page motion-page">
-      <AboutReveal />
-      <div className="site-page-banner">
+    <Wrapper className={`contact-page motion-page${embedded ? " home-contact" : ""}`}>
+      {!embedded ? <AboutReveal /> : null}
+      {!embedded ? <div className="site-page-banner">
         <div className="site-container page-banner-inner">
           <p className="page-kicker about-in">Get in touch</p>
           <h1 className="about-in" style={{ animationDelay: "80ms" }}>
@@ -95,7 +99,7 @@ export async function ContactSection({
             {summary}
           </p>
         </div>
-      </div>
+      </div> : null}
       <div className="site-container contact-layout">
         <section className="contact-details">
           <p className="section-label about-in">Reach the team</p>
@@ -140,6 +144,6 @@ export async function ContactSection({
           </div>
         </section>
       </div>
-    </main>
+    </Wrapper>
   );
 }
