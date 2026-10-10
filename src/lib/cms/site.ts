@@ -115,7 +115,6 @@ async function loadAvailableMedia(ids: string[]) {
 }
 
 export const getSite = cache(async (): Promise<SiteContext> => {
-  await ensureSingletons();
   const [settings, header, footer] = await Promise.all([getSettings(), getHeaderSettings(), getFooterSettings()]);
   const db = getDb();
   const navRows = await db

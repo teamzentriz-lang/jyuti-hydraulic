@@ -17,6 +17,7 @@ import {
 
 export type SpecRow = { label: string; value: string; unit?: string; group?: string };
 export type WhyItem = { title: string; body: string };
+export type ClientItem = { name: string; logo: string };
 
 export const userRole = pgEnum("user_role", ["admin", "editor"]);
 export const publishStatus = pgEnum("publish_status", ["draft", "published"]);
@@ -157,6 +158,7 @@ export const homeContent = pgTable(
     visionBody: text("vision_body").notNull().default(""),
     missionTitle: text("mission_title").notNull().default("Mission"),
     missionBody: text("mission_body").notNull().default(""),
+    clientLogos: jsonb("client_logos").$type<ClientItem[]>().notNull().default(sql`'[]'::jsonb`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [check("home_content_singleton", sql`${t.id} = 'default'`)],

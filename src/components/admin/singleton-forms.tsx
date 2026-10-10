@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { RelationManyField, WhyEditor } from "@/components/admin/editors";
+import { ClientsEditor, RelationManyField, WhyEditor } from "@/components/admin/editors";
 import { MediaPicker } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { helpClass, inputClass, labelClass, primaryButtonClass } from "@/components/admin/styles";
 import { saveHomeAction, saveSettingsAction } from "@/lib/cms/actions";
 import type { MediaItem } from "@/lib/cms/queries";
-import type { WhyItem } from "@/db/schema";
+import type { ClientItem, WhyItem } from "@/db/schema";
 
 function ErrorNote({ error }: { error?: string }) {
   if (!error) return null;
@@ -164,6 +164,7 @@ export function HomeForm({
     heroHeadline: string;
     heroSubcopy: string;
     heroMediaIds: string[];
+    clientLogos: ClientItem[];
     aboutTitle: string;
     aboutBody: string;
     aboutMediaId: string | null;
@@ -187,7 +188,7 @@ export function HomeForm({
     <form action={action} className="space-y-6">
       <ErrorNote error={state?.error} />
       <section className="space-y-4 rounded-lg border border-line bg-white p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Hero</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Banner Slider & Hero</h2>
         <label className="block">
           <span className={labelClass}>Eyebrow</span>
           <input className={inputClass} name="heroEyebrow" defaultValue={home.heroEyebrow} placeholder="About us" />
@@ -201,9 +202,17 @@ export function HomeForm({
           <textarea className={inputClass} name="heroSubcopy" rows={3} defaultValue={home.heroSubcopy} />
         </label>
         <div>
-          <span className={labelClass}>Hero images</span>
+          <span className={labelClass}>Banner images (Carousel Slides)</span>
+          <p className="mb-2 text-xs text-muted">Upload new banner images or pick existing ones from the media library. Reorder or delete slides as needed.</p>
           <MediaPicker name="heroMediaIds" multiple initialIds={home.heroMediaIds} known={media} />
         </div>
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Our Clients (Brand Logos & Names)</h2>
+          <p className="mt-1 text-xs text-muted">Change, edit, reorder, or delete client brand names and logos shown in the scrolling rail on the homepage.</p>
+        </div>
+        <ClientsEditor name="clientLogos" initial={home.clientLogos} />
       </section>
       <section className="space-y-4 rounded-lg border border-line bg-white p-4">
         <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">About</h2>

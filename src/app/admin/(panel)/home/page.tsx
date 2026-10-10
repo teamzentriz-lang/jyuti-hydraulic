@@ -24,6 +24,7 @@ export default async function HomeEditorPage({ searchParams }: { searchParams: P
           heroHeadline: home.heroHeadline,
           heroSubcopy: home.heroSubcopy,
           heroMediaIds: home.heroMediaIds,
+          clientLogos: home.clientLogos ?? [],
           aboutTitle: home.aboutTitle,
           aboutBody: home.aboutBody,
           aboutMediaId: home.aboutMediaId,

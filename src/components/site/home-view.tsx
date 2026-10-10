@@ -13,6 +13,7 @@ import {
   publishedPosts,
 } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
+import { defaultClients } from "@/lib/brand";
 import { publicPath } from "@/lib/paths";
 
 const defaultBanners: HomeBannerSlide[] = [
@@ -109,7 +110,7 @@ export async function HomeView() {
     mediaById.get(id) ? [mediaById.get(id)!] : [],
   );
   const banners: HomeBannerSlide[] =
-    heroImages.length >= 2
+    heroImages.length > 0
       ? heroImages.map((item) => ({
           src: mediaDeliveryUrl(item),
           alt: item.alt || item.filename || "Jyoti Hydraulic",

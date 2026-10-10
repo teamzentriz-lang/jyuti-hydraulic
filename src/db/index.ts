@@ -28,7 +28,7 @@ export function getDb(): AppDatabase {
   if (!globalForDb.__jhDb) {
     const sql = postgres(connectionString(url), {
       prepare: false,
-      max: process.env.VERCEL ? 1 : 10,
+      max: process.env.VERCEL ? 5 : 10,
       idle_timeout: 20,
       connect_timeout: 10,
     });

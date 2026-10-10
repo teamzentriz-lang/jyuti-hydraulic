@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { helpClass, inputClass, secondaryButtonClass } from "@/components/admin/styles";
-import type { SpecRow, WhyItem } from "@/db/schema";
+import type { ClientItem, SpecRow, WhyItem } from "@/db/schema";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -146,6 +146,134 @@ export function RelationManyField({
       ) : (
         <p className={helpClass}>{options.length ? "No further matches." : "Add products before relating them."}</p>
       )}
+    </div>
+  );
+}
+
+export function ClientsEditor({ name, initial }: { name: string; initial: ClientItem[] }) {
+  const [rows, setRows] = useState<ClientItem[]>(() =>
+    initial.length ? initial.map((row) => ({ name: asText(row.name), logo: asText(row.logo) })) : [],
+  );
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
+  function update(index: number, key: keyof ClientItem, value: string) {
+    setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
+  }
+
+  function move(index: number, direction: -1 | 1) {
+    setRows((current) => {
+      const next = [...current];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return current;
+      const [item] = next.splice(index, 1);
+      if (!item) return current;
+      next.splice(target, 0, item);
+      return next;
+    });
+  }
+
+  async function uploadLogo(index: number, file: File | undefined) {
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const body = new FormData();
+      body.append("files", file);
+      const res = await fetch("/api/admin/media/", { method: "POST", body });
+      const data = (await res.json()) as { items?: { id: string; url?: string }[] };
+      const item = data.items?.[0];
+      if (item) {
+        const url = item.url?.startsWith("http") ? item.url : `/api/media/${item.id}/`;
+        update(index, "logo", url);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
+
+  return (
+    <div>
+      <input type="hidden" name={name} value={JSON.stringify(rows)} />
+      <div className="space-y-3">
+        {rows.map((row, index) => (
+          <div key={index} className="flex flex-col gap-3 rounded-lg border border-line bg-paper/60 p-3 sm:flex-row sm:items-center">
+            <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded border border-line bg-white p-1">
+              {row.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={row.logo} alt={row.name || "Client logo"} className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-[10px] text-muted">No logo</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-muted">Brand / Client Name</label>
+              <input
+                className={`${inputClass} mt-1`}
+                value={asText(row.name)}
+                placeholder="e.g. Maruti Suzuki"
+                onChange={(event) => update(index, "name", event.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-medium text-muted">Logo Path / URL</label>
+                <label className="cursor-pointer text-xs font-semibold text-signal hover:underline">
+                  {uploadingIndex === index ? "Uploading…" : "Upload logo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingIndex === index}
+                    onChange={(e) => void uploadLogo(index, e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+              <input
+                className={`${inputClass} mt-1`}
+                value={asText(row.logo)}
+                placeholder="/clients/maruti-suzuki.jpg or https://..."
+                onChange={(event) => update(index, "logo", event.target.value)}
+              />
+            </div>
+            <div className="flex shrink-0 items-center gap-1 sm:self-end">
+              <button
+                type="button"
+                className="rounded border border-line px-2 py-1.5 text-xs text-navy hover:bg-white disabled:opacity-30"
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+                title="Move up"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="rounded border border-line px-2 py-1.5 text-xs text-navy hover:bg-white disabled:opacity-30"
+                disabled={index === rows.length - 1}
+                onClick={() => move(index, 1)}
+                title="Move down"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="rounded border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+                title="Remove client"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        className={`${secondaryButtonClass} mt-3 flex items-center gap-1.5`}
+        onClick={() => setRows((current) => [...current, { name: "", logo: "" }])}
+      >
+        <span>+</span> Add Client
+      </button>
     </div>
   );
 }
