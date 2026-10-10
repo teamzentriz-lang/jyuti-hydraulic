@@ -193,6 +193,25 @@ export async function HomeView() {
     <main className="home-page motion-page">
       <AboutReveal />
       <HomeBanner slides={banners} />
+      <section className="trust-strip" aria-label="Company strengths">
+        <div className="site-container trust-grid">
+          {strengths.map(([type, title, caption], index) => (
+            <div
+              className="trust-item about-check"
+              key={title}
+              style={{ animationDelay: `${index * 70}ms` }}
+            >
+              <span className="trust-icon">
+                <LineIcon type={type} />
+              </span>
+              <span>
+                <b>{title}</b>
+                <small>{caption}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
       <section className="clients-rail" aria-labelledby="clients-title">
         <div className="site-container clients-rail__heading">
           <p className="eyebrow dark">Trusted across industries</p>
@@ -214,25 +233,6 @@ export async function HomeView() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-      <section className="trust-strip" aria-label="Company strengths">
-        <div className="site-container trust-grid">
-          {strengths.map(([type, title, caption], index) => (
-            <div
-              className="trust-item about-check"
-              key={title}
-              style={{ animationDelay: `${index * 70}ms` }}
-            >
-              <span className="trust-icon">
-                <LineIcon type={type} />
-              </span>
-              <span>
-                <b>{title}</b>
-                <small>{caption}</small>
-              </span>
-            </div>
-          ))}
         </div>
       </section>
       <section className="home-about" aria-labelledby="home-about-title">
