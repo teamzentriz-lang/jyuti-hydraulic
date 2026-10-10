@@ -24,6 +24,7 @@ import {
   users,
   type SpecRow,
   type WhyItem,
+  type ClientItem,
 } from "@/db/schema";
 import { createSession, destroySession, hashPassword, requireAdmin, requireUser, verifyPassword } from "@/lib/auth";
 import { tables } from "@/lib/cms/queries";
@@ -416,6 +417,11 @@ const whyItem = z.object({
   body: z.string().trim().max(2000),
 });
 
+const clientItem = z.object({
+  name: z.string().trim().max(160),
+  logo: z.string().trim().max(2000),
+});
+
 const homeSchema = z.object({
   heroEyebrow: z.string().trim().max(120),
   heroHeadline: z.string().trim().max(300),
@@ -434,6 +440,7 @@ const homeSchema = z.object({
   visionBody: z.string().trim().max(5000),
   missionTitle: z.string().trim().max(120),
   missionBody: z.string().trim().max(5000),
+  clientLogos: z.array(clientItem).max(50).default([]),
 });
 
 function readJson<T>(formData: FormData, name: string, fallback: T): T {
@@ -554,6 +561,7 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
       visionBody: formData.get("visionBody"),
       missionTitle: formData.get("missionTitle"),
       missionBody: formData.get("missionBody"),
+      clientLogos: readJson<ClientItem[]>(formData, "clientLogos", []),
     });
     if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the home form.");
     const data = parsed.data;
@@ -580,6 +588,7 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
           visionBody: data.visionBody,
           missionTitle: data.missionTitle,
           missionBody: data.missionBody,
+          clientLogos: data.clientLogos.filter((item) => item.name || item.logo),
           updatedAt: new Date(),
         })
         .where(eq(homeContent.id, "default"));

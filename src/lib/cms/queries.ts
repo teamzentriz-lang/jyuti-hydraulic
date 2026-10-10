@@ -43,7 +43,7 @@ import {
   siteSettings,
   users,
 } from "@/db/schema";
-import { homeDefaults } from "@/lib/brand";
+import { defaultClients, homeDefaults } from "@/lib/brand";
 import { loadProductPayload, loadPageSections } from "@/lib/cms/entity-data";
 import {
   type RelationName,
@@ -82,8 +82,17 @@ export async function loadDatabase<T>(
   }
 }
 
+let singletonsEnsured = false;
+
 export async function ensureSingletons() {
+  if (singletonsEnsured) return;
+  singletonsEnsured = true;
   const db = getDb();
+  try {
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS client_logos jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+  } catch {}
   await db.insert(siteSettings).values({ id: "default" }).onConflictDoNothing();
   await db
     .insert(homeContent)
@@ -320,8 +329,13 @@ export async function getHome() {
     .select()
     .from(homeFeaturedProducts)
     .orderBy(asc(homeFeaturedProducts.sortOrder));
+  const clientLogos =
+    row.clientLogos && row.clientLogos.length > 0
+      ? row.clientLogos
+      : defaultClients;
   return {
     ...row,
+    clientLogos,
     heroMediaIds: heroes.map((item) => item.mediaId),
     featuredProductIds: featured.map((item) => item.productId),
   };

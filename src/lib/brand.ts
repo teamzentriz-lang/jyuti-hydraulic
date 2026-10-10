@@ -1,4 +1,4 @@
-import type { WhyItem } from "@/db/schema";
+import type { ClientItem, WhyItem } from "@/db/schema";
 
 /** Seed defaults only. The live site reads company and home copy from Postgres via the CMS. */
 type BrandSettings = {
@@ -58,6 +58,19 @@ export const aboutPillars = [
   },
 ] satisfies WhyItem[];
 
+export const defaultClients: ClientItem[] = [
+  { name: "Konica Minolta", logo: "/clients/konica-minolta.jpg" },
+  { name: "Crompton", logo: "/clients/crompton.jpg" },
+  { name: "Maruti Suzuki", logo: "/clients/maruti-suzuki.jpg" },
+  { name: "Nestlé", logo: "/clients/nestle.jpg" },
+  { name: "Philips", logo: "/clients/philips.jpg" },
+  { name: "Tupperware", logo: "/clients/tupperware.jpg" },
+  { name: "Surya", logo: "/clients/surya.jpg" },
+  { name: "Honda", logo: "/clients/honda.jpg" },
+  { name: "JCB", logo: "/clients/jcb.jpg" },
+  { name: "Campus", logo: "/clients/campus.jpg" },
+];
+
 export const homeDefaults = {
   heroEyebrow: "About us",
   heroHeadline: "Welcome to Jyoti Hydraulic",
@@ -90,4 +103,5 @@ export const homeDefaults = {
   missionTitle: "Mission",
   missionBody:
     "At Jyoti Hydraulic Faridabad, our mission is to keep advancing hydraulic products for the work our customers actually do. Quality, reliability, and clear technical support come before everything else.",
+  clientLogos: defaultClients,
 };
