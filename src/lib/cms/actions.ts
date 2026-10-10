@@ -5,7 +5,7 @@ import { eq, getTableColumns, sql, type AnyColumn } from "drizzle-orm";
 import type { AnyPgTable } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 import { revalidatePublicSite } from "@/lib/cms/revalidate-public";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { CmsError, toCmsMessage } from "@/db/errors";
@@ -605,23 +605,34 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
 }
 
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let destination = "";
   try {
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
     const password = String(formData.get("password") ?? "");
     const db = getDb();
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const [user] = await db
+      .select({ id: users.id, passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return { error: "Those details do not match an account." };
     }
     await db.delete(sessions).where(eq(sessions.userId, user.id));
     await createSession(user.id);
     const next = String(formData.get("next") ?? "/admin/");
-    redirect(next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin/");
+    destination = next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin/";
   } catch (error) {
-    return { error: toCmsMessage(error) };
+    unstable_rethrow(error);
+    try {
+      return { error: toCmsMessage(error) };
+    } catch {
+      return { error: "Sign in failed. Try again." };
+    }
   }
+  redirect(destination);
 }
 
 export async function logoutAction() {

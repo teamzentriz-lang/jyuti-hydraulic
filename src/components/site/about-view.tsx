@@ -76,6 +76,24 @@ function parseAbout(html: string) {
   };
 }
 
+const fallbackAboutHtml = `
+<h2>Welcome to Jyoti Hydraulic</h2>
+<p>Jyoti Hydraulic is committed to delivering advanced hydraulic solutions tailored to meet diverse industrial requirements. With a strong focus on quality, reliability, and customer satisfaction, we specialize in the design and manufacturing of a wide range of high-performance hydraulic components. Whether it's hydraulic cylinders, rotary joints, screw jacks, or other precision-engineered products, every solution is built with innovation and attention to detail to ensure long-lasting performance and efficiency. Established in 2014 in Faridabad, Jyoti Hydraulic manufactures hydraulic equipment, jigs, and fixtures for industrial and mobile machinery.</p>
+<img src="/brand/building.webp" alt="Jyoti Hydraulic office building" />
+`;
+
+export const fallbackAboutContent: PublishedContent = {
+  kind: "page",
+  path: "about-us",
+  title: "About Us",
+  seoTitle: "About Us",
+  seoDescription:
+    "Jyoti Hydraulic manufactures hydraulic equipment, jigs, and fixtures in Faridabad.",
+  summary:
+    "Established in 2014 in Faridabad. Manufacturer of hydraulic equipment, jigs, and fixtures.",
+  body: fallbackAboutHtml,
+};
+
 function splitWelcome(title: string) {
   const match = title.match(/^(welcome to)\s+(.+)$/i);
   if (!match) return { lead: title, brand: "" };
@@ -151,6 +169,7 @@ export async function AboutView({ content }: { content: PublishedContent }) {
         </div>
       </section>
 
+      {about.whyBody || about.whyImage || about.reasons.length ? (
       <section className="site-container py-16">
         <h2 className="about-in text-center text-3xl font-semibold text-[#2456a6]">Why Choose Us</h2>
         <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
@@ -174,6 +193,7 @@ export async function AboutView({ content }: { content: PublishedContent }) {
           {about.reasons.length ? <AboutFaq items={about.reasons} /> : null}
         </div>
       </section>
+      ) : null}
 
       {(about.vision || about.mission) && (
         <section className="site-container grid gap-4 pb-10 lg:grid-cols-2">

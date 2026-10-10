@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AboutReveal } from "@/components/site/about-reveal";
-import { CmsImage } from "@/components/site/cms-image";
 import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
+import { HomeBanner, type HomeBannerSlide } from "@/components/site/home-banner";
 import { ProductCard } from "@/components/site/product-card";
 import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
@@ -12,22 +12,41 @@ import {
   mediaItems,
   publishedPosts,
 } from "@/lib/cms/queries";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath } from "@/lib/paths";
 
-const Arrow = () => <span aria-hidden>→</span>;
+const defaultBanners: HomeBannerSlide[] = [
+  {
+    src: "/brand/banners/power-packs.jpg",
+    alt: "Hydraulic power packs. Power that drives success.",
+  },
+  {
+    src: "/brand/banners/cylinders.jpg",
+    alt: "Jyoti Hydraulic cylinders for industrial machinery.",
+  },
+  {
+    src: "/brand/banners/screw-jacks.png",
+    alt: "Jyoti Hydraulic screw jacks and industrial equipment.",
+  },
+  {
+    src: "/brand/banners/products.png",
+    alt: "Premium hydraulic products for industrial needs.",
+  },
+];
 
-function plainExcerpt(html: string, max = 220) {
+function aboutCopy(html: string) {
   const plain = html
     .replace(/<[^>]+>/g, " ")
-    .replace(/this is placeholder copy for layout preview\.?/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
     .replace(/\s+/g, " ")
     .trim();
-  if (!plain) return "";
-  if (plain.length <= max) return plain;
-  const cut = plain.slice(0, max);
-  const stop = cut.lastIndexOf(". ");
-  return stop > 70 ? cut.slice(0, stop + 1) : `${cut.trim()}…`;
+  const full =
+    "Jyoti Hydraulic is committed to delivering advanced hydraulic solutions tailored to meet diverse industrial requirements. With a strong focus on quality, reliability, and customer satisfaction, we specialize in the design and manufacturing of a wide range of high-performance hydraulic components. Whether it's hydraulic cylinders, rotary joints, screw jacks, or other precision-engineered products, every solution we offer is built with innovation and attention to detail to ensure long-lasting performance and efficiency.";
+  return plain.length > full.length ? plain : full;
 }
+
+const Arrow = () => <span aria-hidden>→</span>;
 
 function LineIcon({
   type,
@@ -89,18 +108,18 @@ export async function HomeView() {
   const heroImages = home.heroMediaIds.flatMap((id) =>
     mediaById.get(id) ? [mediaById.get(id)!] : [],
   );
-  const heroImage =
-    heroImages[0] ??
-    (home.aboutMediaId ? mediaById.get(home.aboutMediaId) : undefined);
-  const aboutImage = home.aboutMediaId
-    ? mediaById.get(home.aboutMediaId)
-    : heroImages[1];
+  const banners: HomeBannerSlide[] =
+    heroImages.length >= 2
+      ? heroImages.map((item) => ({
+          src: mediaDeliveryUrl(item),
+          alt: item.alt || item.filename || "Jyoti Hydraulic",
+        }))
+      : defaultBanners;
   const products = showcases
     .flatMap((section) => section.products)
     .filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i)
     .slice(0, 8);
   const displayProducts = products.length ? products : featured.slice(0, 8);
-  const intro = plainExcerpt(home.heroSubcopy.trim() || home.aboutBody);
   const strengths = [
     ["quality", "High Quality", "Manufacturing"],
     ["custom", "Custom-Built", "Solutions"],
@@ -109,14 +128,6 @@ export async function HomeView() {
     ["trusted", "Trusted by", "Industries"],
   ] as const;
 
-  const heroFallback =
-    displayProducts.find(
-      (item) => item.imageUrl && /cylinder/i.test(item.title),
-    )?.imageUrl ??
-    displayProducts.find(
-      (item) => item.imageUrl && /power pack/i.test(item.title),
-    )?.imageUrl ??
-    null;
   const stats = [
     ["12+", "Years of Experience"],
     ["1000+", "Products Delivered"],
@@ -180,53 +191,7 @@ export async function HomeView() {
   return (
     <main className="home-page motion-page">
       <AboutReveal />
-      <section className="hero-industrial">
-        {heroImage ? (
-          <CmsImage
-            item={heroImage}
-            alt=""
-            className="hero-industrial__image about-photo"
-          />
-        ) : heroFallback ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={heroFallback}
-            alt=""
-            className="hero-industrial__image about-photo"
-          />
-        ) : null}
-        <div className="hero-industrial__shade" />
-        <div className="site-container hero-industrial__content">
-          <div className="hero-copy">
-            <p className="eyebrow about-rule">
-              {home.heroEyebrow || "Industrial hydraulic solutions"}
-            </p>
-            <h1 className="about-in" style={{ animationDelay: "80ms" }}>
-              {home.heroHeadline ||
-                "Engineered for power. Built for your industry."}
-            </h1>
-            {intro ? (
-              <p
-                className="hero-intro about-in"
-                style={{ animationDelay: "160ms" }}
-              >
-                {intro}
-              </p>
-            ) : null}
-            <div
-              className="hero-actions about-in"
-              style={{ animationDelay: "240ms" }}
-            >
-              <Link href="/products/" className="site-btn-primary">
-                Explore products <Arrow />
-              </Link>
-              <Link href="/contact/" className="site-btn-ghost">
-                Request a quote
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeBanner slides={banners} />
       <section className="clients-rail" aria-labelledby="clients-title">
         <div className="site-container clients-rail__heading">
           <p className="eyebrow dark">Trusted across industries</p>
@@ -244,7 +209,6 @@ export async function HomeView() {
                 <img
                   src={logo}
                   alt={index < clients.length ? `${name} logo` : ""}
-                  loading="lazy"
                 />
               </div>
             ))}
@@ -268,6 +232,27 @@ export async function HomeView() {
               </span>
             </div>
           ))}
+        </div>
+      </section>
+      <section className="home-about" aria-labelledby="home-about-title">
+        <div className="home-about__media">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/building.webp"
+            alt="Jyoti Hydraulic office building"
+          />
+        </div>
+        <div className="home-about__copy">
+          <h1 id="home-about-title">About Us</h1>
+          <p>{aboutCopy(home.aboutBody)}</p>
+          <p>
+            Established in 2014 in Faridabad, Jyoti Hydraulic manufactures
+            hydraulic equipment, jigs, and fixtures for industrial and mobile
+            machinery.
+          </p>
+          <Link href="/about-us/" className="site-btn-primary">
+            Read more <Arrow />
+          </Link>
         </div>
       </section>
       {displayProducts.length ? (
@@ -301,15 +286,8 @@ export async function HomeView() {
         </section>
       ) : null}
       <section className="custom-band">
-        {aboutImage ? (
-          <CmsImage
-            item={aboutImage}
-            alt="Hydraulic engineering"
-            className="custom-band__image about-photo"
-          />
-        ) : null}
         <div className="site-container custom-band__inner">
-          <div className="custom-band__panel about-in">
+          <div className="custom-band__panel">
             <p className="eyebrow">Made around your application</p>
             <h2>Custom Hydraulic Solutions for Every Industry</h2>
             <p>

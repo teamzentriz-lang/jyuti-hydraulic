@@ -21,6 +21,7 @@ import {
   dedupeNavRoots,
   mergeProductsNavChildren,
 } from "@/lib/cms/product-nav";
+import { withBrandDefaults } from "@/lib/brand";
 import { normalizePath, publicPath } from "@/lib/paths";
 
 export type { PublishedContent };
@@ -131,17 +132,47 @@ export const getSite = cache(async (): Promise<SiteContext> => {
   const uniqueMediaIds = [...new Set(mediaIds)];
   const mediaById = await loadAvailableMedia(uniqueMediaIds);
   const siteLogo = settings.logoId ? mediaById.get(settings.logoId) : undefined;
+  const headerNav = mergeProductsNavChildren(headerNavTree, productsMenuNav);
+  const footerNav = dedupeNavRoots(buildNavTree(navRows.filter((row) => row.location === "footer")));
   return {
-    settings,
+    settings: withBrandDefaults(settings),
     header,
     footer,
     logo: header.logoId ? (mediaById.get(header.logoId) ?? null) : (siteLogo ?? null),
     mobileLogo: header.mobileLogoId ? (mediaById.get(header.mobileLogoId) ?? null) : null,
     footerLogo: footer.logoId ? (mediaById.get(footer.logoId) ?? null) : null,
-    headerNav: mergeProductsNavChildren(headerNavTree, productsMenuNav),
-    footerNav: dedupeNavRoots(buildNavTree(navRows.filter((row) => row.location === "footer"))),
+    headerNav: headerNav.length ? headerNav : fallbackHeaderNav(catalogNav),
+    footerNav: footerNav.length ? footerNav : fallbackFooterNav(catalogNav),
   };
 });
+
+function navItem(id: string, label: string, href: string, children: NavItem[] = []): NavItem {
+  return { id, label, href, openInNewTab: false, children };
+}
+
+function fallbackHeaderNav(catalog: NavItem[]): NavItem[] {
+  return [
+    navItem("home", "Home", "/"),
+    navItem("about", "About us", publicPath("about-us")),
+    navItem("products", "Products", catalog[0]?.href || "/products/", catalog),
+    navItem("blogs", "Blogs", publicPath("blogs")),
+    navItem("gallery", "Gallery", publicPath("gallery")),
+    navItem("certificates", "Certificates", publicPath("certificates")),
+    navItem("catalogue", "Catalogue", publicPath("catalogue")),
+    navItem("contact", "Contact", publicPath("contact")),
+  ];
+}
+
+function fallbackFooterNav(catalog: NavItem[]): NavItem[] {
+  return [
+    navItem("footer-home", "Home", "/"),
+    navItem("footer-about", "About Us", publicPath("about-us")),
+    navItem("footer-products", "Products", catalog[0]?.href || "/products/"),
+    navItem("footer-blogs", "Blogs", publicPath("blogs")),
+    navItem("footer-contact", "Contact Us", publicPath("contact")),
+    ...catalog.slice(0, 3).map((item) => navItem(`footer-${item.id}`, item.label, item.href)),
+  ];
+}
 
 export async function findActiveRedirect(requestPath: string) {
   const db = getDb();
