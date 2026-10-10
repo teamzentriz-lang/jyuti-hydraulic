@@ -27,7 +27,6 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "postgres",
     "bcryptjs",
-    "sanitize-html",
   ],
 
   images: {
