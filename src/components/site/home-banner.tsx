@@ -16,7 +16,7 @@ export function HomeBanner({ slides }: { slides: HomeBannerSlide[] }) {
     if (paused || count < 2) return;
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % count);
-    }, 5500);
+    }, 2000);
     return () => window.clearInterval(timer);
   }, [paused, count]);
 
@@ -33,6 +33,8 @@ export function HomeBanner({ slides }: { slides: HomeBannerSlide[] }) {
       aria-label="Jyoti Hydraulic banners"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setPaused(false)}
     >
       <div className="home-banner__viewport">
         {slides.map((slide, slideIndex) => (
