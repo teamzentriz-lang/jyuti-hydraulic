@@ -1,6 +1,34 @@
 import type { WhyItem } from "@/db/schema";
 
 /** Seed defaults only. The live site reads company and home copy from Postgres via the CMS. */
+type BrandSettings = {
+  companyName: string;
+  phonePrimary: string;
+  emailPrimary: string;
+  emailSecondary: string | null;
+  address: string;
+  whatsapp: string | null;
+  footerText: string;
+  quoteCtaLabel: string;
+  quoteCtaHref: string;
+};
+
+export function withBrandDefaults<T extends BrandSettings>(settings: T): T {
+  const text = (value: string | null | undefined, fallback: string) => value?.trim() || fallback;
+  return {
+    ...settings,
+    companyName: text(settings.companyName, brand.companyName),
+    phonePrimary: text(settings.phonePrimary, brand.phonePrimary),
+    emailPrimary: text(settings.emailPrimary, brand.emailPrimary),
+    emailSecondary: text(settings.emailSecondary, brand.emailSecondary),
+    address: text(settings.address, brand.address),
+    whatsapp: text(settings.whatsapp, brand.whatsapp),
+    footerText: text(settings.footerText, brand.footerText),
+    quoteCtaLabel: text(settings.quoteCtaLabel, brand.quoteCtaLabel),
+    quoteCtaHref: text(settings.quoteCtaHref, brand.quoteCtaHref),
+  };
+}
+
 export const brand = {
   companyName: "Jyoti Hydraulic",
   siteUrl: "https://jyotihydraulic.com",

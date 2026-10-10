@@ -15,6 +15,7 @@ function formatHours(value: string) {
 }
 import { AboutReveal } from "@/components/site/about-reveal";
 import { QuoteForm } from "@/components/site/quote-form";
+import { withBrandDefaults } from "@/lib/brand";
 import { getContactSettings, getSettings } from "@/lib/cms/queries";
 
 export async function ContactSection({
@@ -26,10 +27,11 @@ export async function ContactSection({
   pagePath?: string;
   embedded?: boolean;
 }) {
-  const [contact, settings] = await Promise.all([
+  const [contact, rawSettings] = await Promise.all([
     getContactSettings(),
     getSettings(),
   ]);
+  const settings = withBrandDefaults(rawSettings);
   const address = contact.address?.trim() || settings.address;
   const email = contact.email?.trim() || settings.emailPrimary;
   const emailSecondary =

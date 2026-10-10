@@ -96,10 +96,11 @@ export function SiteShell({
 
   const footerBlurb = footer.description?.trim() || settings.footerText;
 
+  const storedCopyright = footer.copyrightText?.trim() || settings.copyrightText?.trim() || "";
   const copyright =
-    footer.copyrightText?.trim() ||
-    settings.copyrightText?.trim() ||
-    `© Copyright ${new Date().getFullYear()} by ${settings.companyName.toLowerCase()}`;
+    storedCopyright && !/by\s*$/i.test(storedCopyright)
+      ? storedCopyright
+      : `© Copyright ${new Date().getFullYear()} by ${settings.companyName.toLowerCase()}`;
 
   const social = socialLinks(site);
   const announcement = header.topBarText?.trim() ?? "";

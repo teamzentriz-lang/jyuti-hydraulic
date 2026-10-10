@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { fallbackAboutContent } from "@/components/site/about-view";
 import { ContentView, contentMetadata } from "@/components/site/content-view";
 import { cataloguesForSite, getCataloguePdfUrl } from "@/lib/cms/queries";
 import {
@@ -15,7 +16,9 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const content = await resolvePublishedContent(slug);
+  const content =
+    (await resolvePublishedContent(slug)) ??
+    (slug.length === 1 && slug[0] === "about-us" ? fallbackAboutContent : null);
   if (!content) return { robots: noIndexRobots };
   const site = await getSite();
   return contentMetadata(content, site.settings.companyName);
@@ -33,7 +36,9 @@ export default async function CmsRoutePage({
     redirect(rule.toPath);
   }
 
-  const content = await resolvePublishedContent(slug);
+  const content =
+    (await resolvePublishedContent(slug)) ??
+    (slug.length === 1 && slug[0] === "about-us" ? fallbackAboutContent : null);
   if (!content) notFound();
 
   const cataloguePdfUrl =

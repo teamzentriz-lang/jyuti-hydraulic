@@ -14,16 +14,23 @@ export function isDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL);
 }
 
+function connectionString(raw: string) {
+  return raw
+    .replace(/([?&])channel_binding=[^&]*/g, "")
+    .replace("?&", "?")
+    .replace(/[?&]$/, "");
+}
+
 export function getDb(): AppDatabase {
   const url = process.env.DATABASE_URL;
   if (!url) throw new DatabaseNotConfiguredError();
 
   if (!globalForDb.__jhDb) {
-    const sql = postgres(url, {
+    const sql = postgres(connectionString(url), {
       prepare: false,
-      max: 10,
+      max: process.env.VERCEL ? 1 : 10,
       idle_timeout: 20,
-      connect_timeout: 15,
+      connect_timeout: 10,
     });
     globalForDb.__jhSql = sql;
     globalForDb.__jhDb = drizzle(sql, { schema });
