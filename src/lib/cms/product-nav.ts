@@ -6,7 +6,93 @@ import { normalizePath, publicPath } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
 
-function categoryToNavItem(row: { id: string; title: string; path: string }): NavItem {
+function fallbackProductMenu(): NavItem[] {
+  const item = (
+    id: string,
+    label: string,
+    href: string,
+    children: NavItem[] = [],
+  ): NavItem => ({
+    id,
+    label,
+    href,
+    openInNewTab: false,
+    children,
+  });
+
+  return [
+    item("fallback-cylinders", "Hydraulic Cylinder", "/hydraulic-cylinder/", [
+      item(
+        "fallback-double-acting",
+        "Double Acting Hydraulic Cylinders",
+        "/hydraulic-cylinder/double-acting-hydraulic-cylinders/",
+      ),
+      item(
+        "fallback-single-acting",
+        "Single Acting Hydraulic Cylinders",
+        "/hydraulic-cylinder/single-acting-hydraulic-cylinders/",
+      ),
+      item(
+        "fallback-magnetic",
+        "Magnetic Hydraulic Cylinders",
+        "/hydraulic-cylinder/magnetic-hydraulic-cylinders/",
+      ),
+      item(
+        "fallback-reed-switch",
+        "Reed Switch Hydraulic Cylinders",
+        "/hydraulic-cylinder/reed-switch-hydraulic-cylinders/",
+      ),
+      item(
+        "fallback-earth-moving",
+        "Earth Moving & Construction Equipment Cylinders",
+        "/hydraulic-cylinder/earth-moving-construction-equipment-cylinders/",
+      ),
+      item(
+        "fallback-telescopic",
+        "Telescopic Cylinders",
+        "/hydraulic-cylinder/telescopic-cylinders/",
+      ),
+      item(
+        "fallback-industrial",
+        "Industrial Hydraulic Cylinders",
+        "/hydraulic-cylinder/industrial-hydraulic-cylinders/",
+      ),
+    ]),
+    item(
+      "fallback-power-pack",
+      "Hydraulic Power Pack",
+      "/hydraulic-power-pack/",
+    ),
+    item("fallback-bevel-gear", "Bevel Gear Box", "/bevel-gear-box/"),
+    item(
+      "fallback-e-rickshaw",
+      "E-Rickshaw Spare Parts",
+      "/e-rickshaw-spare-parts/",
+    ),
+    item(
+      "fallback-automatic-kit",
+      "Automatic Hydraulic Kit for Tipper E-Rickshaw Garbage Loader",
+      "/automatic-hydraulic-kit-for-tipper-e-rickshaw-garbage-loader/",
+    ),
+    item(
+      "fallback-manual-kit",
+      "Manual Hydraulic Kit for Tipper E-Rickshaw Garbage Loader",
+      "/manual-hydraulic-kit-for-tipper-e-rickshaw-garbage-loader/",
+    ),
+    item("fallback-screw-jack", "Screw Jack", "/screw-jack/"),
+    item(
+      "fallback-worm-gear",
+      "Worm Gear Screw Jack",
+      "/worm-gear-screw-jack/",
+    ),
+  ];
+}
+
+function categoryToNavItem(row: {
+  id: string;
+  title: string;
+  path: string;
+}): NavItem {
   return {
     id: `cat-${row.id}`,
     label: row.title,
@@ -29,7 +115,12 @@ export async function buildCatalogNavItems(db: Db): Promise<NavItem[]> {
         showInMenu: productCategories.showInMenu,
       })
       .from(productCategories)
-      .where(and(eq(productCategories.status, "published"), eq(productCategories.showInMenu, true)))
+      .where(
+        and(
+          eq(productCategories.status, "published"),
+          eq(productCategories.showInMenu, true),
+        ),
+      )
       .orderBy(asc(productCategories.sortOrder), asc(productCategories.title)),
     db
       .select({
@@ -128,7 +219,10 @@ function indexCatalogTree(catalogNav: NavItem[]): CatalogIndex {
   return { byPath, byCategoryId };
 }
 
-function catalogChildrenForLink(row: NavLinkMenuRow, catalog: CatalogIndex): NavItem[] {
+function catalogChildrenForLink(
+  row: NavLinkMenuRow,
+  catalog: CatalogIndex,
+): NavItem[] {
   if (row.itemType === "product_category" && row.referenceId) {
     return catalog.byCategoryId.get(row.referenceId)?.children ?? [];
   }
@@ -145,7 +239,11 @@ function navLinkRowToItem(row: NavLinkMenuRow, children: NavItem[]): NavItem {
   };
 }
 
-function buildNavLinkBranch(rows: NavLinkMenuRow[], parentId: string | null, catalog: CatalogIndex): NavItem[] {
+function buildNavLinkBranch(
+  rows: NavLinkMenuRow[],
+  parentId: string | null,
+  catalog: CatalogIndex,
+): NavItem[] {
   return rows
     .filter((row) => (row.parentId ?? null) === parentId)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
@@ -154,13 +252,18 @@ function buildNavLinkBranch(rows: NavLinkMenuRow[], parentId: string | null, cat
       if (!children.length) {
         children = catalogChildrenForLink(row, catalog);
       } else {
-        children = children.map((child) => enrichNavItemFromCatalog(child, catalog));
+        children = children.map((child) =>
+          enrichNavItemFromCatalog(child, catalog),
+        );
       }
       return navLinkRowToItem(row, children);
     });
 }
 
-function enrichNavItemFromCatalog(item: NavItem, catalog: CatalogIndex): NavItem {
+function enrichNavItemFromCatalog(
+  item: NavItem,
+  catalog: CatalogIndex,
+): NavItem {
   const children = item.children.length
     ? item.children.map((child) => enrichNavItemFromCatalog(child, catalog))
     : (catalog.byPath.get(catalogPathKey(item.href))?.children ?? []);
@@ -177,18 +280,29 @@ export function buildProductsDropdownNav(
   const productMenuRows = navRows.filter((row) => row.location === "products");
 
   if (productMenuRows.length) {
-    return buildNavLinkBranch(productMenuRows, null, catalog);
+    const customMenu = buildNavLinkBranch(productMenuRows, null, catalog);
+    // Imported/admin data can contain only orphaned child rows after a database
+    // migration. Do not let those rows suppress the usable catalogue/fallback menu.
+    if (customMenu.length) return customMenu;
   }
 
   const headerChildren = headerNav.find(isProductsNavItem)?.children ?? [];
   if (headerChildren.length) {
-    return headerChildren.map((item) => enrichNavItemFromCatalog(item, catalog));
+    return headerChildren.map((item) =>
+      enrichNavItemFromCatalog(item, catalog),
+    );
   }
 
-  return catalogNav.map((item) => enrichNavItemFromCatalog(item, catalog));
+  const resolvedCatalog = catalogNav.map((item) =>
+    enrichNavItemFromCatalog(item, catalog),
+  );
+  return resolvedCatalog.length ? resolvedCatalog : fallbackProductMenu();
 }
 
-export function mergeProductsNavChildren(headerNav: NavItem[], productsChildren: NavItem[]): NavItem[] {
+export function mergeProductsNavChildren(
+  headerNav: NavItem[],
+  productsChildren: NavItem[],
+): NavItem[] {
   if (!productsChildren.length) return headerNav;
   return headerNav.map((item) =>
     isProductsNavItem(item) ? { ...item, children: productsChildren } : item,

@@ -286,6 +286,23 @@ body {
   right: 0;
   left: 0;
 }
+.mega-menu-panel {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+}
+.group:hover > .mega-menu-panel,
+.group:focus-within > .mega-menu-panel {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+}
 .products-flyout {
   display: flex;
   align-items: stretch;
@@ -3016,9 +3033,148 @@ body {
   }
 }
 
+/* --- Catalogue Page Banner (Image 3 design) --- */
+.catalogue-page-banner {
+  border: 0;
+  background-color: #041d34;
+  background-image:
+    linear-gradient(
+      100deg,
+      rgba(4, 22, 40, 0.95) 0%,
+      rgba(6, 39, 71, 0.88) 45%,
+      rgba(6, 39, 71, 0.65) 100%
+    ),
+    var(--catalogue-banner-image, none);
+  background-position:
+    center,
+    72% center;
+  background-size: auto, cover;
+  background-repeat: no-repeat;
+  color: #fff;
+  min-height: 190px;
+  padding-block: 2rem 2.2rem;
+}
+.catalogue-page-banner .page-banner-inner {
+  padding-block: 0;
+}
+.catalogue-banner-crumbs {
+  margin-bottom: 0.85rem;
+}
+.catalogue-banner-crumbs .crumbs ol {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.catalogue-banner-crumbs .crumbs li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.catalogue-banner-crumbs .crumbs li + li::before {
+  content: "/";
+  color: rgba(255, 255, 255, 0.4);
+}
+.catalogue-banner-crumbs .crumbs a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.catalogue-banner-crumbs .crumbs a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.catalogue-banner-crumbs .crumbs span {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+.catalogue-banner-title {
+  color: #ffffff !important;
+  max-width: 900px;
+  font-size: clamp(2rem, 4vw, 3.25rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.04em !important;
+  margin: 0 0 0.4rem 0 !important;
+}
+.catalogue-banner-subtitle {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(0.95rem, 1.5vw, 1.18rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+.catalogue-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+}
+.catalogue-controls .catalogue-search {
+  flex: 0 0 290px;
+  max-width: 320px;
+  width: 100%;
+}
+.catalogue-bottom-content {
+  margin-top: 1.6rem;
+}
+.catalogue-bottom-content__card {
+  background: #ffffff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding: 1.45rem 1.65rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+.catalogue-bottom-content__header {
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 1rem;
+}
+.catalogue-bottom-content__header h2 {
+  font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+  font-weight: 800;
+  color: var(--color-navy);
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  letter-spacing: -0.02em;
+}
+.catalogue-bottom-content__summary p,
+.catalogue-bottom-content__body {
+  max-width: 82ch;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: #334155;
+  margin: 0;
+}
+.catalogue-bottom-content__body {
+  margin-top: 0.75rem;
+}
+@media (max-width: 767px) {
+  .catalogue-page-banner {
+    padding-block: 2rem 2.25rem;
+  }
+  .catalogue-controls {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .catalogue-controls .catalogue-search {
+    flex-basis: auto;
+    max-width: 100%;
+  }
+  .catalogue-bottom-content__card {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
 .catalogue-page {
   background: #f5f8fb;
-  padding-block: 2.5rem 4.5rem;
+  padding-block: 1.35rem 2.75rem;
 }
 .catalogue-page__heading,
 .catalogue-page__inner {
@@ -3095,6 +3251,8 @@ body {
 }
 .catalogue-chips {
   display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 0.55rem;
   overflow-x: auto;
   padding-bottom: 0.2rem;
@@ -3136,7 +3294,7 @@ body {
 }
 .catalogue-card__media {
   display: block;
-  height: 190px;
+  height: 170px;
   background: #eef3f7;
 }
 .catalogue-card__media img,
@@ -3146,7 +3304,7 @@ body {
   object-fit: contain;
 }
 .catalogue-card__body {
-  padding: 1rem 1.05rem 1.15rem;
+  padding: 0.85rem 0.95rem 1rem;
 }
 .catalogue-card__body h2 {
   color: var(--color-navy);

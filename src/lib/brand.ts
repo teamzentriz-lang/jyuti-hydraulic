@@ -1,4 +1,4 @@
-import type { ClientItem, WhyItem } from "@/db/schema";
+import type { ClientItem, StatItem, StrengthItem, TestimonialItem, UspItem, WhyItem } from "@/db/schema";
 
 /** Seed defaults only. The live site reads company and home copy from Postgres via the CMS. */
 type BrandSettings = {
@@ -71,6 +71,67 @@ export const defaultClients: ClientItem[] = [
   { name: "Campus", logo: "/clients/campus.jpg" },
 ];
 
+export const defaultTestimonials: TestimonialItem[] = [
+  {
+    quote:
+      "The team understood our application quickly and recommended a practical hydraulic solution that integrated smoothly with our equipment.",
+    author: "Industrial equipment customer",
+  },
+  {
+    quote:
+      "Clear technical communication, dependable product quality and responsive support made the entire procurement process straightforward.",
+    author: "Manufacturing customer",
+  },
+  {
+    quote:
+      "Jyoti Hydraulic has been a reliable partner for custom requirements, delivery coordination and after-sales assistance.",
+    author: "OEM customer",
+  },
+];
+
+export const defaultStrengths: StrengthItem[] = [
+  { icon: "quality", title: "High Quality", subtitle: "Manufacturing" },
+  { icon: "custom", title: "Custom-Built", subtitle: "Solutions" },
+  { icon: "supply", title: "Pan India", subtitle: "Supply" },
+  { icon: "support", title: "Technical", subtitle: "Support" },
+  { icon: "trusted", title: "Trusted by", subtitle: "Industries" },
+];
+
+export const defaultStats: StatItem[] = [
+  { value: "12+", label: "Years of Experience" },
+  { value: "1000+", label: "Products Delivered" },
+  { value: "500+", label: "Happy Clients" },
+  { value: "Pan India", label: "Supply Network" },
+];
+
+export const defaultUsps: UspItem[] = [
+  {
+    number: "01",
+    title: "Application-first engineering",
+    body: "Hydraulic systems selected and configured around real operating requirements.",
+  },
+  {
+    number: "02",
+    title: "Pan-India supply",
+    body: "Reliable product availability and delivery support across industrial regions.",
+  },
+  {
+    number: "03",
+    title: "Responsive support",
+    body: "Practical guidance for selection, commissioning and after-sales requirements.",
+  },
+  {
+    number: "04",
+    title: "Experienced team",
+    body: "Hands-on hydraulic knowledge backed by manufacturing and field experience.",
+  },
+  {
+    number: "05",
+    title: "In-house solutions",
+    body: "Standard products and custom-built assemblies from one dependable partner.",
+  },
+];
+
 export const homeDefaults = {
   heroEyebrow: "About us",
   heroHeadline: "Welcome to Jyoti Hydraulic",
@@ -104,4 +165,14 @@ export const homeDefaults = {
   missionBody:
     "At Jyoti Hydraulic Faridabad, our mission is to keep advancing hydraulic products for the work our customers actually do. Quality, reliability, and clear technical support come before everything else.",
   clientLogos: defaultClients,
+  testimonials: defaultTestimonials,
+  strengths: defaultStrengths,
+  stats: defaultStats,
+  usps: defaultUsps,
+  customBandTitle: "Custom Hydraulic Solutions for Every Industry",
+  customBandEyebrow: "Made around your application",
+  customBandBody:
+    "From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.",
+  customBandButtonText: "Get a custom solution",
+  customBandButtonHref: "/contact/",
 };

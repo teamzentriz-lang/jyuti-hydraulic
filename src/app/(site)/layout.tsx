@@ -1,7 +1,7 @@
 import { SiteShell } from "@/components/site/site-shell";
 import { getSite } from "@/lib/cms/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 export default async function PublicSiteLayout({
   children,

@@ -18,6 +18,10 @@ import {
 export type SpecRow = { label: string; value: string; unit?: string; group?: string };
 export type WhyItem = { title: string; body: string };
 export type ClientItem = { name: string; logo: string };
+export type TestimonialItem = { quote: string; author: string };
+export type StrengthItem = { title: string; subtitle: string; icon?: string };
+export type StatItem = { value: string; label: string };
+export type UspItem = { number?: string; title: string; body: string };
 
 export const userRole = pgEnum("user_role", ["admin", "editor"]);
 export const publishStatus = pgEnum("publish_status", ["draft", "published"]);
@@ -159,6 +163,15 @@ export const homeContent = pgTable(
     missionTitle: text("mission_title").notNull().default("Mission"),
     missionBody: text("mission_body").notNull().default(""),
     clientLogos: jsonb("client_logos").$type<ClientItem[]>().notNull().default(sql`'[]'::jsonb`),
+    testimonials: jsonb("testimonials").$type<TestimonialItem[]>().notNull().default(sql`'[]'::jsonb`),
+    strengths: jsonb("strengths").$type<StrengthItem[]>().notNull().default(sql`'[]'::jsonb`),
+    stats: jsonb("stats").$type<StatItem[]>().notNull().default(sql`'[]'::jsonb`),
+    usps: jsonb("usps").$type<UspItem[]>().notNull().default(sql`'[]'::jsonb`),
+    customBandTitle: text("custom_band_title").notNull().default("Custom Hydraulic Solutions for Every Industry"),
+    customBandEyebrow: text("custom_band_eyebrow").notNull().default("Made around your application"),
+    customBandBody: text("custom_band_body").notNull().default("From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements."),
+    customBandButtonText: text("custom_band_button_text").notNull().default("Get a custom solution"),
+    customBandButtonHref: text("custom_band_button_href").notNull().default("/contact/"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [check("home_content_singleton", sql`${t.id} = 'default'`)],
@@ -250,6 +263,7 @@ export const productCategories = pgTable(
     parentId: uuid("parent_id").references((): AnyPgColumn => productCategories.id, {
       onDelete: "set null",
     }),
+    subtitle: text("subtitle").notNull().default("ISO-9001:2015 Certified Company"),
     summary: text("summary").notNull().default(""),
     body: text("body").notNull().default(""),
     imageId: uuid("image_id").references(() => media.id, { onDelete: "restrict" }),

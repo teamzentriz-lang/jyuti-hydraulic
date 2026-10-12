@@ -22,6 +22,7 @@ export function ProductCard({
         href={publicPath(path)}
         className="product-card__image"
         aria-label={label}
+        prefetch={false}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -31,12 +32,12 @@ export function ProductCard({
       </Link>
       <div className="product-card__body">
         <h3>
-          <Link href={publicPath(path)}>{label}</Link>
+          <Link href={publicPath(path)} prefetch={false}>{label}</Link>
         </h3>
         {summary && cleanPublicExcerpt(summary, 180) ? (
           <p>{cleanPublicExcerpt(summary, 180)}</p>
         ) : null}
-        <Link href={publicPath(path)} className="product-card__link">
+        <Link href={publicPath(path)} className="product-card__link" prefetch={false}>
           View product <span aria-hidden>→</span>
         </Link>
       </div>
