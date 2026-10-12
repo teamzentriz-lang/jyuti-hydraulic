@@ -10,7 +10,7 @@ const sourceSans = Source_Sans_3({
   variable: "--font-source",
 });
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 export async function generateMetadata(): Promise<Metadata> {
   try {

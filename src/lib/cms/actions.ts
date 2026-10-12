@@ -25,6 +25,10 @@ import {
   type SpecRow,
   type WhyItem,
   type ClientItem,
+  type StatItem,
+  type StrengthItem,
+  type TestimonialItem,
+  type UspItem,
 } from "@/db/schema";
 import { createSession, destroySession, hashPassword, requireAdmin, requireUser, verifyPassword } from "@/lib/auth";
 import { tables } from "@/lib/cms/queries";
@@ -422,6 +426,28 @@ const clientItem = z.object({
   logo: z.string().trim().max(2000),
 });
 
+const testimonialItem = z.object({
+  quote: z.string().trim().max(2000),
+  author: z.string().trim().max(300),
+});
+
+const strengthItem = z.object({
+  title: z.string().trim().max(160),
+  subtitle: z.string().trim().max(160),
+  icon: z.string().trim().max(60).optional(),
+});
+
+const statItem = z.object({
+  value: z.string().trim().max(60),
+  label: z.string().trim().max(160),
+});
+
+const uspItem = z.object({
+  number: z.string().trim().max(20).optional(),
+  title: z.string().trim().max(200),
+  body: z.string().trim().max(2000),
+});
+
 const homeSchema = z.object({
   heroEyebrow: z.string().trim().max(120),
   heroHeadline: z.string().trim().max(300),
@@ -441,6 +467,15 @@ const homeSchema = z.object({
   missionTitle: z.string().trim().max(120),
   missionBody: z.string().trim().max(5000),
   clientLogos: z.array(clientItem).max(50).default([]),
+  testimonials: z.array(testimonialItem).max(50).default([]),
+  strengths: z.array(strengthItem).max(12).default([]),
+  stats: z.array(statItem).max(12).default([]),
+  usps: z.array(uspItem).max(20).default([]),
+  customBandTitle: z.string().trim().max(300).default(""),
+  customBandEyebrow: z.string().trim().max(200).default(""),
+  customBandBody: z.string().trim().max(3000).default(""),
+  customBandButtonText: z.string().trim().max(100).default(""),
+  customBandButtonHref: z.string().trim().max(300).default(""),
 });
 
 function readJson<T>(formData: FormData, name: string, fallback: T): T {
@@ -562,6 +597,15 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
       missionTitle: formData.get("missionTitle"),
       missionBody: formData.get("missionBody"),
       clientLogos: readJson<ClientItem[]>(formData, "clientLogos", []),
+      testimonials: readJson<TestimonialItem[]>(formData, "testimonials", []),
+      strengths: readJson<StrengthItem[]>(formData, "strengths", []),
+      stats: readJson<StatItem[]>(formData, "stats", []),
+      usps: readJson<UspItem[]>(formData, "usps", []),
+      customBandTitle: formData.get("customBandTitle") ?? "",
+      customBandEyebrow: formData.get("customBandEyebrow") ?? "",
+      customBandBody: formData.get("customBandBody") ?? "",
+      customBandButtonText: formData.get("customBandButtonText") ?? "",
+      customBandButtonHref: formData.get("customBandButtonHref") ?? "",
     });
     if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the home form.");
     const data = parsed.data;
@@ -589,6 +633,15 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
           missionTitle: data.missionTitle,
           missionBody: data.missionBody,
           clientLogos: data.clientLogos.filter((item) => item.name || item.logo),
+          testimonials: data.testimonials.filter((item) => item.quote || item.author),
+          strengths: data.strengths.filter((item) => item.title || item.subtitle),
+          stats: data.stats.filter((item) => item.value || item.label),
+          usps: data.usps.filter((item) => item.title || item.body),
+          customBandTitle: data.customBandTitle,
+          customBandEyebrow: data.customBandEyebrow,
+          customBandBody: data.customBandBody,
+          customBandButtonText: data.customBandButtonText,
+          customBandButtonHref: data.customBandButtonHref,
           updatedAt: new Date(),
         })
         .where(eq(homeContent.id, "default"));

@@ -1,6 +1,7 @@
 /** Stable URL for browser previews (admin + public). Local files are served via the media API. */
 export function mediaDeliveryUrl(item: { id: string; url: string }) {
   if (/^https?:\/\//i.test(item.url)) return item.url;
+  if (item.url.startsWith("/brand/")) return item.url;
   return `/api/media/${item.id}`;
 }
 

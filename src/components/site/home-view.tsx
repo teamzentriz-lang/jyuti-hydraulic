@@ -2,7 +2,10 @@ import Link from "next/link";
 import { AboutReveal } from "@/components/site/about-reveal";
 import { ContactSection } from "@/components/site/contact-section";
 import { CountUp } from "@/components/site/count-up";
-import { HomeBanner, type HomeBannerSlide } from "@/components/site/home-banner";
+import {
+  HomeBanner,
+  type HomeBannerSlide,
+} from "@/components/site/home-banner";
 import { ProductCard } from "@/components/site/product-card";
 import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
@@ -13,27 +16,14 @@ import {
   publishedPosts,
 } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
-import { defaultClients } from "@/lib/brand";
+import {
+  defaultClients,
+  defaultStats,
+  defaultStrengths,
+  defaultTestimonials,
+  defaultUsps,
+} from "@/lib/brand";
 import { publicPath } from "@/lib/paths";
-
-const defaultBanners: HomeBannerSlide[] = [
-  {
-    src: "/brand/banners/power-packs.jpg",
-    alt: "Hydraulic power packs. Power that drives success.",
-  },
-  {
-    src: "/brand/banners/cylinders.jpg",
-    alt: "Jyoti Hydraulic cylinders for industrial machinery.",
-  },
-  {
-    src: "/brand/banners/screw-jacks.png",
-    alt: "Jyoti Hydraulic screw jacks and industrial equipment.",
-  },
-  {
-    src: "/brand/banners/products.png",
-    alt: "Premium hydraulic products for industrial needs.",
-  },
-];
 
 function aboutCopy(html: string) {
   const plain = html
@@ -93,6 +83,17 @@ function LineIcon({
   );
 }
 
+type LineIconType = Parameters<typeof LineIcon>[0]["type"];
+
+function lineIconType(value?: string): LineIconType {
+  return value === "custom" ||
+    value === "supply" ||
+    value === "support" ||
+    value === "trusted"
+    ? value
+    : "quality";
+}
+
 export async function HomeView() {
   const home = await getHome();
   const mediaIds = [
@@ -109,85 +110,37 @@ export async function HomeView() {
   const heroImages = home.heroMediaIds.flatMap((id) =>
     mediaById.get(id) ? [mediaById.get(id)!] : [],
   );
-  const banners: HomeBannerSlide[] =
-    heroImages.length > 0
-      ? heroImages.map((item) => ({
-          src: mediaDeliveryUrl(item),
-          alt: item.alt || item.filename || "Jyoti Hydraulic",
-        }))
-      : defaultBanners;
+  const banners: HomeBannerSlide[] = heroImages.map((item) => ({
+    src: mediaDeliveryUrl(item),
+    alt: item.alt || item.filename || "Jyoti Hydraulic",
+  }));
   const products = showcases
     .flatMap((section) => section.products)
     .filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i)
     .slice(0, 8);
   const displayProducts = products.length ? products : featured.slice(0, 8);
-  const strengths = [
-    ["quality", "High Quality", "Manufacturing"],
-    ["custom", "Custom-Built", "Solutions"],
-    ["supply", "Pan India", "Supply"],
-    ["support", "Technical", "Support"],
-    ["trusted", "Trusted by", "Industries"],
-  ] as const;
+  const aboutImage = home.aboutMediaId
+    ? mediaById.get(home.aboutMediaId)
+    : null;
+  const aboutImageUrl = aboutImage
+    ? mediaDeliveryUrl(aboutImage)
+    : "/brand/building.webp";
+  const aboutImageAlt = aboutImage?.alt || "Jyoti Hydraulic office building";
 
-  const stats = [
-    ["12+", "Years of Experience"],
-    ["1000+", "Products Delivered"],
-    ["500+", "Happy Clients"],
-    ["Pan India", "Supply Network"],
-  ] as const;
-  const clients = [
-    ["Konica Minolta", "/clients/konica-minolta.jpg"],
-    ["Crompton", "/clients/crompton.jpg"],
-    ["Maruti Suzuki", "/clients/maruti-suzuki.jpg"],
-    ["Nestlé", "/clients/nestle.jpg"],
-    ["Philips", "/clients/philips.jpg"],
-    ["Tupperware", "/clients/tupperware.jpg"],
-    ["Surya", "/clients/surya.jpg"],
-    ["Honda", "/clients/honda.jpg"],
-    ["JCB", "/clients/jcb.jpg"],
-    ["Campus", "/clients/campus.jpg"],
-  ] as const;
-  const usps = [
-    [
-      "01",
-      "Application-first engineering",
-      "Hydraulic systems selected and configured around real operating requirements.",
-    ],
-    [
-      "02",
-      "Pan-India supply",
-      "Reliable product availability and delivery support across industrial regions.",
-    ],
-    [
-      "03",
-      "Responsive support",
-      "Practical guidance for selection, commissioning and after-sales requirements.",
-    ],
-    [
-      "04",
-      "Experienced team",
-      "Hands-on hydraulic knowledge backed by manufacturing and field experience.",
-    ],
-    [
-      "05",
-      "In-house solutions",
-      "Standard products and custom-built assemblies from one dependable partner.",
-    ],
-  ] as const;
-  const testimonials = [
-    [
-      "The team understood our application quickly and recommended a practical hydraulic solution that integrated smoothly with our equipment.",
-      "Industrial equipment customer",
-    ],
-    [
-      "Clear technical communication, dependable product quality and responsive support made the entire procurement process straightforward.",
-      "Manufacturing customer",
-    ],
-    [
-      "Jyoti Hydraulic has been a reliable partner for custom requirements, delivery coordination and after-sales assistance.",
-      "OEM customer",
-    ],
-  ] as const;
+  const strengths =
+    home.strengths && home.strengths.length > 0
+      ? home.strengths
+      : defaultStrengths;
+  const stats = home.stats && home.stats.length > 0 ? home.stats : defaultStats;
+  const clientLogos =
+    home.clientLogos && home.clientLogos.length > 0
+      ? home.clientLogos
+      : defaultClients;
+  const usps = home.usps && home.usps.length > 0 ? home.usps : defaultUsps;
+  const testimonials =
+    home.testimonials && home.testimonials.length > 0
+      ? home.testimonials
+      : defaultTestimonials;
 
   return (
     <main className="home-page motion-page">
@@ -195,18 +148,18 @@ export async function HomeView() {
       <HomeBanner slides={banners} />
       <section className="trust-strip" aria-label="Company strengths">
         <div className="site-container trust-grid">
-          {strengths.map(([type, title, caption], index) => (
+          {strengths.map((item, index) => (
             <div
               className="trust-item about-check"
-              key={title}
+              key={item.title || index}
               style={{ animationDelay: `${index * 70}ms` }}
             >
               <span className="trust-icon">
-                <LineIcon type={type} />
+                <LineIcon type={lineIconType(item.icon)} />
               </span>
               <span>
-                <b>{title}</b>
-                <small>{caption}</small>
+                <b>{item.title}</b>
+                <small>{item.subtitle}</small>
               </span>
             </div>
           ))}
@@ -219,16 +172,16 @@ export async function HomeView() {
         </div>
         <div className="clients-rail__viewport">
           <div className="clients-rail__track">
-            {[...clients, ...clients].map(([name, logo], index) => (
+            {[...clientLogos, ...clientLogos].map((client, index) => (
               <div
                 className="client-logo"
-                key={`${name}-${index}`}
-                aria-hidden={index >= clients.length}
+                key={`${client.name}-${index}`}
+                aria-hidden={index >= clientLogos.length}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={logo}
-                  alt={index < clients.length ? `${name} logo` : ""}
+                  src={client.logo}
+                  alt={index < clientLogos.length ? `${client.name} logo` : ""}
                 />
               </div>
             ))}
@@ -238,19 +191,11 @@ export async function HomeView() {
       <section className="home-about" aria-labelledby="home-about-title">
         <div className="home-about__media">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/building.webp"
-            alt="Jyoti Hydraulic office building"
-          />
+          <img src={aboutImageUrl} alt={aboutImageAlt} />
         </div>
         <div className="home-about__copy">
-          <h1 id="home-about-title">About Us</h1>
+          <h1 id="home-about-title">{home.aboutTitle || "About Us"}</h1>
           <p>{aboutCopy(home.aboutBody)}</p>
-          <p>
-            Established in 2014 in Faridabad, Jyoti Hydraulic manufactures
-            hydraulic equipment, jigs, and fixtures for industrial and mobile
-            machinery.
-          </p>
           <Link href="/about-us/" className="site-btn-primary">
             Read more <Arrow />
           </Link>
@@ -289,29 +234,36 @@ export async function HomeView() {
       <section className="custom-band">
         <div className="site-container custom-band__inner">
           <div className="custom-band__panel">
-            <p className="eyebrow">Made around your application</p>
-            <h2>Custom Hydraulic Solutions for Every Industry</h2>
-            <p>
-              From standard power packs to fully customized systems, our team
-              designs and manufactures equipment that meets your exact
-              requirements.
+            <p className="eyebrow">
+              {home.customBandEyebrow || "Made around your application"}
             </p>
-            <Link href="/contact/" className="site-btn-primary">
-              Get a custom solution <Arrow />
+            <h2>
+              {home.customBandTitle ||
+                "Custom Hydraulic Solutions for Every Industry"}
+            </h2>
+            <p>
+              {home.customBandBody ||
+                "From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements."}
+            </p>
+            <Link
+              href={home.customBandButtonHref || "/contact/"}
+              className="site-btn-primary"
+            >
+              {home.customBandButtonText || "Get a custom solution"} <Arrow />
             </Link>
           </div>
         </div>
       </section>
       <section className="stats-strip">
         <div className="site-container stats-grid">
-          {stats.map(([value, label], index) => (
+          {stats.map((item, index) => (
             <div
-              key={label}
+              key={item.label || index}
               className="about-in"
               style={{ animationDelay: `${index * 90}ms` }}
             >
-              <CountUp value={value} as="strong" />
-              <span>{label}</span>
+              <CountUp value={item.value} as="strong" />
+              <span>{item.label}</span>
             </div>
           ))}
         </div>
@@ -373,18 +325,18 @@ export async function HomeView() {
             </div>
           </div>
           <ul className="usp-grid">
-            {usps.map(([number, title, body], index) => (
+            {usps.map((item, index) => (
               <li
-                key={title}
+                key={item.title || index}
                 className="about-tile"
                 style={{ animationDelay: `${index * 70}ms` }}
               >
-                <span>{number}</span>
+                <span>{item.number || `0${index + 1}`}</span>
                 <div className="usp-icon" aria-hidden>
                   ✓
                 </div>
-                <h3>{title}</h3>
-                <p>{body}</p>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
               </li>
             ))}
           </ul>
@@ -402,17 +354,17 @@ export async function HomeView() {
             </div>
           </div>
           <ul className="testimonials-grid">
-            {testimonials.map(([quote, customer], index) => (
+            {testimonials.map((item, index) => (
               <li
-                key={customer}
+                key={index}
                 className="about-slide"
                 style={{ animationDelay: `${index * 80}ms` }}
               >
                 <span className="quote-mark" aria-hidden>
                   “
                 </span>
-                <blockquote>{quote}</blockquote>
-                <p>{customer}</p>
+                <blockquote>{item.quote}</blockquote>
+                <p>{item.author}</p>
               </li>
             ))}
           </ul>

@@ -43,7 +43,14 @@ import {
   siteSettings,
   users,
 } from "@/db/schema";
-import { defaultClients, homeDefaults } from "@/lib/brand";
+import {
+  defaultClients,
+  defaultStats,
+  defaultStrengths,
+  defaultTestimonials,
+  defaultUsps,
+  homeDefaults,
+} from "@/lib/brand";
 import { loadProductPayload, loadPageSections } from "@/lib/cms/entity-data";
 import {
   type RelationName,
@@ -91,6 +98,36 @@ export async function ensureSingletons() {
   try {
     await db.execute(
       sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS client_logos jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS testimonials jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS strengths jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS stats jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS usps jsonb NOT NULL DEFAULT '[]'::jsonb;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_title text NOT NULL DEFAULT 'Custom Hydraulic Solutions for Every Industry';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_eyebrow text NOT NULL DEFAULT 'Made around your application';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_body text NOT NULL DEFAULT 'From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_button_text text NOT NULL DEFAULT 'Get a custom solution';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_button_href text NOT NULL DEFAULT '/contact/';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company';`,
     );
   } catch {}
   await db.insert(siteSettings).values({ id: "default" }).onConflictDoNothing();
@@ -333,9 +370,30 @@ export async function getHome() {
     row.clientLogos && row.clientLogos.length > 0
       ? row.clientLogos
       : defaultClients;
+  const testimonials =
+    row.testimonials && row.testimonials.length > 0
+      ? row.testimonials
+      : defaultTestimonials;
+  const strengths =
+    row.strengths && row.strengths.length > 0
+      ? row.strengths
+      : defaultStrengths;
+  const stats =
+    row.stats && row.stats.length > 0 ? row.stats : defaultStats;
+  const usps =
+    row.usps && row.usps.length > 0 ? row.usps : defaultUsps;
   return {
     ...row,
     clientLogos,
+    testimonials,
+    strengths,
+    stats,
+    usps,
+    customBandTitle: row.customBandTitle || homeDefaults.customBandTitle,
+    customBandEyebrow: row.customBandEyebrow || homeDefaults.customBandEyebrow,
+    customBandBody: row.customBandBody || homeDefaults.customBandBody,
+    customBandButtonText: row.customBandButtonText || homeDefaults.customBandButtonText,
+    customBandButtonHref: row.customBandButtonHref || homeDefaults.customBandButtonHref,
     heroMediaIds: heroes.map((item) => item.mediaId),
     featuredProductIds: featured.map((item) => item.productId),
   };
@@ -426,64 +484,72 @@ export async function getContactSettings() {
 
 /** Published catalogue PDF URL (Catalogues admin), or Site settings catalogue file as fallback. */
 export async function getCataloguePdfUrl(): Promise<string | null> {
-  const db = getDb();
-  const [row] = await db
-    .select({ documentId: catalogues.documentId })
-    .from(catalogues)
-    .where(
-      and(eq(catalogues.status, "published"), isNotNull(catalogues.documentId)),
-    )
-    .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
-    .limit(1);
-  if (row?.documentId) {
-    const items = await mediaItems([row.documentId]);
-    const file = items[0];
-    if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
-  }
+  try {
+    const db = getDb();
+    const [row] = await db
+      .select({ documentId: catalogues.documentId })
+      .from(catalogues)
+      .where(
+        and(eq(catalogues.status, "published"), isNotNull(catalogues.documentId)),
+      )
+      .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
+      .limit(1);
+    if (row?.documentId) {
+      const items = await mediaItems([row.documentId]);
+      const file = items[0];
+      if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
+    }
 
-  const settings = await getSettings();
-  if (settings.catalogueId) {
-    const items = await mediaItems([settings.catalogueId]);
-    const file = items[0];
-    if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
+    const settings = await getSettings();
+    if (settings.catalogueId) {
+      const items = await mediaItems([settings.catalogueId]);
+      const file = items[0];
+      if (file?.mimeType === "application/pdf") return mediaDeliveryUrl(file);
+    }
+    return null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export async function cataloguesForSite(limit = 24) {
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: catalogues.id,
-      title: catalogues.title,
-      description: catalogues.description,
-      coverImageId: catalogues.coverImageId,
-      documentId: catalogues.documentId,
-      version: catalogues.version,
-      language: catalogues.language,
-    })
-    .from(catalogues)
-    .where(eq(catalogues.status, "published"))
-    .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
-    .limit(limit);
-  const mediaRows = await mediaItems(
-    rows.flatMap((row) =>
-      [row.coverImageId, row.documentId].filter((id): id is string =>
-        Boolean(id),
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: catalogues.id,
+        title: catalogues.title,
+        description: catalogues.description,
+        coverImageId: catalogues.coverImageId,
+        documentId: catalogues.documentId,
+        version: catalogues.version,
+        language: catalogues.language,
+      })
+      .from(catalogues)
+      .where(eq(catalogues.status, "published"))
+      .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
+      .limit(limit);
+    const mediaRows = await mediaItems(
+      rows.flatMap((row) =>
+        [row.coverImageId, row.documentId].filter((id): id is string =>
+          Boolean(id),
+        ),
       ),
-    ),
-  );
-  const mediaById = new Map(mediaRows.map((item) => [item.id, item]));
-  return rows.map((row) => ({
-    ...row,
-    cover: row.coverImageId ? (mediaById.get(row.coverImageId) ?? null) : null,
-    documentUrl: row.documentId
-      ? (() => {
-          const file = mediaById.get(row.documentId);
-          return file ? mediaDeliveryUrl(file) : null;
-        })()
-      : null,
-  }));
+    );
+    const mediaById = new Map(mediaRows.map((item) => [item.id, item]));
+    return rows.map((row) => ({
+      ...row,
+      cover: row.coverImageId ? (mediaById.get(row.coverImageId) ?? null) : null,
+      documentUrl: row.documentId
+        ? (() => {
+            const file = mediaById.get(row.documentId);
+            return file ? mediaDeliveryUrl(file) : null;
+          })()
+        : null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function galleryForSite(limit = 48) {

@@ -53,6 +53,7 @@ export default async function ProductsPage({
         { label: "Products" },
       ]}
       title="Our Products"
+      subtitle="ISO-9001:2015 Certified Company"
       summary="Discover our complete range of hydraulic products designed for various industrial applications."
       chips={chips}
       cards={cards}

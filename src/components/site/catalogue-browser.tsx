@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import { publicPath } from "@/lib/paths";
@@ -24,41 +24,30 @@ export type CatalogueChip = {
   href?: string;
 };
 
-function HeadingSummary({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  const long = text.trim().length > 160;
-  return (
-    <div className={open ? "catalogue-summary is-open" : "catalogue-summary"}>
-      <p>{text}</p>
-      {long ? (
-        <button type="button" onClick={() => setOpen((value) => !value)}>
-          {open ? "Read less" : "Read more"}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 export function CatalogueBrowser({
-  eyebrow = "Catalogue",
   title,
+  subtitle = "ISO-9001:2015 Certified Company",
   summary,
+  body,
   chips,
   cards,
   initialQuery = "",
   initialChip = "all",
   activeChip,
   crumbs,
+  bannerImageUrl,
 }: {
-  eyebrow?: string;
   title: string;
+  subtitle?: string;
   summary?: string;
+  body?: string;
   chips: CatalogueChip[];
   cards: CatalogueCard[];
   initialQuery?: string;
   initialChip?: string;
   activeChip?: string;
   crumbs?: { href?: string; label: string }[];
+  bannerImageUrl?: string;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState(initialChip);
@@ -84,96 +73,144 @@ export function CatalogueBrowser({
       ? cards.filter((card) => card.scope === "group" && card.chip === selected)
       : visible;
 
+  const summaryCopy = cleanPublicExcerpt(summary ?? "", 420);
+  const bodyCopy = cleanPublicExcerpt(body ?? "", 760);
+  const distinctBody =
+    bodyCopy && bodyCopy.toLowerCase() !== summaryCopy.toLowerCase()
+      ? bodyCopy
+      : "";
+  const hasBottomContent = Boolean(summaryCopy || distinctBody);
+
   return (
-    <main className="catalogue-page">
-      <div className="site-container catalogue-page__inner">
-        <div className="catalogue-page__heading">
-          <div>
-            {crumbs?.length ? <Breadcrumbs items={crumbs} /> : null}
-            <p className="eyebrow dark">{eyebrow}</p>
-            <h1>{cleanPublicTitle(title)}</h1>
-            {summary ? (
-              <HeadingSummary text={cleanPublicExcerpt(summary, 320)} />
-            ) : null}
-          </div>
-          <form
-            className="catalogue-search"
-            action="/products/"
-            onSubmit={(event) => {
-              if (!linked) event.preventDefault();
-            }}
-          >
-            <span aria-hidden>⌕</span>
-            <input
-              name="q"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search products..."
-              aria-label="Search products"
-            />
-          </form>
+    <div className="catalogue-browser-root">
+      {/* 1. Full-width top banner strip (Image 3 design) */}
+      <section
+        className="site-page-banner catalogue-page-banner"
+        aria-label="Page Header"
+        style={
+          bannerImageUrl
+            ? ({ "--catalogue-banner-image": `url("${bannerImageUrl}")` } as CSSProperties)
+            : undefined
+        }
+      >
+        <div className="site-container page-banner-inner">
+          {crumbs?.length ? (
+            <div className="catalogue-banner-crumbs">
+              <Breadcrumbs items={crumbs} />
+            </div>
+          ) : null}
+          <h1 className="catalogue-banner-title">{cleanPublicTitle(title)}</h1>
+          <p className="catalogue-banner-subtitle">
+            {subtitle || "ISO-9001:2015 Certified Company"}
+          </p>
         </div>
-        {chips.length ? (
-          <div className="catalogue-chips" role="tablist" aria-label="Product groups">
-            {chips.map((item) =>
-              item.href ? (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className={item.id === selected ? "is-active" : ""}
-                  aria-current={item.id === selected ? "page" : undefined}
-                >
-                  {cleanPublicTitle(item.label)}
-                </Link>
-              ) : (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={item.id === selected ? "is-active" : ""}
-                  aria-pressed={item.id === selected}
-                  onClick={() => setChip(item.id)}
-                >
-                  {cleanPublicTitle(item.label)}
-                </button>
-              ),
-            )}
-          </div>
-        ) : null}
-        {shown.length ? (
-          <ul className="catalogue-grid">
-            {shown.map((card) => {
-              const excerpt = cleanPublicExcerpt(card.summary, 180);
-              return (
-              <li key={`${card.scope}-${card.id}`}>
-                <article className="catalogue-card">
-                  <Link href={publicPath(card.path)} className="catalogue-card__media">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={card.imageUrl || "/placeholders/product.svg"}
-                      alt={card.imageUrl ? card.imageAlt : ""}
-                    />
-                  </Link>
-                  <div className="catalogue-card__body">
-                    <h2>
-                      <Link href={publicPath(card.path)}>{cleanPublicTitle(card.title)}</Link>
-                    </h2>
-                    {excerpt ? <p>{excerpt}</p> : null}
-                    <Link href={publicPath(card.path)} className="catalogue-card__cta">
-                      {card.cta} <span aria-hidden>→</span>
+      </section>
+
+      {/* 2. Main product listing & filtering section */}
+      <main className="catalogue-page">
+        <div className="site-container catalogue-page__inner">
+          <div className="catalogue-controls">
+            {chips.length ? (
+              <div className="catalogue-chips" role="tablist" aria-label="Product groups">
+                {chips.map((item) =>
+                  item.href ? (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className={item.id === selected ? "is-active" : ""}
+                      aria-current={item.id === selected ? "page" : undefined}
+                    >
+                      {cleanPublicTitle(item.label)}
                     </Link>
-                  </div>
-                </article>
-              </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="catalogue-empty">
-            <h2>No matching products</h2>
-            <p>Try another search, or publish products from the admin catalogue.</p>
+                  ) : (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={item.id === selected ? "is-active" : ""}
+                      aria-pressed={item.id === selected}
+                      onClick={() => setChip(item.id)}
+                    >
+                      {cleanPublicTitle(item.label)}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : null}
+            <form
+              className="catalogue-search"
+              action="/products/"
+              onSubmit={(event) => {
+                if (!linked) event.preventDefault();
+              }}
+            >
+              <span aria-hidden>⌕</span>
+              <input
+                name="q"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search products..."
+                aria-label="Search products"
+              />
+            </form>
           </div>
-        )}
-      </div>
-    </main>
+
+          {shown.length ? (
+            <ul className="catalogue-grid">
+              {shown.map((card) => {
+                const excerpt = cleanPublicExcerpt(card.summary, 180);
+                return (
+                  <li key={`${card.scope}-${card.id}`}>
+                    <article className="catalogue-card">
+                      <Link href={publicPath(card.path)} className="catalogue-card__media">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={card.imageUrl || "/placeholders/product.svg"}
+                          alt={card.imageUrl ? card.imageAlt : ""}
+                        />
+                      </Link>
+                      <div className="catalogue-card__body">
+                        <h2>
+                          <Link href={publicPath(card.path)}>{cleanPublicTitle(card.title)}</Link>
+                        </h2>
+                        {excerpt ? <p>{excerpt}</p> : null}
+                        <Link href={publicPath(card.path)} className="catalogue-card__cta">
+                          {card.cta} <span aria-hidden>→</span>
+                        </Link>
+                      </div>
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="catalogue-empty">
+              <h2>No matching products</h2>
+              <p>Try another search, or publish products from the admin catalogue.</p>
+            </div>
+          )}
+
+          {/* 3. Bottom content description card (moved below products as requested) */}
+          {hasBottomContent ? (
+            <section className="catalogue-bottom-content" aria-labelledby="cat-desc-title">
+              <div className="catalogue-bottom-content__card">
+                <div className="catalogue-bottom-content__header">
+                  <p className="eyebrow dark">Category Overview</p>
+                  <h2 id="cat-desc-title">About {cleanPublicTitle(title)}</h2>
+                </div>
+                {summaryCopy ? (
+                  <div className="catalogue-bottom-content__summary">
+                    <p>{summaryCopy}</p>
+                  </div>
+                ) : null}
+                {distinctBody ? (
+                  <p className="catalogue-bottom-content__body">{distinctBody}</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </main>
+    </div>
   );
 }
+

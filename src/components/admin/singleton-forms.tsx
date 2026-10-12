@@ -1,13 +1,21 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ClientsEditor, RelationManyField, WhyEditor } from "@/components/admin/editors";
+import {
+  ClientsEditor,
+  RelationManyField,
+  StatsEditor,
+  StrengthsEditor,
+  TestimonialsEditor,
+  UspsEditor,
+  WhyEditor,
+} from "@/components/admin/editors";
 import { MediaPicker } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { helpClass, inputClass, labelClass, primaryButtonClass } from "@/components/admin/styles";
 import { saveHomeAction, saveSettingsAction } from "@/lib/cms/actions";
 import type { MediaItem } from "@/lib/cms/queries";
-import type { ClientItem, WhyItem } from "@/db/schema";
+import type { ClientItem, StatItem, StrengthItem, TestimonialItem, UspItem, WhyItem } from "@/db/schema";
 
 function ErrorNote({ error }: { error?: string }) {
   if (!error) return null;
@@ -165,6 +173,15 @@ export function HomeForm({
     heroSubcopy: string;
     heroMediaIds: string[];
     clientLogos: ClientItem[];
+    testimonials: TestimonialItem[];
+    strengths: StrengthItem[];
+    stats: StatItem[];
+    usps: UspItem[];
+    customBandTitle: string;
+    customBandEyebrow: string;
+    customBandBody: string;
+    customBandButtonText: string;
+    customBandButtonHref: string;
     aboutTitle: string;
     aboutBody: string;
     aboutMediaId: string | null;
@@ -203,9 +220,19 @@ export function HomeForm({
         </label>
         <div>
           <span className={labelClass}>Banner images (Carousel Slides)</span>
-          <p className="mb-2 text-xs text-muted">Upload new banner images or pick existing ones from the media library. Reorder or delete slides as needed.</p>
+          <p className="mb-2 text-xs text-muted">Upload or select images, reorder/remove them, then click Save banners below. Only this saved list appears on the homepage.</p>
           <MediaPicker name="heroMediaIds" multiple initialIds={home.heroMediaIds} known={media} />
         </div>
+        <button type="submit" className={primaryButtonClass} disabled={pending}>
+          {pending ? "Saving banners…" : "Save banners"}
+        </button>
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Trust Strip & Badges (5 Strengths)</h2>
+          <p className="mt-1 text-xs text-muted">Company strength badges shown below the banner slider (e.g. High Quality Manufacturing, Pan India Supply).</p>
+        </div>
+        <StrengthsEditor name="strengths" initial={home.strengths} />
       </section>
       <section className="space-y-4 rounded-lg border border-line bg-white p-4">
         <div>
@@ -255,6 +282,54 @@ export function HomeForm({
           <textarea className={inputClass} name="whyChooseIntro" rows={4} defaultValue={home.whyChooseIntro} />
         </label>
         <WhyEditor name="whyChooseUs" initial={home.whyChooseUs} />
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Custom Solutions Banner</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className={labelClass}>Banner Eyebrow</span>
+            <input className={inputClass} name="customBandEyebrow" defaultValue={home.customBandEyebrow} placeholder="Made around your application" />
+          </label>
+          <label className="block">
+            <span className={labelClass}>Banner Title</span>
+            <input className={inputClass} name="customBandTitle" defaultValue={home.customBandTitle} placeholder="Custom Hydraulic Solutions for Every Industry" />
+          </label>
+        </div>
+        <label className="block">
+          <span className={labelClass}>Banner Description</span>
+          <textarea className={inputClass} name="customBandBody" rows={3} defaultValue={home.customBandBody} />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className={labelClass}>Button Text</span>
+            <input className={inputClass} name="customBandButtonText" defaultValue={home.customBandButtonText} placeholder="Get a custom solution" />
+          </label>
+          <label className="block">
+            <span className={labelClass}>Button Link (URL)</span>
+            <input className={inputClass} name="customBandButtonHref" defaultValue={home.customBandButtonHref} placeholder="/contact/" />
+          </label>
+        </div>
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Stats Strip (Counters)</h2>
+          <p className="mt-1 text-xs text-muted">Numbers and statistics shown with counter animation (e.g. 12+ Years, 1000+ Products, 500+ Clients).</p>
+        </div>
+        <StatsEditor name="stats" initial={home.stats} />
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Our USPs (Points 01–05)</h2>
+          <p className="mt-1 text-xs text-muted">Unique Selling Propositions with checkmarks shown on the homepage.</p>
+        </div>
+        <UspsEditor name="usps" initial={home.usps} />
+      </section>
+      <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted">Customer Testimonials & Feedback</h2>
+          <p className="mt-1 text-xs text-muted">Manage testimonials shown in &ldquo;What Our Customers Say&rdquo; section on the homepage. Edit quotes, author names/companies, reorder, or add new ones.</p>
+        </div>
+        <TestimonialsEditor name="testimonials" initial={home.testimonials} />
       </section>
       <section className="grid gap-4 rounded-lg border border-line bg-white p-4 md:grid-cols-2">
         <label>

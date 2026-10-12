@@ -20,10 +20,12 @@ export function MediaPicker({
   onChange?: (ids: string[]) => void;
 }) {
   const [ids, setIds] = useState<string[]>(() => [...(initialIds ?? [])]);
+  const [dirty, setDirty] = useState(false);
 
   function updateIds(next: string[] | ((current: string[]) => string[])) {
     setIds((current) => {
       const resolved = typeof next === "function" ? next(current) : next;
+      setDirty(true);
       onChange?.(resolved);
       return resolved;
     });
@@ -34,6 +36,16 @@ export function MediaPicker({
   const [results, setResults] = useState<MediaItem[]>([]);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [removeIndex, setRemoveIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (removeIndex === null) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRemoveIndex(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [removeIndex]);
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +151,11 @@ export function MediaPicker({
                 </button>
               </span>
             ) : null}
-            <button type="button" className="text-xs font-semibold text-signal" onClick={() => updateIds((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+            <button
+              type="button"
+              className="text-xs font-semibold text-signal"
+              onClick={() => setRemoveIndex(index)}
+            >
               Remove
             </button>
           </li>
@@ -148,6 +164,72 @@ export function MediaPicker({
       <button type="button" className={secondaryButtonClass} onClick={() => setOpen(true)}>
         {multiple ? "Add files" : ids.length ? "Change file" : "Choose file"}
       </button>
+      {dirty ? (
+        <p className="mt-2 text-xs font-semibold text-signal" role="status">
+          Selection changed. Click the form&apos;s Save button to publish it.
+        </p>
+      ) : null}
+      {removeIndex !== null ? (
+        <div
+          className="fixed inset-0 z-[70] grid place-items-center bg-navy/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setRemoveIndex(null);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="remove-media-title"
+            aria-describedby="remove-media-copy"
+            className="w-full max-w-md overflow-hidden rounded-xl border border-line bg-white shadow-2xl"
+          >
+            <div className="flex gap-4 p-6">
+              <span
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-red-50 text-red-700"
+                aria-hidden
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 8v5m0 3h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.74 3h14.92a2 2 0 0 0 1.74-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <h2 id="remove-media-title" className="text-lg font-bold text-navy">
+                  Remove this file?
+                </h2>
+                <p id="remove-media-copy" className="mt-1 text-sm leading-6 text-muted">
+                  <strong className="font-semibold text-ink">
+                    {selected[removeIndex]?.filename || "Selected file"}
+                  </strong>{" "}
+                  will be removed from this section. The media-library file will remain available.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-line bg-paper px-6 py-4">
+              <button
+                type="button"
+                className={secondaryButtonClass}
+                onClick={() => setRemoveIndex(null)}
+                autoFocus
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-700 focus:ring-offset-2"
+                onClick={() => {
+                  const index = removeIndex;
+                  setRemoveIndex(null);
+                  updateIds((current) =>
+                    current.filter((_, itemIndex) => itemIndex !== index),
+                  );
+                }}
+              >
+                Remove file
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       {open ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 p-4 sm:items-center">
           <div className="flex max-h-[80vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl">

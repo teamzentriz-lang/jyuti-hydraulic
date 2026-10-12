@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   exportPages,
@@ -70,6 +70,7 @@ export type PublishedContent = {
   kind: RouteKind;
   path: string;
   title: string;
+  subtitle?: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   body: string;
@@ -96,6 +97,8 @@ export type PublishedContent = {
     path: string;
     summary: string;
     image: MediaItem | null;
+    fallbackImageUrl?: string | null;
+    fallbackImageAlt?: string;
   }[];
   categoryProducts?: {
     id: string;
@@ -233,18 +236,29 @@ function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
   });
 }
 
-async function categoryProductCards(db: Db, categoryId: string) {
+async function categoryProductCards(
+  db: Db,
+  categoryId: string,
+  includeSubcategory = false,
+) {
   const productRows = await db
     .select({
       id: products.id,
       title: products.title,
       path: products.path,
       summary: products.summary,
+      featuredImageId: products.featuredImageId,
+      thumbnailId: products.thumbnailId,
     })
     .from(products)
     .where(
       and(
-        eq(products.categoryId, categoryId),
+        includeSubcategory
+          ? or(
+              eq(products.categoryId, categoryId),
+              eq(products.subCategoryId, categoryId),
+            )
+          : eq(products.categoryId, categoryId),
         eq(products.status, "published"),
       ),
     )
@@ -252,7 +266,18 @@ async function categoryProductCards(db: Db, categoryId: string) {
 
   if (!productRows.length) return [];
 
-  const images = await db
+  const directMedia = await mediaItems(
+    productRows.flatMap((row) =>
+      row.thumbnailId || row.featuredImageId
+        ? [row.thumbnailId || row.featuredImageId!]
+        : [],
+    ),
+  );
+  const directMediaById = new Map(
+    directMedia.map((item) => [item.id, item]),
+  );
+
+  const galleryImages = await db
     .select({
       productId: productImages.productId,
       mediaId: media.id,
@@ -270,7 +295,7 @@ async function categoryProductCards(db: Db, categoryId: string) {
     .orderBy(asc(productImages.sortOrder));
 
   const imageByProduct = new Map<string, { url: string; alt: string }>();
-  for (const row of images) {
+  for (const row of galleryImages) {
     if (!imageByProduct.has(row.productId)) {
       imageByProduct.set(row.productId, {
         url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
@@ -280,11 +305,21 @@ async function categoryProductCards(db: Db, categoryId: string) {
   }
 
   return productRows.map((row) => {
-    const image = imageByProduct.get(row.id);
+    const directImage = directMediaById.get(
+      row.thumbnailId || row.featuredImageId || "",
+    );
+    const galleryImage = imageByProduct.get(row.id);
+    const imageUrl = directImage
+      ? mediaDeliveryUrl(directImage)
+      : (galleryImage?.url ?? null);
+    const imageAlt = directImage?.alt || galleryImage?.alt || row.title;
     return {
-      ...row,
-      imageUrl: image?.url ?? null,
-      imageAlt: image?.alt || row.title,
+      id: row.id,
+      title: row.title,
+      path: row.path,
+      summary: row.summary,
+      imageUrl,
+      imageAlt,
     };
   });
 }
@@ -444,10 +479,19 @@ export async function buildPublishedContent(
       ),
     );
     const childMediaById = new Map(childMedia.map((item) => [item.id, item]));
-    const childCategories = childCategoryRows.map(
-      ({ imageId, thumbnailId, ...item }) => ({
-        ...item,
-        image: childMediaById.get(thumbnailId || imageId || "") ?? null,
+    const childCategories = await Promise.all(
+      childCategoryRows.map(async ({ imageId, thumbnailId, ...item }) => {
+        const categoryImage =
+          childMediaById.get(thumbnailId || imageId || "") ?? null;
+        if (categoryImage) return { ...item, image: categoryImage };
+
+        const [firstProduct] = await categoryProductCards(db, item.id, true);
+        return {
+          ...item,
+          image: null,
+          fallbackImageUrl: firstProduct?.imageUrl ?? null,
+          fallbackImageAlt: firstProduct?.imageAlt || item.title,
+        };
       }),
     );
     const filterCategories = await db
@@ -470,6 +514,7 @@ export async function buildPublishedContent(
       kind,
       path: row.path,
       title: row.title,
+      subtitle: row.subtitle || "ISO-9001:2015 Certified Company",
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
       body: row.body,

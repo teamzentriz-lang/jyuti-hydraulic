@@ -204,7 +204,15 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "title", direction: "asc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
+      { name: "title", label: "Title (H1 in banner)", type: "text", required: true, group: "Content" },
+      {
+        name: "subtitle",
+        label: "Banner Tagline / Subtitle",
+        type: "text",
+        group: "Content",
+        defaultValue: "ISO-9001:2015 Certified Company",
+        help: "Appears directly underneath the H1 in the top banner strip (e.g. ISO-9001:2015 Certified Company).",
+      },
       { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
       {
         name: "path",

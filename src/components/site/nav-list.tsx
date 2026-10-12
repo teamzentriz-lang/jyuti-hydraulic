@@ -32,7 +32,7 @@ function NavLink({
     );
   }
   return (
-    <Link href={item.href} className={className}>
+    <Link href={item.href} className={className} prefetch={false}>
       {cleanPublicTitle(item.label)}
     </Link>
   );

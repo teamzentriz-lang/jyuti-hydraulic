@@ -33,7 +33,12 @@ function NavAnchor({
     );
   }
   return (
-    <Link href={item.href} className={className} onClick={onClick}>
+    <Link
+      href={item.href}
+      className={className}
+      onClick={onClick}
+      prefetch={false}
+    >
       {cleanPublicTitle(item.label)}
     </Link>
   );
@@ -83,7 +88,9 @@ function MenuChevronDown({ className }: { className?: string }) {
 
 function flattenProductsMenu(items: NavItem[]) {
   const rows = items.flatMap((item) =>
-    /^products$/i.test(item.label.trim()) && item.children.length ? item.children : [item],
+    /^products$/i.test(item.label.trim()) && item.children.length
+      ? item.children
+      : [item],
   );
   const byHref = new Map<string, NavItem>();
   const order: string[] = [];
@@ -102,48 +109,56 @@ function flattenProductsMenu(items: NavItem[]) {
 
 function ProductsPrimaryMenu({ items }: { items: NavItem[] }) {
   const menuItems = flattenProductsMenu(items);
-  const [path, setPath] = useState<string[]>([]);
-  const columns: NavItem[][] = [menuItems];
-  let current = menuItems;
-  for (const id of path) {
-    const next = current.find((item) => item.id === id);
-    if (!next?.children.length) break;
-    columns.push(next.children);
-    current = next.children;
-  }
+  const defaultSelectedId = menuItems.find((item) => item.children.length)?.id;
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    defaultSelectedId,
+  );
+  const activeId = menuItems.some((item) => item.id === selectedId)
+    ? selectedId
+    : defaultSelectedId;
+  const selectedItem = menuItems.find((item) => item.id === activeId);
 
   return (
-    <div className="products-flyout" onMouseLeave={() => setPath([])}>
-      {columns.map((column, index) => (
-        <ul key={`${index}-${column[0]?.id ?? "col"}`} className="products-flyout__list">
-          {column.map((item) => {
-            const open = path[index] === item.id;
-            return (
-              <li
-                key={item.id}
-                className={open ? "products-flyout__item is-active" : "products-flyout__item"}
-                onMouseEnter={() =>
-                  setPath((currentPath) => {
-                    const next = currentPath.slice(0, index);
-                    if (item.children.length) next.push(item.id);
-                    return next;
-                  })
-                }
-                onFocus={() =>
-                  setPath((currentPath) => {
-                    const next = currentPath.slice(0, index);
-                    if (item.children.length) next.push(item.id);
-                    return next;
-                  })
-                }
-              >
-                <NavAnchor item={item} className="products-flyout__anchor" />
-                {item.children.length ? <MenuChevron /> : null}
-              </li>
-            );
-          })}
+    <div
+      className="products-flyout"
+      onMouseLeave={() => setSelectedId(defaultSelectedId)}
+    >
+      <ul className="products-flyout__list">
+        {menuItems.map((item) => {
+          const open = activeId === item.id;
+          const selectItem = () => {
+            if (item.children.length) setSelectedId(item.id);
+          };
+          return (
+            <li
+              key={item.id}
+              className={
+                open
+                  ? "products-flyout__item is-active"
+                  : "products-flyout__item"
+              }
+              onMouseEnter={selectItem}
+              onFocus={selectItem}
+            >
+              <NavAnchor item={item} className="products-flyout__anchor" />
+              {item.children.length ? <MenuChevron /> : null}
+            </li>
+          );
+        })}
+      </ul>
+      {selectedItem?.children.length ? (
+        <ul
+          key={selectedItem.id}
+          className="products-flyout__list"
+          aria-label={`${selectedItem.label} products`}
+        >
+          {selectedItem.children.map((item) => (
+            <li key={item.id} className="products-flyout__item">
+              <NavAnchor item={item} className="products-flyout__anchor" />
+            </li>
+          ))}
         </ul>
-      ))}
+      ) : null}
     </div>
   );
 }
@@ -194,7 +209,7 @@ function MegaMenuPanel({ item }: { item: NavItem }) {
   const useCascade = !useProductsMenu && hasNestedChildren;
 
   return (
-    <div className="invisible absolute left-0 top-full z-40 pt-1 opacity-0 transition duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+    <div className="mega-menu-panel absolute left-0 top-full z-50 pt-1">
       <div
         className={
           useProductsMenu
@@ -240,21 +255,37 @@ function MobileNavBranch({
         return (
           <li key={item.id}>
             <div className="app-nav__row">
-              <NavAnchor item={item} className="app-nav__link" onClick={onNavigate} />
+              <NavAnchor
+                item={item}
+                className="app-nav__link"
+                onClick={onNavigate}
+              />
               {item.children.length ? (
                 <button
                   type="button"
                   className="app-nav__toggle"
                   aria-expanded={expanded}
                   aria-label={`${expanded ? "Hide" : "Show"} ${item.label}`}
-                  onClick={() => setOpenId((current) => (current === item.id ? null : item.id))}
+                  onClick={() =>
+                    setOpenId((current) =>
+                      current === item.id ? null : item.id,
+                    )
+                  }
                 >
-                  <MenuChevronDown className={expanded ? "app-nav__chevron is-open" : "app-nav__chevron"} />
+                  <MenuChevronDown
+                    className={
+                      expanded ? "app-nav__chevron is-open" : "app-nav__chevron"
+                    }
+                  />
                 </button>
               ) : null}
             </div>
             {item.children.length && expanded ? (
-              <MobileNavBranch items={item.children} depth={depth + 1} onNavigate={onNavigate} />
+              <MobileNavBranch
+                items={item.children}
+                depth={depth + 1}
+                onNavigate={onNavigate}
+              />
             ) : null}
           </li>
         );
@@ -263,41 +294,91 @@ function MobileNavBranch({
   );
 }
 
-function TabIcon({ name }: { name: "home" | "grid" | "image" | "mail" | "menu" }) {
-  const common = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", "aria-hidden": true as const };
+function TabIcon({
+  name,
+}: {
+  name: "home" | "grid" | "image" | "mail" | "menu";
+}) {
+  const common = {
+    width: 22,
+    height: 22,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    "aria-hidden": true as const,
+  };
   if (name === "home") {
     return (
       <svg {...common}>
-        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path
+          d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
       </svg>
     );
   }
   if (name === "grid") {
     return (
       <svg {...common}>
-        <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" stroke="currentColor" strokeWidth="1.8" />
+        <path
+          d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
       </svg>
     );
   }
   if (name === "image") {
     return (
       <svg {...common}>
-        <rect x="3.5" y="5" width="17" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <path d="m7 15 2.5-2.5L13 16l2-2 2.5 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <rect
+          x="3.5"
+          y="5"
+          width="17"
+          height="14"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="m7 15 2.5-2.5L13 16l2-2 2.5 2.5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
       </svg>
     );
   }
   if (name === "mail") {
     return (
       <svg {...common}>
-        <rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <path d="m5 8 7 5 7-5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <rect
+          x="3.5"
+          y="5.5"
+          width="17"
+          height="13"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="m5 8 7 5 7-5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
       </svg>
     );
   }
   return (
     <svg {...common}>
-      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M5 7h14M5 12h14M5 17h14"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -360,7 +441,10 @@ export function SiteHeader({
           )}
         </Link>
 
-        <nav className="hidden min-w-0 flex-1 justify-center lg:flex" aria-label="Main">
+        <nav
+          className="hidden min-w-0 flex-1 justify-center lg:flex"
+          aria-label="Main"
+        >
           <ul className="flex flex-nowrap items-center justify-center gap-x-1">
             {nav.map((item) => (
               <li key={item.id} className="group relative">
@@ -409,9 +493,17 @@ export function SiteHeader({
             ] as const
           ).map(([href, label]) => {
             const key = href === "/" ? "/" : href.replace(/\/$/, "");
-            const active = href === "/" ? current === "/" : current === key || current.startsWith(`${key}/`);
+            const active =
+              href === "/"
+                ? current === "/"
+                : current === key || current.startsWith(`${key}/`);
             return (
-              <Link key={href} href={href} className={active ? "is-active" : ""} aria-current={active ? "page" : undefined}>
+              <Link
+                key={href}
+                href={href}
+                className={active ? "is-active" : ""}
+                aria-current={active ? "page" : undefined}
+              >
                 {label}
               </Link>
             );
@@ -462,13 +554,25 @@ export function SiteHeader({
 
       {open ? (
         <div id="mobile-nav" className="mobile-drawer lg:hidden">
-          <form className="mobile-drawer__search" action="/products/" method="get">
-            <input name="q" placeholder="Search products..." aria-label="Search products" suppressHydrationWarning />
+          <form
+            className="mobile-drawer__search"
+            action="/products/"
+            method="get"
+          >
+            <input
+              name="q"
+              placeholder="Search products..."
+              aria-label="Search products"
+              suppressHydrationWarning
+            />
           </form>
           <MobileNavBranch items={nav} onNavigate={closeMenu} />
           <div className="mobile-drawer__foot">
             {phone ? (
-              <a href={`tel:${phone.replace(/\s/g, "")}`} className="mobile-drawer__phone">
+              <a
+                href={`tel:${phone.replace(/\s/g, "")}`}
+                className="mobile-drawer__phone"
+              >
                 {phone}
               </a>
             ) : null}
@@ -492,15 +596,28 @@ export function SiteHeader({
           ] as const
         ).map(([href, label, icon]) => {
           const key = href === "/" ? "/" : href.replace(/\/$/, "");
-          const active = href === "/" ? current === "/" : current === key || current.startsWith(`${key}/`);
+          const active =
+            href === "/"
+              ? current === "/"
+              : current === key || current.startsWith(`${key}/`);
           return (
-            <Link key={href} href={href} className={active ? "is-active" : ""} aria-current={active ? "page" : undefined}>
+            <Link
+              key={href}
+              href={href}
+              className={active ? "is-active" : ""}
+              aria-current={active ? "page" : undefined}
+            >
               <TabIcon name={icon} />
               <span>{label}</span>
             </Link>
           );
         })}
-        <button type="button" className={open ? "is-active" : ""} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <button
+          type="button"
+          className={open ? "is-active" : ""}
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
           <TabIcon name="menu" />
           <span>Menu</span>
         </button>
