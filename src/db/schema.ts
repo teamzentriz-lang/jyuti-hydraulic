@@ -93,6 +93,17 @@ export const media = pgTable(
   (t) => [index("media_filename_idx").on(t.filename), index("media_folder_idx").on(t.folder)],
 );
 
+/** Persistent fallback for uploads made on serverless hosts without R2. */
+export const mediaBlobs = pgTable("media_blobs", {
+  mediaId: uuid("media_id")
+    .primaryKey()
+    .references(() => media.id, { onDelete: "cascade" }),
+  dataBase64: text("data_base64").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const siteSettings = pgTable(
   "site_settings",
   {
