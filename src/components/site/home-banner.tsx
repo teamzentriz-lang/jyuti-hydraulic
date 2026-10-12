@@ -9,16 +9,15 @@ export type HomeBannerSlide = {
 
 export function HomeBanner({ slides }: { slides: HomeBannerSlide[] }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const count = slides.length;
 
   useEffect(() => {
-    if (paused || count < 2) return;
+    if (count < 2) return;
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % count);
-    }, 2000);
+    }, 6000);
     return () => window.clearInterval(timer);
-  }, [paused, count]);
+  }, [count]);
 
   if (!count) return null;
 
@@ -31,10 +30,6 @@ export function HomeBanner({ slides }: { slides: HomeBannerSlide[] }) {
       className="home-banner"
       aria-roledescription="carousel"
       aria-label="Jyoti Hydraulic banners"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onTouchStart={() => setPaused(true)}
-      onTouchEnd={() => setPaused(false)}
     >
       <div className="home-banner__viewport">
         {slides.map((slide, slideIndex) => (

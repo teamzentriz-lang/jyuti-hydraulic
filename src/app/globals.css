@@ -4500,10 +4500,7 @@ body {
   display: flex;
   width: max-content;
   gap: 16px;
-  animation: clientRail 34s linear infinite;
-}
-.clients-rail__viewport:hover .clients-rail__track {
-  animation-play-state: paused;
+  animation: clientRail 42s linear infinite;
 }
 .client-logo {
   display: grid;
@@ -4840,7 +4837,7 @@ body {
   object-position: center;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.9s ease-in-out;
 }
 .home-banner__viewport img.is-active {
   z-index: 1;
