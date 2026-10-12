@@ -89,64 +89,57 @@ export async function loadDatabase<T>(
   }
 }
 
-let singletonsEnsured = false;
+let singletonSetup: Promise<void> | null = null;
 
 export async function ensureSingletons() {
-  if (singletonsEnsured) return;
-  singletonsEnsured = true;
-  const db = getDb();
-  try {
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS client_logos jsonb NOT NULL DEFAULT '[]'::jsonb;`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS testimonials jsonb NOT NULL DEFAULT '[]'::jsonb;`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS strengths jsonb NOT NULL DEFAULT '[]'::jsonb;`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS stats jsonb NOT NULL DEFAULT '[]'::jsonb;`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS usps jsonb NOT NULL DEFAULT '[]'::jsonb;`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_title text NOT NULL DEFAULT 'Custom Hydraulic Solutions for Every Industry';`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_eyebrow text NOT NULL DEFAULT 'Made around your application';`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_body text NOT NULL DEFAULT 'From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.';`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_button_text text NOT NULL DEFAULT 'Get a custom solution';`,
-    );
-    await db.execute(
-      sql`ALTER TABLE home_content ADD COLUMN IF NOT EXISTS custom_band_button_href text NOT NULL DEFAULT '/contact/';`,
-    );
+  if (singletonSetup) return singletonSetup;
+
+  singletonSetup = (async () => {
+    const db = getDb();
+    await db.execute(sql`
+      ALTER TABLE home_content
+        ADD COLUMN IF NOT EXISTS client_logos jsonb NOT NULL DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS testimonials jsonb NOT NULL DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS strengths jsonb NOT NULL DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS stats jsonb NOT NULL DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS usps jsonb NOT NULL DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS custom_band_title text NOT NULL DEFAULT 'Custom Hydraulic Solutions for Every Industry',
+        ADD COLUMN IF NOT EXISTS custom_band_eyebrow text NOT NULL DEFAULT 'Made around your application',
+        ADD COLUMN IF NOT EXISTS custom_band_body text NOT NULL DEFAULT 'From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.',
+        ADD COLUMN IF NOT EXISTS custom_band_button_text text NOT NULL DEFAULT 'Get a custom solution',
+        ADD COLUMN IF NOT EXISTS custom_band_button_href text NOT NULL DEFAULT '/contact/';
+    `);
     await db.execute(
       sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company';`,
     );
-  } catch {}
-  await db.insert(siteSettings).values({ id: "default" }).onConflictDoNothing();
-  await db
-    .insert(homeContent)
-    .values({ id: "default", ...homeDefaults })
-    .onConflictDoNothing();
-  await db
-    .insert(headerSettings)
-    .values({ id: "default" })
-    .onConflictDoNothing();
-  await db
-    .insert(footerSettings)
-    .values({ id: "default" })
-    .onConflictDoNothing();
-  await db
-    .insert(contactSettings)
-    .values({ id: "default" })
-    .onConflictDoNothing();
+    await db
+      .insert(siteSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+    await db
+      .insert(homeContent)
+      .values({ id: "default", ...homeDefaults })
+      .onConflictDoNothing();
+    await db
+      .insert(headerSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+    await db
+      .insert(footerSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+    await db
+      .insert(contactSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+  })();
+
+  try {
+    await singletonSetup;
+  } catch (error) {
+    singletonSetup = null;
+    throw error;
+  }
 }
 
 export async function countUsers() {
