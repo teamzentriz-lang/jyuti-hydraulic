@@ -112,6 +112,13 @@ export async function ensureSingletons() {
     await db.execute(
       sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company';`,
     );
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS media_blobs (
+        media_id uuid PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
+        data_base64 text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
     await db
       .insert(siteSettings)
       .values({ id: "default" })
