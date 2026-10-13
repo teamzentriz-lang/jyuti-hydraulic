@@ -23,6 +23,7 @@ if (publicMedia) {
 const nextConfig: NextConfig = {
   reactCompiler: true,
   trailingSlash: true,
+  devIndicators: false,
 
   serverExternalPackages: [
     "postgres",
