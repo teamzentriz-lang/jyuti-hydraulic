@@ -89,6 +89,61 @@ export type ContentTablePayload = {
   sortOrder: number;
 };
 
+export async function loadContentFaqs(
+  entityKind: "product" | "category" | "page" | "post",
+  entityId: string,
+): Promise<FaqPayload[]> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(contentFaqs)
+    .where(
+      and(
+        eq(contentFaqs.entityKind, entityKind),
+        eq(contentFaqs.entityId, entityId),
+      ),
+    )
+    .orderBy(asc(contentFaqs.sortOrder));
+
+  return rows.map((row, sortOrder) => ({
+    question: row.question,
+    answer: row.answer,
+    sortOrder,
+    isActive: row.isActive,
+  }));
+}
+
+export async function saveContentFaqs(
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  entityKind: "product" | "category" | "page" | "post",
+  entityId: string,
+  faqs: FaqPayload[],
+) {
+  await tx
+    .delete(contentFaqs)
+    .where(
+      and(
+        eq(contentFaqs.entityKind, entityKind),
+        eq(contentFaqs.entityId, entityId),
+      ),
+    );
+  const valid = faqs.filter(
+    (row) => row.question.trim() || row.answer.trim(),
+  );
+  if (valid.length) {
+    await tx.insert(contentFaqs).values(
+      valid.map((row, sortOrder) => ({
+        entityKind,
+        entityId,
+        question: row.question.trim(),
+        answer: row.answer.trim(),
+        sortOrder,
+        isActive: row.isActive,
+      })),
+    );
+  }
+}
+
 export async function loadProductPayload(productId: string): Promise<ProductPayload> {
   const db = getDb();
   const [

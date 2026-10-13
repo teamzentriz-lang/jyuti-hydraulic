@@ -2,8 +2,15 @@ import { CatalogueBrowser } from "@/components/site/catalogue-browser";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath } from "@/lib/paths";
+import { getHome } from "@/lib/cms/queries";
+import { defaultClients } from "@/lib/brand";
 
-export function CategoryListing({ content }: { content: PublishedContent }) {
+export async function CategoryListing({ content }: { content: PublishedContent }) {
+  const home = await getHome();
+  const clientLogos =
+    home.clientLogos && home.clientLogos.length > 0
+      ? home.clientLogos
+      : defaultClients;
   const childCards =
     content.childCategories?.map((item) => ({
       id: item.id,
@@ -57,6 +64,8 @@ export function CategoryListing({ content }: { content: PublishedContent }) {
       chips={chips}
       cards={cards}
       activeChip={content.path}
+      clientLogos={clientLogos}
+      faqs={content.faqs ?? []}
     />
   );
 }

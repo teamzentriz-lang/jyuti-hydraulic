@@ -13,6 +13,7 @@ import {
   type SpecRow,
 } from "@/db/schema";
 import {
+  loadContentFaqs,
   loadPageSections,
   loadProductPayload,
   type PageSectionPayload,
@@ -523,6 +524,16 @@ export async function buildPublishedContent(
       childCategories,
       categoryProducts: await categoryProductCards(db, row.id),
       filterCategories,
+      faqs: (await loadContentFaqs("category", row.id))
+        .filter(
+          (item) =>
+            item.isActive &&
+            (item.question.trim() || item.answer.trim()),
+        )
+        .map((item) => ({
+          question: item.question,
+          answer: item.answer,
+        })),
     };
   }
 
@@ -595,6 +606,14 @@ export async function buildPublishedContent(
     const brochure = row.brochureMediaId
       ? (await mediaItems([row.brochureMediaId]))[0]
       : null;
+    const primaryProductImageId = row.featuredImageId || row.thumbnailId;
+    const primaryProductImage = primaryProductImageId
+      ? (await mediaItems([primaryProductImageId]))[0]
+      : null;
+    const productGallery = primaryProductImage &&
+      !extras.gallery.some((item) => item.id === primaryProductImage.id)
+      ? [primaryProductImage, ...extras.gallery]
+      : extras.gallery;
     const [parentCategory] = row.categoryId
       ? await db
           .select({ title: productCategories.title, path: productCategories.path })
@@ -611,7 +630,7 @@ export async function buildPublishedContent(
       body: row.body,
       summary: row.summary,
       specs: extras.specs,
-      gallery: extras.gallery,
+      gallery: productGallery,
       related: relatedSorted.map((item) => {
         const image = relatedImageByProduct.get(item.id);
         return {

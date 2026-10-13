@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { FaqsEditor } from "@/components/admin/advanced-editors";
 import { RelationManyField, SpecsEditor } from "@/components/admin/editors";
 import { MediaPicker } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
@@ -10,6 +11,7 @@ import type { MediaItem } from "@/lib/cms/queries";
 import type { FieldDef, ResourceKey } from "@/lib/cms/resources";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { SpecRow } from "@/db/schema";
+import type { FaqPayload } from "@/lib/cms/entity-data";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -120,6 +122,20 @@ export function ResourceForm({
           </div>
         </section>
       ))}
+      {resource === "product-categories" ? (
+        <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-muted">Frequently Asked Questions</h2>
+          <p className="mb-4 text-sm text-muted">These FAQs appear at the bottom of this category page. Reorder them with Up and Down.</p>
+          <FaqsEditor
+            name="_faqs"
+            initial={
+              Array.isArray(initial.categoryFaqs)
+                ? (initial.categoryFaqs as FaqPayload[])
+                : []
+            }
+          />
+        </section>
+      ) : null}
       <div className="flex flex-wrap items-center gap-4">
         <button className={primaryButtonClass} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save"}

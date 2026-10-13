@@ -4,11 +4,96 @@ import { useState } from "react";
 import { MediaPicker } from "@/components/admin/media-picker";
 import { inputClass, secondaryButtonClass } from "@/components/admin/styles";
 import type { MediaItem } from "@/lib/cms/queries";
-import type { PageSectionPayload, ProductRelationRow, TechnicalTableRow } from "@/lib/cms/entity-data";
+import type {
+  FaqPayload,
+  PageSectionPayload,
+  ProductRelationRow,
+  TechnicalTableRow,
+} from "@/lib/cms/entity-data";
 import type { ProductSpecRow, SpecRow } from "@/db/schema";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
+}
+
+export function FaqsEditor({
+  name,
+  initial,
+}: {
+  name: string;
+  initial: FaqPayload[];
+}) {
+  const [rows, setRows] = useState<FaqPayload[]>(() =>
+    initial.length
+      ? initial.map((row, sortOrder) => ({ ...row, sortOrder }))
+      : [{ question: "", answer: "", sortOrder: 0, isActive: true }],
+  );
+
+  const update = (index: number, patch: Partial<FaqPayload>) =>
+    setRows((current) =>
+      current.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  const move = (index: number, direction: -1 | 1) =>
+    setRows((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target]!, next[index]!];
+      return next.map((row, sortOrder) => ({ ...row, sortOrder }));
+    });
+
+  return (
+    <div className="space-y-3">
+      <input type="hidden" name={name} value={JSON.stringify(rows)} />
+      {rows.map((row, index) => (
+        <div key={index} className="rounded-lg border border-line bg-paper/40 p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="space-y-3">
+              <input
+                className={inputClass}
+                value={row.question}
+                placeholder="Question"
+                onChange={(event) => update(index, { question: event.target.value })}
+              />
+              <textarea
+                className={inputClass}
+                rows={4}
+                value={row.answer}
+                placeholder="Answer"
+                onChange={(event) => update(index, { answer: event.target.value })}
+              />
+              <label className="flex items-center gap-2 text-sm text-navy">
+                <input
+                  type="checkbox"
+                  checked={row.isActive}
+                  onChange={(event) => update(index, { isActive: event.target.checked })}
+                  className="h-4 w-4 accent-navy"
+                />
+                Show this FAQ
+              </label>
+            </div>
+            <div className="flex gap-2 md:flex-col">
+              <button type="button" className={secondaryButtonClass} disabled={index === 0} onClick={() => move(index, -1)}>Up</button>
+              <button type="button" className={secondaryButtonClass} disabled={index === rows.length - 1} onClick={() => move(index, 1)}>Down</button>
+              <button type="button" className={secondaryButtonClass} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>Remove</button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        className={secondaryButtonClass}
+        onClick={() =>
+          setRows((current) => [
+            ...current,
+            { question: "", answer: "", sortOrder: current.length, isActive: true },
+          ])
+        }
+      >
+        Add FAQ
+      </button>
+    </div>
+  );
 }
 
 function normalizeSpecRow(row: ProductSpecRow): ProductSpecRow {
