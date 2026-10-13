@@ -14,7 +14,9 @@ export function ProductGallery({ images }: { images: ProductGalleryImage[] }) {
   if (!current) return null;
 
   return (
-    <div className="product-gallery">
+    <div
+      className={`product-gallery ${images.length === 1 ? "product-gallery--single" : ""}`}
+    >
       {images.length > 1 ? (
         <div className="product-gallery__thumbs" aria-label="Product images">
           {images.map((image, index) => (
