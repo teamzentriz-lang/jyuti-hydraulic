@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
-import { CmsImage } from "@/components/site/cms-image";
 import { ProductCard } from "@/components/site/product-card";
+import { ProductGallery } from "@/components/site/product-gallery";
 import { ProductTabs } from "@/components/site/product-tabs";
+import { QuoteForm } from "@/components/site/quote-form";
 import { RichTextHtml } from "@/components/site/rich-text-html";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
-import { getSettings } from "@/lib/cms/queries";
+import { getHome, getSettings, publishedPosts } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
@@ -133,7 +134,11 @@ function ArticleBlocks({ html, pageTitle }: { html: string; pageTitle: string })
 }
 
 export async function ProductDetail({ content }: { content: PublishedContent }) {
-  const settings = await getSettings();
+  const [settings, home, posts] = await Promise.all([
+    getSettings(),
+    getHome(),
+    publishedPosts(3),
+  ]);
   const image = content.gallery?.[0];
   const pills = (content.features ?? [])
     .map((item) => item.title.trim())
@@ -150,6 +155,11 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
   );
   const lead = content.summary ? cleanPublicExcerpt(content.summary, 320) : "";
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
+  const galleryImages = (content.gallery ?? []).map((item, index) => ({
+    id: item.id,
+    src: mediaDeliveryUrl(item),
+    alt: item.alt || `${cleanPublicTitle(content.title)} image ${index + 1}`,
+  }));
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -278,6 +288,28 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
           ),
         }
       : null,
+    content.features?.length
+      ? {
+          id: "features",
+          label: "Features",
+          content: (
+            <ul className="product-feature-list">
+              {content.features.map((item, index) => (
+                <li key={`${item.title}-${index}`}>
+                  {item.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaDeliveryUrl(item.image)} alt={item.title} />
+                  ) : null}
+                  <div>
+                    <h3>{item.title}</h3>
+                    {item.description ? <p>{item.description}</p> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ),
+        }
+      : null,
     content.documents?.length || content.brochureUrl
       ? {
           id: "downloads",
@@ -307,6 +339,22 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
           ),
         }
       : null,
+    content.faqs?.length
+      ? {
+          id: "faq",
+          label: "FAQ",
+          content: (
+            <dl className="faq-list">
+              {content.faqs.map((item, index) => (
+                <div key={`${item.question}-${index}`}>
+                  <dt>{item.question}</dt>
+                  <dd><RichTextHtml html={item.answer} /></dd>
+                </div>
+              ))}
+            </dl>
+          ),
+        }
+      : null,
   ].filter((tab) => tab !== null);
 
   const title = cleanPublicTitle(content.title);
@@ -320,16 +368,8 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
           __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
         }}
       />
-      <div className="site-container product-page__hero">
-        <div className="product-stage">
-          {image ? (
-            <CmsImage item={image} alt={title} />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src="/placeholders/product.svg" alt={title} />
-          )}
-        </div>
-        <div className="product-summary">
+      <section className="product-title-band">
+        <div className="site-container">
           <Breadcrumbs
             items={[
               { href: "/", label: "Home" },
@@ -340,8 +380,22 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
               { label: title },
             ]}
           />
-          <p className="eyebrow dark">Jyoti Hydraulic</p>
           <h1>{title}</h1>
+          <p>{content.subtitle || settings.tagline || "ISO-9001:2015 Certified Company"}</p>
+        </div>
+      </section>
+
+      <div className="site-container product-page__hero">
+        {galleryImages.length ? (
+          <ProductGallery images={galleryImages} />
+        ) : (
+          <div className="product-gallery__stage">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/placeholders/product.svg" alt={title} />
+          </div>
+        )}
+        <div className="product-summary">
+          <p className="eyebrow dark">Product overview</p>
           {lead ? <p className="product-summary__lead">{lead}</p> : null}
           {pills.length ? (
             <ul className="feature-pills">
@@ -353,7 +407,7 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
           <div className="product-summary__actions">
             {content.enquiryEnabled !== false ? (
               <Link href={enquireHref} className="site-btn-primary">
-                Request a quote
+                Get a Quote
               </Link>
             ) : null}
             {content.brochureUrl ? (
@@ -370,41 +424,111 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
         </div>
       </div>
       {tabs.length ? (
-        <div className="site-container product-page__detail">
-          <ProductTabs tabs={tabs} />
-        </div>
-      ) : null}
-      {content.faqs?.length ? (
-        <div className="site-container product-page__extra">
-          <h2>FAQs</h2>
-          <dl className="faq-list">
-            {content.faqs.map((item, index) => (
-              <div key={`${item.question}-${index}`}>
-                <dt>{item.question}</dt>
-                <dd>
-                  <RichTextHtml html={item.answer} />
-                </dd>
-              </div>
-            ))}
-          </dl>
+        <div className="site-container product-content-grid">
+          <div className="product-page__detail">
+            <ProductTabs tabs={tabs} />
+          </div>
+          {content.enquiryEnabled !== false ? (
+            <aside className="product-quote-card" aria-labelledby="product-quote-title">
+              <h2 id="product-quote-title">Get a Quote</h2>
+              <p>Share your requirement and our team will contact you.</p>
+              <QuoteForm subject={title} pagePath={publicPath(content.path)} />
+            </aside>
+          ) : null}
         </div>
       ) : null}
       {content.related?.length ? (
-        <section className="site-container product-related">
-          <h2>Related Products</h2>
-          <ul className="catalogue-grid">
-            {content.related.map((item) => (
-              <li key={item.id}>
-                <ProductCard
-                  title={item.title}
-                  path={item.path}
-                  summary={item.summary}
-                  imageUrl={item.imageUrl}
-                  imageAlt={item.imageAlt}
-                />
-              </li>
-            ))}
-          </ul>
+        <section className="product-related">
+          <div className="site-container">
+            <div className="product-section-title"><h2>Related Products</h2></div>
+            <ul className="catalogue-grid">
+              {content.related.slice(0, 3).map((item) => (
+                <li key={item.id}>
+                  <ProductCard
+                    title={item.title}
+                    path={item.path}
+                    summary={item.summary}
+                    imageUrl={item.imageUrl}
+                    imageAlt={item.imageAlt}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+      {home.clientLogos.length ? (
+        <section className="clients-rail product-clients" aria-labelledby="product-clients-title">
+          <div className="site-container clients-rail__heading">
+            <p className="eyebrow dark">Trusted across industries</p>
+            <h2 id="product-clients-title">Our Clients</h2>
+          </div>
+          <div className="clients-rail__viewport">
+            <div className="clients-rail__track">
+              {[...home.clientLogos, ...home.clientLogos].map((client, index) => (
+                <div className="client-logo" key={`${client.name}-${index}`} aria-hidden={index >= home.clientLogos.length}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={client.logo} alt={index < home.clientLogos.length ? `${client.name} logo` : ""} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+      {home.usps.length ? (
+        <section className="section-shell usp-section product-usps" aria-labelledby="product-usps-title">
+          <div className="site-container">
+            <div className="section-heading centered"><div><p className="eyebrow dark">What sets us apart</p><h2 id="product-usps-title">Our USPs</h2></div></div>
+            <ul className="usp-grid">
+              {home.usps.map((item, index) => (
+                <li key={`${item.title}-${index}`}>
+                  <span>{item.number || `0${index + 1}`}</span>
+                  <div className="usp-icon" aria-hidden>✓</div>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+      {home.testimonials.length ? (
+        <section className="testimonials-section product-testimonials" aria-labelledby="product-testimonials-title">
+          <div className="site-container">
+            <div className="section-heading centered"><div><p className="eyebrow">Customer feedback</p><h2 id="product-testimonials-title">What Our Customers Say</h2></div></div>
+            <ul className="testimonials-grid">
+              {home.testimonials.slice(0, 3).map((item, index) => (
+                <li key={`${item.author}-${index}`}><span className="quote-mark" aria-hidden>&ldquo;</span><blockquote>{item.quote}</blockquote><p>{item.author}</p></li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+      {posts.length ? (
+        <section className="section-shell product-insights">
+          <div className="site-container">
+            <div className="section-heading"><div><p className="eyebrow dark">Knowledge centre</p><h2>Insights &amp; Articles</h2><p>Practical knowledge, product guidance and industry updates from our engineering team.</p></div><Link href="/blogs/" className="site-btn-outline">View all articles</Link></div>
+            <ul className="insights-grid">
+              {posts.map((post) => (
+                <li key={post.id}>
+                  <article>
+                    <Link href={publicPath(post.path)} className="article-visual">
+                      {post.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.coverUrl} alt="" />
+                      ) : <span>Technical guide</span>}
+                    </Link>
+                    <div className="article-body">
+                      {post.publishedAt ? <time>{post.publishedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</time> : null}
+                      <h3><Link href={publicPath(post.path)}>{cleanPublicTitle(post.title)}</Link></h3>
+                      {post.excerpt ? <p>{post.excerpt}</p> : null}
+                      <Link className="article-link" href={publicPath(post.path)}>Read more <span aria-hidden>&rarr;</span></Link>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       ) : null}
     </main>

@@ -32,7 +32,13 @@ import {
 } from "@/db/schema";
 import { createSession, destroySession, hashPassword, requireAdmin, requireUser, verifyPassword } from "@/lib/auth";
 import { tables } from "@/lib/cms/queries";
-import { saveProductPayload, savePageSections, type PageSectionPayload } from "@/lib/cms/entity-data";
+import {
+  saveContentFaqs,
+  saveProductPayload,
+  savePageSections,
+  type FaqPayload,
+  type PageSectionPayload,
+} from "@/lib/cms/entity-data";
 import { readProductPayloadFromForm } from "@/lib/cms/parse-product-payload";
 import { readPageScalars } from "@/lib/cms/page-save";
 import { readProductScalars } from "@/lib/cms/product-save";
@@ -229,6 +235,17 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
       if (resource === "products") {
         const payload = readProductPayloadFromForm(formData);
         await saveProductPayload(tx, id, payload);
+      }
+
+      if (resource === "product-categories") {
+        const faqsRaw = String(formData.get("_faqs") ?? "");
+        let faqs: FaqPayload[] = [];
+        try {
+          faqs = faqsRaw ? (JSON.parse(faqsRaw) as FaqPayload[]) : [];
+        } catch {
+          throw new CmsError("Could not read category FAQs.");
+        }
+        await saveContentFaqs(tx, "category", id, faqs);
       }
 
       if (resource === "pages") {

@@ -12,6 +12,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-structure": "tsx scripts/seed-structure.ts",
     "db:seed-home-banners": "tsx scripts/seed-home-banners.ts",
+    "db:seed-category-faqs": "tsx scripts/seed-category-faqs.ts",
     "db:backfill-product-images": "tsx scripts/backfill-product-images.ts",
     "storage:migrate-to-r2": "tsx scripts/migrate-storage-to-r2.ts",
     "import:wordpress:phase-a": "tsx scripts/import-wordpress-phase-a.ts",

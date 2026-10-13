@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
+import { AboutFaq } from "@/components/site/about-faq";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import { publicPath } from "@/lib/paths";
 
@@ -36,6 +37,8 @@ export function CatalogueBrowser({
   activeChip,
   crumbs,
   bannerImageUrl,
+  clientLogos = [],
+  faqs = [],
 }: {
   title: string;
   subtitle?: string;
@@ -48,6 +51,8 @@ export function CatalogueBrowser({
   activeChip?: string;
   crumbs?: { href?: string; label: string }[];
   bannerImageUrl?: string;
+  clientLogos?: { name: string; logo: string }[];
+  faqs?: { question: string; answer: string }[];
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState(initialChip);
@@ -210,6 +215,47 @@ export function CatalogueBrowser({
           ) : null}
         </div>
       </main>
+      {clientLogos.length ? (
+        <section className="clients-rail category-clients" aria-labelledby="category-clients-title">
+          <div className="site-container clients-rail__heading">
+            <p className="eyebrow dark">Trusted across industries</p>
+            <h2 id="category-clients-title">Our Clients</h2>
+          </div>
+          <div className="clients-rail__viewport">
+            <div className="clients-rail__track">
+              {[...clientLogos, ...clientLogos].map((client, index) => (
+                <div
+                  className="client-logo"
+                  key={`${client.name}-${index}`}
+                  aria-hidden={index >= clientLogos.length}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={client.logo}
+                    alt={index < clientLogos.length ? `${client.name} logo` : ""}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+      {faqs.length ? (
+        <section className="category-faq-section" aria-labelledby="category-faq-title">
+          <div className="site-container">
+            <div className="category-faq-heading">
+              <p className="eyebrow dark">Helpful answers</p>
+              <h2 id="category-faq-title">Frequently Asked Questions</h2>
+            </div>
+            <AboutFaq
+              items={faqs.map((item) => ({
+                title: item.question,
+                body: item.answer,
+              }))}
+            />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -51,7 +51,11 @@ import {
   defaultUsps,
   homeDefaults,
 } from "@/lib/brand";
-import { loadProductPayload, loadPageSections } from "@/lib/cms/entity-data";
+import {
+  loadContentFaqs,
+  loadProductPayload,
+  loadPageSections,
+} from "@/lib/cms/entity-data";
 import {
   type RelationName,
   type ResourceKey,
@@ -237,6 +241,10 @@ export async function getRecord(resource: ResourceKey, id: string) {
         relatedProducts: { relatedProductId: string }[];
       }
     ).relatedProducts.map((item) => item.relatedProductId);
+  }
+
+  if (resource === "product-categories") {
+    record.categoryFaqs = await loadContentFaqs("category", id);
   }
 
   if (resource === "pages") {

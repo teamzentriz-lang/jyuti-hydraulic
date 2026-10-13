@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Source_Sans_3 } from "next/font/google";
 import { getSettings } from "@/lib/cms/queries";
 import { siteOrigin } from "@/lib/paths";
 import { noIndexRobots } from "@/lib/seo-robots";
+import { NavigationFeedback } from "@/components/site/navigation-feedback";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -46,7 +48,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sourceSans.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <Suspense fallback={null}>
+          <NavigationFeedback />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }
