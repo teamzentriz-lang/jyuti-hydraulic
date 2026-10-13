@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MediaPicker } from "@/components/admin/media-picker";
-import { inputClass, secondaryButtonClass } from "@/components/admin/styles";
+import { inputClass, labelClass, secondaryButtonClass } from "@/components/admin/styles";
 import type { MediaItem } from "@/lib/cms/queries";
 import type {
   FaqPayload,
@@ -429,6 +429,7 @@ const sectionTypes = [
   "text",
   "rich_text",
   "features",
+  "video",
   "product_grid",
   "cta",
   "faq",
@@ -550,6 +551,25 @@ export function PageSectionsEditor({ name, initial, media }: { name: string; ini
             <input className={`${inputClass} mb-2`} value={asText(section.eyebrow)} placeholder="Eyebrow" onChange={(e) => patch(index, { eyebrow: e.target.value })} />
             <input className={`${inputClass} mb-2`} value={asText(section.title)} placeholder="Title" onChange={(e) => patch(index, { title: e.target.value })} />
             <input className={`${inputClass} mb-2`} value={asText(section.subtitle)} placeholder="Subtitle" onChange={(e) => patch(index, { subtitle: e.target.value })} />
+            {section.sectionType === "video" ? (
+              <label className="mb-2 block">
+                <span className={labelClass}>YouTube video URL</span>
+                <input
+                  className={inputClass}
+                  type="url"
+                  value={asText(section.customData.videoUrl)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  onChange={(e) =>
+                    patch(index, {
+                      customData: {
+                        ...section.customData,
+                        videoUrl: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+            ) : null}
             <textarea className={`${inputClass} mb-2`} rows={3} value={asText(section.description)} placeholder="Description" onChange={(e) => patch(index, { description: e.target.value })} />
             <MediaPicker name={`section-image-${index}`} initialIds={section.imageId ? [section.imageId] : []} known={media} onChange={(ids) => patch(index, { imageId: ids[0] ?? null })} />
           </div>

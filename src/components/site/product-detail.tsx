@@ -76,6 +76,26 @@ function sameHeading(title: string, pageTitle: string) {
   return a.includes(b.slice(0, 24)) || b.includes(a.slice(0, 24));
 }
 
+function youtubeEmbedUrl(raw: unknown) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const url = new URL(raw.trim());
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let videoId = "";
+    if (host === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    else if (host === "youtube.com" || host === "m.youtube.com" || host === "youtube-nocookie.com") {
+      videoId = url.pathname === "/watch"
+        ? url.searchParams.get("v") ?? ""
+        : url.pathname.split("/").filter(Boolean).pop() ?? "";
+    }
+    return /^[a-zA-Z0-9_-]{6,}$/.test(videoId)
+      ? `https://www.youtube-nocookie.com/embed/${videoId}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function articleSections(html: string) {
   const chunks = html.split(/<h2[^>]*>/i);
   const sections: { title: string; html: string }[] = [];
@@ -93,41 +113,39 @@ function articleSections(html: string) {
   return sections;
 }
 
-function splitCopyAndImages(html: string) {
-  const images = [...html.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
-  const text = html.replace(/<img\b[^>]*>/gi, "").replace(/<p>\s*<\/p>/gi, "").trim();
-  return { images, text, hasText: Boolean(textOf(text)) };
-}
-
 function ArticleBlocks({ html, pageTitle }: { html: string; pageTitle: string }) {
   const sections = articleSections(html);
-  if (!sections.length) return <RichTextHtml html={html} className="product-prose" />;
+  const renderSection = (sectionHtml: string, index: number, heading?: string) => {
+    const images = [...sectionHtml.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
+    const text = sectionHtml.replace(/<img\b[^>]*>/gi, "").replace(/<p>\s*<\/p>/gi, "").trim();
+    const hasText = Boolean(textOf(text));
+    return (
+      <section key={`${heading ?? "overview"}-${index}`} className="product-article__block">
+        {heading ? <h2>{heading}</h2> : null}
+        {images.length && hasText ? (
+          <div className="media-split">
+            <RichTextHtml html={text} className="product-prose" />
+            <RichTextHtml html={images.join("")} className="media-split__media" />
+          </div>
+        ) : images.length ? (
+          <RichTextHtml html={images.join("")} className="media-split__media" />
+        ) : text ? (
+          <RichTextHtml
+            html={text}
+            className={(text.match(/<p\b/gi) ?? []).length > 1 ? "product-prose product-prose--columns" : "product-prose"}
+          />
+        ) : null}
+      </section>
+    );
+  };
+  if (!sections.length) {
+    return <div className="product-article">{renderSection(html, 0)}</div>;
+  }
   return (
     <div className="product-article">
       {sections.map((section, index) => {
         const showTitle = Boolean(section.title) && !(index === 0 && sameHeading(section.title, pageTitle));
-        const { images, text, hasText } = splitCopyAndImages(section.html);
-        const sideBySide = images.length > 0 && hasText;
-        return (
-          <section key={`${section.title}-${index}`} className="product-article__block">
-            {showTitle ? <h2>{section.title}</h2> : null}
-            {sideBySide ? (
-              <div className={index % 2 === 0 ? "media-split" : "media-split media-split--flip"}>
-                <RichTextHtml html={text} className="product-prose" />
-                <RichTextHtml html={images.join("")} className="media-split__media" />
-              </div>
-            ) : (
-              <RichTextHtml
-                html={section.html}
-                className={
-                  (section.html.match(/<p\b/gi) ?? []).length > 1
-                    ? "product-prose product-prose--columns"
-                    : "product-prose"
-                }
-              />
-            )}
-          </section>
-        );
+        return renderSection(section.html, index, showTitle ? section.title : undefined);
       })}
     </div>
   );
@@ -154,6 +172,7 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
     ]),
   );
   const lead = content.summary ? cleanPublicExcerpt(content.summary, 320) : "";
+  const title = cleanPublicTitle(content.title);
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
   const galleryImages = (content.gallery ?? []).map((item, index) => ({
     id: item.id,
@@ -174,24 +193,23 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
       url: siteOrigin(),
     },
   };
-  const applicationsHtml = readableArticle(
-    dedupedHtml([
-      content.detailBlocks?.find((block) => block.heading === "Applications")?.html,
-      content.detailBlocks?.find((block) => block.heading === "Features")?.html,
-    ].filter((part) => !coveredBy(overviewHtml, part ?? ""))),
+  const comingSoon = (
+    <div className="product-tabs__empty">
+      <h3>Coming soon</h3>
+      <p>We’re preparing this product information. Please check back soon.</p>
+    </div>
   );
   const tabs = [
-    overviewHtml
-      ? {
-          id: "overview",
-          label: "Overview",
-          content: <ArticleBlocks html={overviewHtml} pageTitle={content.title} />,
-        }
-      : null,
-    content.specs?.length || content.technicalTables?.length || content.contentTables?.length
-      ? {
+    {
+      id: "overview",
+      label: "Overview",
+      icon: "overview",
+      content: overviewHtml ? <ArticleBlocks html={overviewHtml} pageTitle={content.title} /> : comingSoon,
+    },
+    {
           id: "specifications",
           label: "Specifications",
+          icon: "specifications",
           content: (
             <>
               {content.specs?.length ? (
@@ -263,36 +281,12 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
               ))}
             </>
           ),
-        }
-      : null,
-    content.applications?.length || applicationsHtml
-      ? {
-          id: "applications",
-          label: "Applications",
-          content: (
-            <>
-              {applicationsHtml ? (
-                <ArticleBlocks html={readableArticle(applicationsHtml)} pageTitle={content.title} />
-              ) : null}
-              {content.applications?.length ? (
-                <ul className="application-list">
-                  {content.applications.map((item, index) => (
-                    <li key={`${item.title}-${index}`}>
-                      <h3>{item.title}</h3>
-                      {item.description ? <p>{item.description}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </>
-          ),
-        }
-      : null,
-    content.features?.length
-      ? {
+        },
+    {
           id: "features",
           label: "Features",
-          content: (
+          icon: "features",
+          content: content.features?.length ? (
             <ul className="product-feature-list">
               {content.features.map((item, index) => (
                 <li key={`${item.title}-${index}`}>
@@ -307,57 +301,61 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
                 </li>
               ))}
             </ul>
-          ),
-        }
-      : null,
-    content.documents?.length || content.brochureUrl
-      ? {
-          id: "downloads",
-          label: "Downloads",
-          content: (
-            <ul className="download-list">
-              {content.brochureUrl ? (
-                <li>
-                  <a href={content.brochureUrl} target="_blank" rel="noopener noreferrer">
-                    Download brochure
-                  </a>
-                </li>
-              ) : null}
-              {content.documents?.map((doc, index) => (
-                <li key={`${doc.title}-${index}`}>
-                  {doc.url ? (
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                      {doc.title || "Download"}
-                    </a>
-                  ) : (
-                    <span>{doc.title}</span>
-                  )}
-                  {doc.description ? <p>{doc.description}</p> : null}
+          ) : comingSoon,
+        },
+    {
+          id: "video",
+          label: "Video",
+          icon: "video",
+          content: content.sections?.some(
+            (section) => section.sectionType === "video" && section.isActive && youtubeEmbedUrl(section.customData.videoUrl),
+          ) ? (
+            <div className="product-video-list">
+              {content.sections
+                .filter(
+                  (section) => section.sectionType === "video" && section.isActive,
+                )
+                .map((section, index) => {
+                  const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
+                  if (!embedUrl) return null;
+                  return (
+                    <section key={section.id ?? `video-${index}`}>
+                      {section.title ? <h3>{section.title}</h3> : null}
+                      {section.description ? <p>{section.description}</p> : null}
+                      <div className="product-video-list__frame">
+                        <iframe
+                          src={embedUrl}
+                          title={section.title || `${title} video ${index + 1}`}
+                          loading="lazy"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      </div>
+                    </section>
+                  );
+                })}
+            </div>
+          ) : comingSoon,
+        },
+    {
+          id: "reviews",
+          label: "Reviews",
+          icon: "reviews",
+          content: home.testimonials.length ? (
+            <ul className="product-review-list">
+              {home.testimonials.map((review, index) => (
+                <li key={`${review.author}-${index}`}>
+                  <span aria-hidden="true">★★★★★</span>
+                  <blockquote>{review.quote}</blockquote>
+                  <p>{review.author}</p>
                 </li>
               ))}
             </ul>
-          ),
-        }
-      : null,
-    content.faqs?.length
-      ? {
-          id: "faq",
-          label: "FAQ",
-          content: (
-            <dl className="faq-list">
-              {content.faqs.map((item, index) => (
-                <div key={`${item.question}-${index}`}>
-                  <dt>{item.question}</dt>
-                  <dd><RichTextHtml html={item.answer} /></dd>
-                </div>
-              ))}
-            </dl>
-          ),
-        }
-      : null,
-  ].filter((tab) => tab !== null);
+          ) : comingSoon,
+        },
+  ];
 
-  const title = cleanPublicTitle(content.title);
   const enquireHref = `/contact/?product=${encodeURIComponent(title)}`;
 
   return (
@@ -495,10 +493,16 @@ export async function ProductDetail({ content }: { content: PublishedContent }) 
       {home.testimonials.length ? (
         <section className="testimonials-section product-testimonials" aria-labelledby="product-testimonials-title">
           <div className="site-container">
-            <div className="section-heading centered"><div><p className="eyebrow">Customer feedback</p><h2 id="product-testimonials-title">What Our Customers Say</h2></div></div>
+            <div className="section-heading centered">
+              <div><p className="eyebrow">Customer feedback</p><h2 id="product-testimonials-title">What Our Customers Say</h2></div>
+            </div>
             <ul className="testimonials-grid">
               {home.testimonials.slice(0, 3).map((item, index) => (
-                <li key={`${item.author}-${index}`}><span className="quote-mark" aria-hidden>&ldquo;</span><blockquote>{item.quote}</blockquote><p>{item.author}</p></li>
+                <li key={`${item.author}-${index}`}>
+                  <span className="quote-mark" aria-hidden>&ldquo;</span>
+                  <blockquote>{item.quote}</blockquote>
+                  <p>{item.author}</p>
+                </li>
               ))}
             </ul>
           </div>
