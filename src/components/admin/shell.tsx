@@ -81,8 +81,9 @@ export function AdminShell({ user, children }: { user: SessionUser; children: Re
       </div>
       <aside className={`${open ? "block" : "hidden"} border-r border-white/10 bg-navy text-white md:sticky md:top-0 md:flex md:h-screen md:flex-col`}>
         <div className="border-b border-white/10 px-4 py-5">
-          <Link href="/admin" className="block">
-            <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-red-200">Jyoti Hydraulic</span>
+          <Link href="/" className="admin-sidebar-brand" aria-label="Jyoti Hydraulic home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo.jpg" alt="Jyoti Hydraulic" />
             <span className="mt-1 block text-lg font-semibold">Content studio</span>
           </Link>
         </div>

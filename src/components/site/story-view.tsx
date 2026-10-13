@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { CmsImage } from "@/components/site/cms-image";
+import { QuoteForm } from "@/components/site/quote-form";
 import { RichTextHtml } from "@/components/site/rich-text-html";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
@@ -31,38 +33,106 @@ export function StoryView({ content }: { content: PublishedContent }) {
   ].filter((item): item is string => Boolean(item));
   const title = cleanPublicTitle(content.title);
   const lead = cleanPublicExcerpt(content.summary ?? "", 320);
+  const cover = content.cover ?? content.hero ?? null;
+
+  if (content.kind === "location") {
+    return (
+      <main className="product-page location-page">
+        <section className="product-title-band">
+          <div className="site-container">
+            <Breadcrumbs
+              items={[
+                { href: "/", label: "Home" },
+                { href: "/products/", label: "Products" },
+                { label: title },
+              ]}
+            />
+            <h1>{title}</h1>
+            <p>
+              {[content.meta?.locationName, content.meta?.region]
+                .filter(Boolean)
+                .join(", ") || "Jyoti Hydraulic"}
+            </p>
+          </div>
+        </section>
+        <div className="site-container product-content-grid location-page__content">
+          <article className="product-page__detail location-page__article">
+            <RichTextHtml html={content.body} className="product-prose" />
+          </article>
+          <aside className="product-quote-card" aria-labelledby="location-quote-title">
+            <h2 id="location-quote-title">Get a Quote</h2>
+            <p>Share your requirement and our team will contact you.</p>
+            <QuoteForm subject={title} pagePath={`/${content.path}/`} />
+          </aside>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="story-page">
-      <div className="site-page-banner">
-        <div className="site-container page-banner-inner">
-          <p className="page-kicker">{kicker}</p>
-          <h1>{title}</h1>
-          {date ? <p className="story-page__date">{date}</p> : null}
-          {lead ? <p>{lead}</p> : null}
-          {chips.length ? (
-            <ul className="story-page__chips">
-              {chips.map((chip) => (
-                <li key={chip}>{chip}</li>
-              ))}
-            </ul>
+    <main className={`story-page ${isPost ? "story-page--post" : ""}`}>
+      {isPost ? (
+        <header className="story-page__title-strip">
+          <div className="site-container story-page__title-inner">
+            <p className="page-kicker">{kicker}</p>
+            <h1>{title}</h1>
+            {date ? <p className="story-page__date">{date}</p> : null}
+          </div>
+        </header>
+      ) : (
+        <div className="site-page-banner">
+          <div className="site-container page-banner-inner">
+            <p className="page-kicker">{kicker}</p>
+            <h1>{title}</h1>
+            {date ? <p className="story-page__date">{date}</p> : null}
+            {lead ? <p>{lead}</p> : null}
+            {chips.length ? (
+              <ul className="story-page__chips">
+                {chips.map((chip) => (
+                  <li key={chip}>{chip}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </div>
+      )}
+      <div
+        className={`site-container story-page__body ${isPost ? "story-page__body--post" : ""}`}
+      >
+        <div className="story-page__main">
+          {cover ? (
+            <CmsImage
+              item={cover}
+              alt={content.title}
+              className="story-page__cover"
+            />
+          ) : null}
+          {content.body.trim() ? (
+            <article className="story-page__article">
+              <RichTextHtml
+                html={content.body}
+                className="rich-text story-prose"
+              />
+            </article>
           ) : null}
         </div>
-      </div>
-      <div className="site-container story-page__body">
-        {content.cover ? (
-          <CmsImage item={content.cover} alt={content.title} className="story-page__cover" />
-        ) : null}
-        {content.hero ? (
-          <CmsImage item={content.hero} alt={content.title} className="story-page__cover" />
-        ) : null}
-        {content.body.trim() ? (
-          <article className="story-page__article">
-            <RichTextHtml html={content.body} className="rich-text story-prose" />
-          </article>
+        {isPost ? (
+          <aside
+            className="story-page__enquiry"
+            aria-labelledby="story-enquiry-title"
+          >
+            <h2 id="story-enquiry-title">Enquire Now</h2>
+            <p>
+              Tell us what you need. Our hydraulic experts will get back to you.
+            </p>
+            <QuoteForm subject={title} pagePath={`/${content.path}/`} />
+          </aside>
         ) : null}
         <div className="story-page__actions">
-          <Link href={isPost ? "/blogs/" : "/products/"} className="site-btn-outline">
+          <Link
+            href={isPost ? "/blogs/" : "/products/"}
+            className="site-btn-outline"
+          >
             {isPost ? "All articles" : "Browse products"}
           </Link>
           <Link href="/contact/" className="site-btn-primary">
