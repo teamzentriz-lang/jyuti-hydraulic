@@ -24,6 +24,16 @@ export type StatItem = { value: string; label: string };
 export type UspItem = { number?: string; title: string; body: string };
 
 export const userRole = pgEnum("user_role", ["admin", "editor"]);
+export const systemRole = pgEnum("system_role", ["super_admin", "admin", "staff"]);
+export const accountStatus = pgEnum("account_status", ["active", "inactive"]);
+export const crmVisibility = pgEnum("crm_visibility", ["own", "assigned", "team", "all"]);
+export const leadStage = pgEnum("lead_stage", ["new", "assigned", "contacted", "qualified", "follow_up", "proposal", "negotiation", "won", "lost", "closed"]);
+export const crmPriority = pgEnum("crm_priority", ["low", "normal", "high", "urgent"]);
+export const activityType = pgEnum("activity_type", ["call", "email", "meeting", "note", "status_change", "assignment"]);
+export const taskStatus = pgEnum("task_status", ["pending", "completed", "cancelled"]);
+export const quotationStatus = pgEnum("quotation_status", ["draft", "pending_approval", "approved", "sent", "revised", "accepted", "rejected", "expired", "cancelled"]);
+export const approvalStatus = pgEnum("approval_status", ["pending", "approved", "rejected"]);
+export const deliveryStatus = pgEnum("delivery_status", ["sent", "failed"]);
 export const publishStatus = pgEnum("publish_status", ["draft", "published"]);
 export const inquiryStatus = pgEnum("inquiry_status", [
   "new",
@@ -50,6 +60,13 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
   role: userRole("role").notNull().default("editor"),
+  /** Legacy role is retained for migration compatibility; authorization uses systemRole. */
+  systemRole: systemRole("system_role").notNull().default("staff"),
+  status: accountStatus("status").notNull().default("active"),
+  permissionOverrides: jsonb("permission_overrides").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  crmVisibility: crmVisibility("crm_visibility").notNull().default("assigned"),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -65,6 +82,43 @@ export const sessions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+export const teams = pgTable(
+  "teams",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("teams_name_unique").on(t.name)],
+);
+
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.userId] }), index("team_members_user_idx").on(t.userId)],
+);
+
+/** Append-only accountability log. Do not update or delete rows from application code. */
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("audit_logs_entity_idx").on(t.entityType, t.entityId), index("audit_logs_actor_idx").on(t.actorId, t.createdAt)],
 );
 
 export const media = pgTable(
@@ -582,11 +636,212 @@ export const inquiries = pgTable(
     sourceUrl: text("source_url"),
     adminNotes: text("admin_notes").notNull().default(""),
     status: inquiryStatus("status").notNull().default("new"),
+    priority: crmPriority("priority").notNull().default("normal"),
+    assignedToId: uuid("assigned_to_id").references(() => users.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    nextFollowUpAt: timestamp("next_follow_up_at", { withTimezone: true }),
+    convertedLeadId: uuid("converted_lead_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("inquiries_status_idx").on(t.status, t.createdAt)],
+  (t) => [
+    index("inquiries_status_idx").on(t.status, t.createdAt),
+    index("inquiries_assignee_idx").on(t.assignedToId, t.status),
+    index("inquiries_team_idx").on(t.teamId, t.status),
+  ],
 );
+
+export const companies = pgTable(
+  "companies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    industry: text("industry").notNull().default(""),
+    website: text("website"),
+    email: text("email").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    address: text("address").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("companies_owner_idx").on(t.ownerId), index("companies_team_idx").on(t.teamId), index("companies_name_idx").on(t.name)],
+);
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    email: text("email").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    designation: text("designation").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("contacts_owner_idx").on(t.ownerId), index("contacts_team_idx").on(t.teamId), index("contacts_email_idx").on(t.email)],
+);
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    inquiryId: uuid("inquiry_id").references(() => inquiries.id, { onDelete: "set null" }),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    stage: leadStage("stage").notNull().default("new"),
+    priority: crmPriority("priority").notNull().default("normal"),
+    estimatedValue: integer("estimated_value"),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    nextFollowUpAt: timestamp("next_follow_up_at", { withTimezone: true }),
+    lostReason: text("lost_reason").notNull().default(""),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("leads_stage_idx").on(t.stage, t.updatedAt), index("leads_owner_idx").on(t.ownerId, t.stage), index("leads_team_idx").on(t.teamId, t.stage), uniqueIndex("leads_inquiry_unique").on(t.inquiryId)],
+);
+
+export const leadActivities = pgTable(
+  "lead_activities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leadId: uuid("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+    type: activityType("type").notNull().default("note"),
+    subject: text("subject").notNull().default(""),
+    details: text("details").notNull().default(""),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+    nextActionAt: timestamp("next_action_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("lead_activities_lead_idx").on(t.leadId, t.occurredAt)],
+);
+
+export const followUpTasks = pgTable(
+  "follow_up_tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leadId: uuid("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    status: taskStatus("status").notNull().default("pending"),
+    priority: crmPriority("priority").notNull().default("normal"),
+    assignedToId: uuid("assigned_to_id").references(() => users.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("follow_up_tasks_due_idx").on(t.status, t.dueAt), index("follow_up_tasks_assignee_idx").on(t.assignedToId, t.status), index("follow_up_tasks_team_idx").on(t.teamId, t.status)],
+);
+
+export const quotationSettings = pgTable("quotation_settings", {
+  id: integer("id").primaryKey().default(1),
+  numberPrefix: text("number_prefix").notNull().default("JH-Q"),
+  nextNumber: integer("next_number").notNull().default(1),
+  defaultCurrency: text("default_currency").notNull().default("INR"),
+  defaultTaxRateBps: integer("default_tax_rate_bps").notNull().default(1800),
+  defaultValidityDays: integer("default_validity_days").notNull().default(30),
+  defaultTerms: text("default_terms").notNull().default(""),
+  defaultPaymentTerms: text("default_payment_terms").notNull().default(""),
+  defaultDeliveryTerms: text("default_delivery_terms").notNull().default(""),
+  approvalRequired: boolean("approval_required").notNull().default(true),
+  approvalThreshold: integer("approval_threshold").notNull().default(0),
+  ...timestamps,
+}, (t) => [check("quotation_settings_singleton", sql`${t.id} = 1`)]);
+
+export const quotations = pgTable("quotations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quoteNumber: text("quote_number").notNull().unique(),
+  leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+  teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+  status: quotationStatus("status").notNull().default("draft"),
+  currentVersion: integer("current_version").notNull().default(1),
+  validUntil: timestamp("valid_until", { withTimezone: true }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  approvedById: uuid("approved_by_id").references(() => users.id, { onDelete: "set null" }),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  ...timestamps,
+}, (t) => [index("quotations_owner_idx").on(t.ownerId, t.status), index("quotations_team_idx").on(t.teamId, t.status), index("quotations_lead_idx").on(t.leadId)]);
+
+export const quotationVersions = pgTable("quotation_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationId: uuid("quotation_id").notNull().references(() => quotations.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull().default(""),
+  customerPhone: text("customer_phone").notNull().default(""),
+  billingAddress: text("billing_address").notNull().default(""),
+  currency: text("currency").notNull().default("INR"),
+  subtotal: integer("subtotal").notNull().default(0),
+  discountAmount: integer("discount_amount").notNull().default(0),
+  taxAmount: integer("tax_amount").notNull().default(0),
+  shippingAmount: integer("shipping_amount").notNull().default(0),
+  totalAmount: integer("total_amount").notNull().default(0),
+  terms: text("terms").notNull().default(""),
+  paymentTerms: text("payment_terms").notNull().default(""),
+  deliveryTerms: text("delivery_terms").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [uniqueIndex("quotation_versions_number_unique").on(t.quotationId, t.versionNumber)]);
+
+export const quotationLineItems = pgTable("quotation_line_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  versionId: uuid("version_id").notNull().references(() => quotationVersions.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: integer("unit_price").notNull().default(0),
+  discountBps: integer("discount_bps").notNull().default(0),
+  taxRateBps: integer("tax_rate_bps").notNull().default(0),
+  lineTotal: integer("line_total").notNull().default(0),
+  sortOrder: integer("sort_order").notNull().default(0),
+}, (t) => [index("quotation_line_items_version_idx").on(t.versionId, t.sortOrder)]);
+
+export const quotationApprovals = pgTable("quotation_approvals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationId: uuid("quotation_id").notNull().references(() => quotations.id, { onDelete: "cascade" }),
+  versionId: uuid("version_id").notNull().references(() => quotationVersions.id, { onDelete: "cascade" }),
+  requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
+  reviewerId: uuid("reviewer_id").references(() => users.id, { onDelete: "set null" }),
+  status: approvalStatus("status").notNull().default("pending"),
+  remarks: text("remarks").notNull().default(""),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("quotation_approvals_quote_idx").on(t.quotationId, t.createdAt)]);
+
+export const quotationDeliveries = pgTable("quotation_deliveries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationId: uuid("quotation_id").notNull().references(() => quotations.id, { onDelete: "cascade" }),
+  versionId: uuid("version_id").notNull().references(() => quotationVersions.id, { onDelete: "cascade" }),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  status: deliveryStatus("status").notNull(),
+  providerMessageId: text("provider_message_id"),
+  errorMessage: text("error_message"),
+  sentById: uuid("sent_by_id").references(() => users.id, { onDelete: "set null" }),
+  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("quotation_deliveries_quote_idx").on(t.quotationId, t.sentAt)]);
 
 export const redirects = pgTable(
   "redirects",

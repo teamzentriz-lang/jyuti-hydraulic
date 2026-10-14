@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { Notice, PageHeader } from "@/components/admin/page-header";
 import { PageForm } from "@/components/admin/page-form";
 import { ProductForm } from "@/components/admin/product-form";
@@ -6,9 +7,13 @@ import { ResourceForm } from "@/components/admin/resource-form";
 import { MediaPreview } from "@/components/admin/media-preview";
 import { formatBytes, formatWhen } from "@/components/admin/status-pill";
 import { requireUser } from "@/lib/auth";
+import { canAccessResource } from "@/lib/authorization";
 import type { PageSectionPayload, ProductPayload } from "@/lib/cms/entity-data";
 import { fieldsFor, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
 import { isResourceKey, resources, type FieldDef } from "@/lib/cms/resources";
+import { convertInquiryToLeadAction } from "@/lib/cms/actions";
+import { primaryButtonClass, secondaryButtonClass } from "@/components/admin/styles";
+import { hasPermission, permissionForResource } from "@/lib/authorization";
 
 function mediaIds(record: Record<string, unknown>, fields: FieldDef[]) {
   const ids: string[] = [];
@@ -33,12 +38,13 @@ export default async function EditResourcePage({
   if (!isResourceKey(key)) notFound();
   const config = resources[key];
   const user = await requireUser();
-  if (config.adminOnly && user.role !== "admin") redirect("/admin/");
+  if (!canAccessResource(user, key) || (key === "users" && user.systemRole !== "super_admin")) redirect("/admin/");
 
-  const record = await getRecord(key, id);
+  const record = await getRecord(key, id, user);
   if (!record) notFound();
-  const fields = await fieldsFor(key, id);
+  const fields = await fieldsFor(key, id, user);
   const media = await mediaItems(mediaIds(record, fields));
+  const canEdit = hasPermission(user, permissionForResource(key));
 
   if (key === "products") {
     const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products", id)]);
@@ -98,6 +104,16 @@ export default async function EditResourcePage({
       ) : null}
       {query.saved ? <Notice tone="ok">Saved.</Notice> : null}
       {query.error ? <Notice tone="error">{query.error}</Notice> : null}
+      {key === "inquiries" && hasPermission(user, "inquiries.manage") && hasPermission(user, "crm.leads.manage") ? (
+        record.convertedLeadId ? (
+          <div className="mb-4"><Link className={secondaryButtonClass} href={`/admin/leads/${record.convertedLeadId}`}>Open converted lead</Link></div>
+        ) : (
+          <form action={convertInquiryToLeadAction} className="mb-4">
+            <input type="hidden" name="inquiryId" value={id} />
+            <button className={primaryButtonClass}>Convert to sales lead</button>
+          </form>
+        )
+      ) : null}
       <ResourceForm
         resource={key}
         id={id}
@@ -106,6 +122,7 @@ export default async function EditResourcePage({
         media={media}
         pathMode={config.pathMode}
         canDelete={!(key === "users" && id === user.id)}
+        canEdit={canEdit}
       />
     </>
   );

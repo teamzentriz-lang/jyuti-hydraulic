@@ -8,7 +8,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader eyebrow="Account" title={user.name} description={`${user.email} · ${user.role}`} />
+      <PageHeader eyebrow="Account" title={user.name} description={`${user.email} · ${user.systemRole.replace("_", " ")}`} />
       {params.saved ? <Notice tone="ok">Password updated.</Notice> : null}
       <AccountForm />
     </>

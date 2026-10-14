@@ -8,8 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate-phase-one": "tsx scripts/migrate-phase-one.ts",
+    "db:migrate-phase-two": "tsx scripts/migrate-phase-two.ts",
+    "db:migrate-phase-three": "tsx scripts/migrate-phase-three.ts",
+    "db:migrate-runtime-schema": "tsx scripts/migrate-runtime-schema.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
+    "db:verify-phase-one": "tsx scripts/verify-phase-one.ts",
+    "db:verify-phase-two": "tsx scripts/verify-phase-two.ts",
+    "db:verify-phase-three": "tsx scripts/verify-phase-three.ts",
     "db:seed-structure": "tsx scripts/seed-structure.ts",
     "db:seed-home-banners": "tsx scripts/seed-home-banners.ts",
     "db:seed-category-faqs": "tsx scripts/seed-category-faqs.ts",
@@ -24,7 +32,7 @@
     "import:wordpress:phase-d": "tsx scripts/import-wordpress-phase-d.ts",
     "import:wordpress:phase-e": "tsx scripts/import-wordpress-phase-e.ts",
     "import:wordpress:audit-urls": "tsx scripts/import-wordpress-audit-urls.ts",
-    "test": "tsx --test tests/storage/*.test.ts tests/import/*.test.ts"
+    "test": "tsx --test tests/*.test.ts tests/storage/*.test.ts tests/import/*.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1145.0",

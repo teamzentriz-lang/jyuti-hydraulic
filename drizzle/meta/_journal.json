@@ -15,6 +15,13 @@
       "when": 1790941857424,
       "tag": "0001_dapper_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792048200000,
+      "tag": "0002_phase_one_access_control",
+      "breakpoints": true
     }
   ]
 }

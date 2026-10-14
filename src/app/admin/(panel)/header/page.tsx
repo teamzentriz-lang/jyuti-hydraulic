@@ -4,9 +4,12 @@ import { getDb } from "@/db";
 import { headerSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ensureSingletons, mediaItems } from "@/lib/cms/queries";
+import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/authorization";
 
 export default async function HeaderSettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const params = await searchParams;
+  requirePermission(await requireUser(), "cms.settings.manage");
   await ensureSingletons();
   const db = getDb();
   const [row] = await db.select().from(headerSettings).where(eq(headerSettings.id, "default")).limit(1);

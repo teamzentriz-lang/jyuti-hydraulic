@@ -6,12 +6,13 @@ import { Notice, PageHeader } from "@/components/admin/page-header";
 import { formatBytes, formatWhen, StatusPill } from "@/components/admin/status-pill";
 import { secondaryButtonClass } from "@/components/admin/styles";
 import { requireUser } from "@/lib/auth";
+import { canAccessResource, hasPermission, permissionForResource } from "@/lib/authorization";
 import { isResourceKey, resources } from "@/lib/cms/resources";
 import { listRecords } from "@/lib/cms/queries";
 import { currentStorageDriver } from "@/lib/storage";
 
-const dateKeys = new Set(["updatedAt", "createdAt", "publishedAt"]);
-const pillKeys = new Set(["status", "active"]);
+const dateKeys = new Set(["updatedAt", "createdAt", "publishedAt", "occurredAt", "dueAt", "nextFollowUpAt"]);
+const pillKeys = new Set(["status", "active", "stage", "priority", "isActive"]);
 
 export default async function ResourceListPage({
   params,
@@ -24,10 +25,11 @@ export default async function ResourceListPage({
   if (!isResourceKey(key)) notFound();
   const config = resources[key];
   const user = await requireUser();
-  if (config.adminOnly && user.role !== "admin") redirect("/admin/");
+  if (!canAccessResource(user, key) || (key === "users" && user.systemRole !== "super_admin")) redirect("/admin/");
+  const canEdit = hasPermission(user, permissionForResource(key));
 
   const page = Number(query.page ?? "1");
-  const result = await listRecords(key, { q: query.q, page: Number.isFinite(page) ? page : 1 });
+  const result = await listRecords(key, { q: query.q, page: Number.isFinite(page) ? page : 1, user });
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const search = query.q ? `&q=${encodeURIComponent(query.q)}` : "";
 
@@ -38,7 +40,7 @@ export default async function ResourceListPage({
         title={config.label}
         description={config.description}
         action={
-          config.allowCreate === false ? null : (
+          config.allowCreate === false || !canEdit ? null : (
             <Link href={`/admin/${key}/new`} className={secondaryButtonClass}>
               New {config.singular.toLowerCase()}
             </Link>
@@ -46,7 +48,7 @@ export default async function ResourceListPage({
         }
       />
       {query.error ? <Notice tone="error">{query.error}</Notice> : null}
-      {key === "media" ? <MediaUploader driver={currentStorageDriver()} /> : null}
+      {key === "media" && canEdit ? <MediaUploader driver={currentStorageDriver()} /> : null}
       <form className="mb-4 flex gap-2" action={`/admin/${key}/`}>
         <input
           name="q"

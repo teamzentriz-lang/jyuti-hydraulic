@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { loginAction } from "@/lib/cms/actions";
 import { inputClass, labelClass, primaryButtonClass } from "@/components/admin/styles";
 
 export function LoginForm({ next, needsSeed }: { next: string; needsSeed: boolean }) {
   const [state, action, pending] = useActionState(loginAction, null);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={action} className="space-y-4">
@@ -22,7 +23,24 @@ export function LoginForm({ next, needsSeed }: { next: string; needsSeed: boolea
       </label>
       <label className="block">
         <span className={labelClass}>Password</span>
-        <input className={inputClass} name="password" type="password" autoComplete="current-password" required />
+        <span className="relative block">
+          <input
+            className={`${inputClass} pr-20`}
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-xs font-semibold text-navy hover:text-signal"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? "Hide" : "View"}
+          </button>
+        </span>
       </label>
       <button className={`${primaryButtonClass} w-full`} type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}

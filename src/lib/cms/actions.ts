@@ -16,11 +16,17 @@ import {
   homeContent,
   homeFeaturedProducts,
   homeHeroImages,
+  companies,
+  contacts,
+  inquiries,
+  leadActivities,
+  leads,
   media,
   navLinks,
   productCategories,
   sessions,
   siteSettings,
+  teamMembers,
   users,
   type SpecRow,
   type WhyItem,
@@ -30,8 +36,10 @@ import {
   type TestimonialItem,
   type UspItem,
 } from "@/db/schema";
-import { createSession, destroySession, hashPassword, requireAdmin, requireUser, verifyPassword } from "@/lib/auth";
-import { tables } from "@/lib/cms/queries";
+import { createSession, destroySession, hashPassword, requireSuperAdmin, requireUser, verifyPassword } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
+import { hasPermission, permissionForResource, requirePermission } from "@/lib/authorization";
+import { getRecord, tables } from "@/lib/cms/queries";
 import {
   saveContentFaqs,
   saveProductPayload,
@@ -63,6 +71,7 @@ const virtualFields = new Set([
   "galleryMediaIds",
   "relatedProductIds",
   "password",
+  "memberIds",
   "heroMediaIds",
   "featuredProductIds",
   "_specs",
@@ -77,6 +86,9 @@ const virtualFields = new Set([
   "_contentTables",
   "entityPayload",
 ]);
+
+const crmResources = new Set<ResourceKey>(["inquiries", "companies", "contacts", "leads", "lead-activities", "follow-ups"]);
+const assignmentFields = ["ownerId", "assignedToId", "teamId"] as const;
 
 function adminHref(resource: string, id?: string) {
   return id ? `/admin/${resource}/${id}/` : `/admin/${resource}/`;
@@ -109,8 +121,9 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
   if (!resources[resource]) return { error: "Unknown section." };
 
   try {
-    if (resources[resource].adminOnly) await requireAdmin();
-    else await requireUser();
+    const actor = await requireUser();
+    if (resource === "users") await requireSuperAdmin();
+    else requirePermission(actor, permissionForResource(resource));
     if (resource === "media" && !existingId) {
       throw new CmsError("Upload files from the media library.");
     }
@@ -164,6 +177,32 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
     if ("publishedAt" in row) {
       row.publishedAt = row.publishedAt ? new Date(String(row.publishedAt)) : null;
     }
+    for (const field of resources[resource].fields) {
+      if (field.type === "datetime" && field.name in row) {
+        row[field.name] = row[field.name] ? new Date(String(row[field.name])) : null;
+      }
+    }
+
+    let existingScoped: Record<string, unknown> | null = null;
+    if (existingId && crmResources.has(resource)) {
+      existingScoped = await getRecord(resource, existingId, actor);
+      if (!existingScoped) throw new CmsError("That CRM record is outside your allowed visibility.");
+    }
+    if (crmResources.has(resource) && actor.systemRole !== "super_admin") {
+      const canAssign = hasPermission(actor, "crm.assign");
+      if (!canAssign) {
+        if (existingScoped) {
+          for (const field of assignmentFields) {
+            if (field in row) row[field] = existingScoped[field] ?? null;
+          }
+        }
+        if (!existingId) {
+          if ("ownerId" in row) row.ownerId = actor.id;
+          if ("assignedToId" in row) row.assignedToId = actor.id;
+          if ("teamId" in row) row.teamId = null;
+        }
+      }
+    }
 
     if (resource === "redirects") {
       row.fromPath = normalizeRedirectPath(String(data.fromPath));
@@ -204,12 +243,12 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
       if (resource === "users" && existingId) {
         const [existing] = await tx.select().from(users).where(eq(users.id, existingId)).limit(1);
         if (!existing) throw new CmsError("That account no longer exists.");
-        if (existing.role === "admin" && row.role !== "admin") {
+        if (existing.systemRole === "super_admin" && (row.systemRole !== "super_admin" || row.status !== "active")) {
           const [countRow] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(users)
-            .where(eq(users.role, "admin"));
-          if ((countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one admin.");
+            .where(sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`);
+          if ((countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one active Super Admin.");
         }
       }
 
@@ -222,6 +261,11 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
 
       const values = {
         ...row,
+        ...(crmResources.has(resource) && !existingId && resource !== "inquiries" ? { createdById: actor.id } : {}),
+        ...(resource === "follow-ups" && row.status === "completed" ? { completedAt: new Date() } : {}),
+        ...(resource === "leads" && ["won", "lost", "closed"].includes(String(row.stage)) ? { closedAt: new Date() } : {}),
+        ...(resource === "users" ? { role: row.systemRole === "super_admin" ? "admin" : "editor" } : {}),
+        ...(resource === "users" && row.status === "inactive" ? { deactivatedAt: new Date() } : {}),
         ...(passwordHash ? { passwordHash } : {}),
         updatedAt: new Date(),
       };
@@ -259,6 +303,23 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
         await savePageSections(tx, id, sections);
       }
 
+      if (resource === "teams") {
+        const memberIds = [...new Set((data.memberIds as string[] | undefined) ?? [])];
+        await tx.delete(teamMembers).where(eq(teamMembers.teamId, id));
+        if (memberIds.length) await tx.insert(teamMembers).values(memberIds.map((userId) => ({ teamId: id, userId })));
+      }
+
+      if (resource === "leads" && existingScoped && existingScoped.stage !== row.stage) {
+        await tx.insert(leadActivities).values({
+          leadId: id,
+          type: "status_change",
+          subject: `Stage changed to ${String(row.stage).replace("_", " ")}`,
+          details: `Previous stage: ${String(existingScoped.stage ?? "unknown")}`,
+          occurredAt: new Date(),
+          createdById: actor.id,
+        });
+      }
+
       if (kind && typeof row.path === "string") {
         await reserveRoute(tx, {
           path: row.path,
@@ -267,6 +328,21 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
           status: (row.status as "draft" | "published") ?? "draft",
         });
       }
+    });
+
+    if (resource === "users" && row.status === "inactive" && existingId) {
+      await db.delete(sessions).where(eq(sessions.userId, existingId));
+    }
+    await writeAuditLog({
+      actorId: actor.id,
+      action: existingId ? "updated" : "created",
+      entityType: resource,
+      entityId: id,
+      metadata: resource === "users"
+        ? { systemRole: row.systemRole, status: row.status, crmVisibility: row.crmVisibility }
+        : crmResources.has(resource)
+          ? { ownerId: row.ownerId ?? row.assignedToId ?? null, teamId: row.teamId ?? null, stage: row.stage ?? row.status ?? null }
+          : {},
     });
 
     const publicPaths = [typeof row.path === "string" ? row.path : undefined, previousPath].filter(
@@ -291,7 +367,12 @@ export async function deleteResourceAction(formData: FormData) {
   let deletedPath: string | undefined;
 
   try {
-    const actor = resources[resource].adminOnly ? await requireAdmin() : await requireUser();
+    const actor = await requireUser();
+    if (resource === "users") await requireSuperAdmin();
+    else requirePermission(actor, permissionForResource(resource));
+    if (crmResources.has(resource) && !(await getRecord(resource, id, actor))) {
+      throw new CmsError("That CRM record is outside your allowed visibility.");
+    }
     const db = getDb();
     const removed: { storageDriver: "local" | "r2"; storageKey: string }[] = [];
     const table = tables[resource] as AnyPgTable;
@@ -309,12 +390,12 @@ export async function deleteResourceAction(formData: FormData) {
       if (resource === "users") {
         if (actor.id === id) throw new CmsError("You cannot delete the account you are signed in with.");
         const [existing] = await tx.select().from(users).where(eq(users.id, id)).limit(1);
-        if (existing?.role === "admin") {
+        if (existing?.systemRole === "super_admin") {
           const [countRow] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(users)
-            .where(eq(users.role, "admin"));
-          if ((countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one admin.");
+            .where(sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`);
+          if (existing.status === "active" && (countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one active Super Admin.");
         }
       }
 
@@ -326,6 +407,8 @@ export async function deleteResourceAction(formData: FormData) {
       if (kind) await releaseRoute(tx, id, kind);
       await tx.delete(table).where(eq(idColumn, id));
     });
+
+    await writeAuditLog({ actorId: actor.id, action: "deleted", entityType: resource, entityId: id });
 
     const stored = removed[0];
     if (stored) {
@@ -341,6 +424,65 @@ export async function deleteResourceAction(formData: FormData) {
   revalidatePublicSite(deletedPath ? [deletedPath] : []);
   revalidatePath("/admin");
   redirect(adminHref(resource));
+}
+
+export async function convertInquiryToLeadAction(formData: FormData) {
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  if (!inquiryId) redirect("/admin/inquiries/");
+  const actor = await requireUser();
+  requirePermission(actor, "inquiries.manage");
+  requirePermission(actor, "crm.leads.manage");
+  const visible = await getRecord("inquiries", inquiryId, actor);
+  if (!visible) throw new CmsError("That enquiry is outside your allowed visibility.");
+  const db = getDb();
+  let leadId = String(visible.convertedLeadId ?? "");
+  if (!leadId) {
+    leadId = randomUUID();
+    await db.transaction(async (tx) => {
+      const companyId = visible.company ? randomUUID() : null;
+      const contactId = randomUUID();
+      if (companyId) {
+        await tx.insert(companies).values({
+          id: companyId,
+          name: String(visible.company),
+          email: String(visible.email ?? ""),
+          phone: String(visible.phone ?? ""),
+          ownerId: (visible.assignedToId as string | null) ?? actor.id,
+          teamId: (visible.teamId as string | null) ?? null,
+          createdById: actor.id,
+        });
+      }
+      await tx.insert(contacts).values({
+        id: contactId,
+        companyId,
+        name: String(visible.name),
+        email: String(visible.email ?? ""),
+        phone: String(visible.phone ?? ""),
+        ownerId: (visible.assignedToId as string | null) ?? actor.id,
+        teamId: (visible.teamId as string | null) ?? null,
+        createdById: actor.id,
+      });
+      await tx.insert(leads).values({
+        id: leadId,
+        inquiryId,
+        companyId,
+        contactId,
+        title: String(visible.subject || `Enquiry from ${visible.name}`),
+        description: String(visible.message ?? ""),
+        stage: visible.assignedToId ? "assigned" : "new",
+        priority: (visible.priority as "low" | "normal" | "high" | "urgent") ?? "normal",
+        ownerId: (visible.assignedToId as string | null) ?? actor.id,
+        teamId: (visible.teamId as string | null) ?? null,
+        nextFollowUpAt: visible.nextFollowUpAt ? new Date(String(visible.nextFollowUpAt)) : null,
+        createdById: actor.id,
+      });
+      await tx.update(inquiries).set({ status: "converted", convertedLeadId: leadId, updatedAt: new Date() }).where(eq(inquiries.id, inquiryId));
+      await tx.insert(leadActivities).values({ leadId, type: "note", subject: "Lead created from website enquiry", details: String(visible.message ?? ""), createdById: actor.id });
+    });
+    await writeAuditLog({ actorId: actor.id, action: "converted_to_lead", entityType: "inquiries", entityId: inquiryId, metadata: { leadId } });
+  }
+  revalidatePath("/admin");
+  redirect(`/admin/leads/${leadId}/`);
 }
 
 const optionalUuid = z
@@ -385,7 +527,8 @@ function textOrNull(formData: FormData, name: string) {
 
 export async function saveSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await requireUser();
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
     const parsed = settingsSchema.safeParse({
       companyName: formData.get("companyName"),
       logoId: textOrNull(formData, "logoId"),
@@ -425,6 +568,7 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
         updatedAt: new Date(),
       })
       .where(eq(siteSettings.id, "default"));
+    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "site_settings", entityId: "default" });
     revalidatePublicSite();
     revalidatePath("/admin/settings");
     redirect("/admin/settings/?saved=1");
@@ -518,7 +662,8 @@ const headerSchema = z.object({
 
 export async function saveHeaderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await requireUser();
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
     const parsed = headerSchema.safeParse({
       logoId: textOrNull(formData, "logoId"),
       mobileLogoId: textOrNull(formData, "mobileLogoId"),
@@ -536,6 +681,7 @@ export async function saveHeaderAction(_prev: ActionState, formData: FormData): 
       .update(headerSettings)
       .set({ ...parsed.data, email: String(parsed.data.email), updatedAt: new Date() })
       .where(eq(headerSettings.id, "default"));
+    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "header_settings", entityId: "default" });
     revalidatePublicSite();
     redirect("/admin/header/?saved=1");
   } catch (error) {
@@ -545,7 +691,8 @@ export async function saveHeaderAction(_prev: ActionState, formData: FormData): 
 
 export async function saveFooterAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await requireUser();
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
     const logoId = textOrNull(formData, "logoId");
     await getDb()
       .update(footerSettings)
@@ -559,6 +706,7 @@ export async function saveFooterAction(_prev: ActionState, formData: FormData): 
         updatedAt: new Date(),
       })
       .where(eq(footerSettings.id, "default"));
+    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "footer_settings", entityId: "default" });
     revalidatePublicSite();
     redirect("/admin/footer/?saved=1");
   } catch (error) {
@@ -568,7 +716,8 @@ export async function saveFooterAction(_prev: ActionState, formData: FormData): 
 
 export async function saveContactSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await requireUser();
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
     await getDb()
       .update(contactSettings)
       .set({
@@ -585,6 +734,7 @@ export async function saveContactSettingsAction(_prev: ActionState, formData: Fo
         updatedAt: new Date(),
       })
       .where(eq(contactSettings.id, "default"));
+    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "contact_settings", entityId: "default" });
     revalidatePublicSite();
     redirect("/admin/contact-settings/?saved=1");
   } catch (error) {
@@ -594,7 +744,8 @@ export async function saveContactSettingsAction(_prev: ActionState, formData: Fo
 
 export async function saveHomeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await requireUser();
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
     const parsed = homeSchema.safeParse({
       heroEyebrow: formData.get("heroEyebrow"),
       heroHeadline: formData.get("heroHeadline"),
@@ -624,6 +775,8 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
       customBandButtonText: formData.get("customBandButtonText") ?? "",
       customBandButtonHref: formData.get("customBandButtonHref") ?? "",
     });
+
+    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "home_content", entityId: "default" });
     if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the home form.");
     const data = parsed.data;
     const db = getDb();
@@ -692,15 +845,17 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     const password = String(formData.get("password") ?? "");
     const db = getDb();
     const [user] = await db
-      .select({ id: users.id, passwordHash: users.passwordHash })
+      .select({ id: users.id, passwordHash: users.passwordHash, status: users.status })
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    if (!user || user.status !== "active" || !(await verifyPassword(password, user.passwordHash))) {
       return { error: "Those details do not match an account." };
     }
     await db.delete(sessions).where(eq(sessions.userId, user.id));
+    await db.update(users).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(users.id, user.id));
     await createSession(user.id);
+    await writeAuditLog({ actorId: user.id, action: "signed_in", entityType: "session", entityId: user.id });
     const next = String(formData.get("next") ?? "/admin/");
     destination = next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin/";
   } catch (error) {
@@ -734,6 +889,9 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
       .update(users)
       .set({ passwordHash: await hashPassword(newPassword), updatedAt: new Date() })
       .where(eq(users.id, actor.id));
+    await db.delete(sessions).where(eq(sessions.userId, actor.id));
+    await createSession(actor.id);
+    await writeAuditLog({ actorId: actor.id, action: "password_changed", entityType: "user", entityId: actor.id });
     redirect("/admin/account/?saved=1");
   } catch (error) {
     return { error: toCmsMessage(error) };

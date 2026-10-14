@@ -16,7 +16,10 @@ export type SessionUser = {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "editor";
+  systemRole: "super_admin" | "admin" | "staff";
+  status: "active" | "inactive";
+  permissionOverrides: string[];
+  crmVisibility: "own" | "assigned" | "team" | "all";
 };
 
 function hashToken(token: string) {
@@ -67,11 +70,14 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       id: users.id,
       email: users.email,
       name: users.name,
-      role: users.role,
+      systemRole: users.systemRole,
+      status: users.status,
+      permissionOverrides: users.permissionOverrides,
+      crmVisibility: users.crmVisibility,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())))
+    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date()), eq(users.status, "active")))
     .limit(1);
 
   return row ?? null;
@@ -83,10 +89,10 @@ export async function requireUser() {
   return user;
 }
 
-export async function requireAdmin() {
+export async function requireSuperAdmin() {
   const user = await requireUser();
-  if (user.role !== "admin") {
-    throw new CmsError("Only an admin can manage accounts.");
+  if (user.systemRole !== "super_admin") {
+    throw new CmsError("Only a Super Admin can manage access control.");
   }
   return user;
 }

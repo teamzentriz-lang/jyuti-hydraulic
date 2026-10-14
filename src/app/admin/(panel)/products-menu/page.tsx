@@ -4,9 +4,12 @@ import { Notice, PageHeader } from "@/components/admin/page-header";
 import { secondaryButtonClass } from "@/components/admin/styles";
 import { getDb } from "@/db";
 import { navLinks } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/authorization";
 
 export default async function ProductsMenuPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const params = await searchParams;
+  requirePermission(await requireUser(), "cms.navigation.manage");
   const db = getDb();
   const rows = await db
     .select({

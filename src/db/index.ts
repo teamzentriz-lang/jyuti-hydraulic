@@ -31,12 +31,61 @@ export function getDb(): AppDatabase {
       max: process.env.VERCEL ? 5 : 10,
       idle_timeout: 20,
       connect_timeout: 10,
+      backoff: (attempt) => Math.min(0.25 * 2 ** attempt, 2),
     });
     globalForDb.__jhSql = sql;
     globalForDb.__jhDb = drizzle(sql, { schema });
   }
 
   return globalForDb.__jhDb;
+}
+
+function transientConnectionError(error: unknown) {
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 6; depth += 1) {
+    if (typeof current !== "object") break;
+    const value = current as {
+      code?: string;
+      message?: string;
+      cause?: unknown;
+    };
+    if (
+      [
+        "ENOTFOUND",
+        "EAI_AGAIN",
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "CONNECTION_CLOSED",
+      ].includes(value.code ?? "")
+    )
+      return true;
+    if (
+      /getaddrinfo|connection (?:closed|terminated)|timeout/i.test(
+        value.message ?? "",
+      )
+    )
+      return true;
+    current = value.cause;
+  }
+  return false;
+}
+
+export async function withDatabaseRetry<T>(
+  operation: () => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!transientConnectionError(error) || attempt === attempts - 1)
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+    }
+  }
+  throw lastError;
 }
 
 export async function closeDb() {

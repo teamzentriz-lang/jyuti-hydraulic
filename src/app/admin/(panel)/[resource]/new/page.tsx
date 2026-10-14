@@ -5,6 +5,7 @@ import { emptyPageInitial } from "@/lib/cms/page-form-defaults";
 import { ProductForm } from "@/components/admin/product-form";
 import { ResourceForm } from "@/components/admin/resource-form";
 import { requireUser } from "@/lib/auth";
+import { canAccessResource, hasPermission, permissionForResource } from "@/lib/authorization";
 import { fieldsFor, relationOptions } from "@/lib/cms/queries";
 import { emptyValues, isResourceKey, resources } from "@/lib/cms/resources";
 
@@ -20,8 +21,9 @@ export default async function NewResourcePage({
   if (key === "media") redirect("/admin/media/");
   const config = resources[key];
   const user = await requireUser();
-  if (config.adminOnly && user.role !== "admin") redirect("/admin/");
-  const fields = await fieldsFor(key);
+  if (!canAccessResource(user, key) || (key === "users" && user.systemRole !== "super_admin")) redirect("/admin/");
+  if (!hasPermission(user, permissionForResource(key))) redirect(`/admin/${key}/`);
+  const fields = await fieldsFor(key, undefined, user);
 
   if (key === "products") {
     const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products")]);
