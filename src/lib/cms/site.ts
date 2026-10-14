@@ -4,7 +4,6 @@ import { getDb } from "@/db";
 import { footerSettings, headerSettings, media, navLinks, redirects } from "@/db/schema";
 import { storageService } from "@/lib/storage";
 import {
-  ensureSingletons,
   getFooterSettings,
   getHeaderSettings,
   getSettings,

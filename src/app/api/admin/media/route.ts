@@ -7,6 +7,7 @@ import { media, mediaBlobs } from "@/db/schema";
 import { ensureSingletons } from "@/lib/cms/queries";
 import { revalidatePublicSite } from "@/lib/cms/revalidate-public";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/authorization";
 import { deleteStoredObject, saveUpload } from "@/lib/storage";
 import { currentStorageDriver } from "@/lib/storage/factory";
 import { assertUpload } from "@/lib/storage/validation";
@@ -17,6 +18,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign in again." }, { status: 401 });
+  if (!hasPermission(user, "media.manage")) return NextResponse.json({ error: "You do not have access to media." }, { status: 403 });
 
   await ensureSingletons();
   const q = new URL(request.url).searchParams.get("q")?.trim().replace(/[%_]/g, "") ?? "";
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Sign in again." }, { status: 401 });
+    if (!hasPermission(user, "media.manage")) return NextResponse.json({ error: "You do not have access to media." }, { status: 403 });
 
     await ensureSingletons();
     const form = await request.formData();

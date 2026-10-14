@@ -52,6 +52,7 @@ export function ResourceForm({
   media,
   pathMode,
   canDelete,
+  canEdit = true,
 }: {
   resource: ResourceKey;
   id?: string;
@@ -60,6 +61,7 @@ export function ResourceForm({
   media: MediaItem[];
   pathMode?: string;
   canDelete: boolean;
+  canEdit?: boolean;
 }) {
   const [state, action, pending] = useActionState(saveResourceAction, null);
   const slugEdited = useRef(Boolean(initial.slug));
@@ -105,6 +107,7 @@ export function ResourceForm({
           Public URL <span className="font-semibold">{siteOrigin()}{preview}</span>
         </p>
       ) : null}
+      <fieldset disabled={!canEdit} className="space-y-6">
       {groups.map((group) => (
         <section key={group.name} className="rounded-lg border border-line bg-white p-4 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-muted">{group.name}</h2>
@@ -136,12 +139,13 @@ export function ResourceForm({
           />
         </section>
       ) : null}
-      <div className="flex flex-wrap items-center gap-4">
+      {canEdit ? <div className="flex flex-wrap items-center gap-4">
         <button className={primaryButtonClass} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save"}
         </button>
         {id && canDelete ? <DeleteControl /> : null}
-      </div>
+      </div> : <p className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-muted">Read-only access. Ask the Super Admin for edit permission.</p>}
+      </fieldset>
     </form>
   );
 }
@@ -269,6 +273,19 @@ function renderField(
   }
   if (field.type === "relationMany") {
     return <RelationManyField name={field.name} options={field.options ?? []} initialIds={asList(state.initial[field.name])} />;
+  }
+  if (field.type === "permissionList") {
+    const selected = new Set(asList(state.initial[field.name]));
+    return (
+      <div className="grid gap-2 rounded-md border border-line p-3 sm:grid-cols-2">
+        {field.options?.map((option) => (
+          <label key={option.value} className="flex items-start gap-2 text-sm text-ink">
+            <input name={field.name} type="checkbox" value={option.value} defaultChecked={selected.has(option.value)} className="mt-0.5 h-4 w-4 accent-navy" />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    );
   }
   return <input className={inputClass} name={field.name} defaultValue={asText(state.initial[field.name])} required={field.required} />;
 }

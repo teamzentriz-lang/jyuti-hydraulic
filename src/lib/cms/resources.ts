@@ -46,7 +46,7 @@ const specs = z
 const idList = z.array(z.uuid()).max(40);
 
 export type FieldOption = { value: string; label: string };
-export type RelationName = "product-categories" | "products" | "nav-links";
+export type RelationName = "product-categories" | "products" | "nav-links" | "users" | "teams" | "companies" | "contacts" | "inquiries" | "leads";
 
 export type FieldDef = {
   name: string;
@@ -66,6 +66,7 @@ export type FieldDef = {
     | "specs"
     | "relation"
     | "relationMany"
+    | "permissionList"
     | "password";
   required?: boolean;
   help?: string;
@@ -91,9 +92,15 @@ export type ResourceKey =
   | "catalogues"
   | "forms"
   | "inquiries"
+  | "companies"
+  | "contacts"
+  | "leads"
+  | "lead-activities"
+  | "follow-ups"
   | "redirects"
   | "nav-links"
   | "users"
+  | "teams"
   | "media";
 
 export type ResourceConfig = {
@@ -580,6 +587,12 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       { name: "sourcePage", label: "Source page", type: "text", group: "Enquiry" },
       { name: "sourceUrl", label: "Source URL", type: "text", wide: true, group: "Enquiry" },
       { name: "adminNotes", label: "Admin notes", type: "textarea", wide: true, group: "Enquiry" },
+      { name: "assignedToId", label: "Assigned to", type: "relation", relation: "users", group: "Assignment" },
+      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+      { name: "priority", label: "Priority", type: "select", group: "Assignment", defaultValue: "normal", options: [
+        { value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" },
+      ] },
+      { name: "nextFollowUpAt", label: "Next follow-up", type: "datetime", group: "Assignment" },
       {
         name: "status",
         label: "Status",
@@ -612,8 +625,98 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       sourcePage: optionalText(400),
       sourceUrl: optionalText(500),
       adminNotes: z.string().trim().max(5000),
+      assignedToId: optionalUuid,
+      teamId: optionalUuid,
+      priority: z.enum(["low", "normal", "high", "urgent"]),
+      nextFollowUpAt: z.string().datetime().nullable(),
       status: z.enum(["new", "read", "archived", "contacted", "in_progress", "converted", "closed", "spam"]),
     }),
+  },
+  companies: {
+    key: "companies", label: "Companies", singular: "Company", description: "Customer organisations and their ownership.",
+    searchColumns: ["name", "email", "phone", "industry"],
+    tableColumns: [{ key: "name", label: "Company" }, { key: "industry", label: "Industry" }, { key: "email", label: "Email" }, { key: "updatedAt", label: "Updated" }],
+    orderBy: { column: "updatedAt", direction: "desc" },
+    fields: [
+      { name: "name", label: "Company name", type: "text", required: true, group: "Company" },
+      { name: "industry", label: "Industry", type: "text", group: "Company" },
+      { name: "website", label: "Website", type: "text", group: "Company" },
+      { name: "email", label: "Email", type: "text", group: "Company" },
+      { name: "phone", label: "Phone", type: "text", group: "Company" },
+      { name: "address", label: "Address", type: "textarea", wide: true, group: "Company" },
+      { name: "notes", label: "Internal notes", type: "textarea", wide: true, group: "Company" },
+      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
+      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+      { name: "isActive", label: "Active", type: "checkbox", defaultValue: true, group: "Company" },
+    ],
+    schema: recordSchema({ name: z.string().trim().min(1).max(200), industry: z.string().trim().max(160), website: optionalText(500), email: z.union([z.email(), z.literal("")]), phone: z.string().trim().max(50), address: z.string().trim().max(2000), notes: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid, isActive: z.boolean() }),
+  },
+  contacts: {
+    key: "contacts", label: "Customers", singular: "Customer", description: "Customer contacts linked with companies and sales owners.",
+    searchColumns: ["name", "email", "phone", "designation"],
+    tableColumns: [{ key: "name", label: "Customer" }, { key: "email", label: "Email" }, { key: "phone", label: "Phone" }, { key: "updatedAt", label: "Updated" }],
+    orderBy: { column: "updatedAt", direction: "desc" },
+    fields: [
+      { name: "companyId", label: "Company", type: "relation", relation: "companies", group: "Customer" },
+      { name: "name", label: "Name", type: "text", required: true, group: "Customer" },
+      { name: "email", label: "Email", type: "text", group: "Customer" },
+      { name: "phone", label: "Phone", type: "text", group: "Customer" },
+      { name: "designation", label: "Designation", type: "text", group: "Customer" },
+      { name: "notes", label: "Internal notes", type: "textarea", wide: true, group: "Customer" },
+      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
+      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+      { name: "isActive", label: "Active", type: "checkbox", defaultValue: true, group: "Customer" },
+    ],
+    schema: recordSchema({ companyId: optionalUuid, name: z.string().trim().min(1).max(200), email: z.union([z.email(), z.literal("")]), phone: z.string().trim().max(50), designation: z.string().trim().max(160), notes: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid, isActive: z.boolean() }),
+  },
+  leads: {
+    key: "leads", label: "Sales leads", singular: "Lead", description: "Qualified opportunities from enquiry through final outcome.",
+    searchColumns: ["title", "description", "lostReason"],
+    tableColumns: [{ key: "title", label: "Opportunity" }, { key: "stage", label: "Stage" }, { key: "priority", label: "Priority" }, { key: "nextFollowUpAt", label: "Next follow-up" }],
+    orderBy: { column: "updatedAt", direction: "desc" },
+    fields: [
+      { name: "title", label: "Opportunity title", type: "text", required: true, wide: true, group: "Lead" },
+      { name: "description", label: "Requirement", type: "textarea", wide: true, group: "Lead" },
+      { name: "inquiryId", label: "Source enquiry", type: "relation", relation: "inquiries", group: "Links" },
+      { name: "companyId", label: "Company", type: "relation", relation: "companies", group: "Links" },
+      { name: "contactId", label: "Customer", type: "relation", relation: "contacts", group: "Links" },
+      { name: "stage", label: "Stage", type: "select", required: true, group: "Pipeline", defaultValue: "new", options: ["new", "assigned", "contacted", "qualified", "follow_up", "proposal", "negotiation", "won", "lost", "closed"].map((value) => ({ value, label: value.replace("_", " ") })) },
+      { name: "priority", label: "Priority", type: "select", required: true, group: "Pipeline", defaultValue: "normal", options: ["low", "normal", "high", "urgent"].map((value) => ({ value, label: value })) },
+      { name: "estimatedValue", label: "Expected value (INR)", type: "number", group: "Pipeline" },
+      { name: "nextFollowUpAt", label: "Next follow-up", type: "datetime", group: "Pipeline" },
+      { name: "lostReason", label: "Lost/closed reason", type: "textarea", wide: true, group: "Pipeline" },
+      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
+      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+    ],
+    schema: recordSchema({ title: z.string().trim().min(1).max(300), description: z.string().trim().max(10000), inquiryId: optionalUuid, companyId: optionalUuid, contactId: optionalUuid, stage: z.enum(["new", "assigned", "contacted", "qualified", "follow_up", "proposal", "negotiation", "won", "lost", "closed"]), priority: z.enum(["low", "normal", "high", "urgent"]), estimatedValue: z.number().int().min(0).nullable(), nextFollowUpAt: z.string().datetime().nullable(), lostReason: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid }),
+  },
+  "lead-activities": {
+    key: "lead-activities", label: "Lead activities", singular: "Activity", description: "Calls, emails, meetings and internal notes.",
+    searchColumns: ["subject", "details"], tableColumns: [{ key: "subject", label: "Activity" }, { key: "type", label: "Type" }, { key: "occurredAt", label: "Occurred" }], orderBy: { column: "occurredAt", direction: "desc" },
+    fields: [
+      { name: "leadId", label: "Lead", type: "relation", relation: "leads", required: true, group: "Activity" },
+      { name: "type", label: "Type", type: "select", required: true, defaultValue: "note", options: ["call", "email", "meeting", "note", "status_change", "assignment"].map((value) => ({ value, label: value.replace("_", " ") })), group: "Activity" },
+      { name: "subject", label: "Subject", type: "text", group: "Activity" },
+      { name: "details", label: "Details", type: "textarea", wide: true, group: "Activity" },
+      { name: "occurredAt", label: "Date and time", type: "datetime", required: true, group: "Activity", defaultValue: new Date().toISOString() },
+      { name: "nextActionAt", label: "Next action", type: "datetime", group: "Activity" },
+    ],
+    schema: recordSchema({ leadId: z.uuid(), type: z.enum(["call", "email", "meeting", "note", "status_change", "assignment"]), subject: z.string().trim().max(300), details: z.string().trim().max(10000), occurredAt: z.string().datetime(), nextActionAt: z.string().datetime().nullable() }),
+  },
+  "follow-ups": {
+    key: "follow-ups", label: "Follow-ups", singular: "Follow-up", description: "Assigned next actions and overdue work.",
+    searchColumns: ["title", "description"], tableColumns: [{ key: "title", label: "Task" }, { key: "status", label: "Status" }, { key: "priority", label: "Priority" }, { key: "dueAt", label: "Due" }], orderBy: { column: "dueAt", direction: "asc" },
+    fields: [
+      { name: "leadId", label: "Lead", type: "relation", relation: "leads", required: true, group: "Follow-up" },
+      { name: "title", label: "Task", type: "text", required: true, group: "Follow-up" },
+      { name: "description", label: "Details", type: "textarea", wide: true, group: "Follow-up" },
+      { name: "dueAt", label: "Due date", type: "datetime", required: true, group: "Follow-up" },
+      { name: "status", label: "Status", type: "select", required: true, defaultValue: "pending", options: [{ value: "pending", label: "Pending" }, { value: "completed", label: "Completed" }, { value: "cancelled", label: "Cancelled" }], group: "Follow-up" },
+      { name: "priority", label: "Priority", type: "select", required: true, defaultValue: "normal", options: ["low", "normal", "high", "urgent"].map((value) => ({ value, label: value })), group: "Follow-up" },
+      { name: "assignedToId", label: "Assigned to", type: "relation", relation: "users", group: "Assignment" },
+      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+    ],
+    schema: recordSchema({ leadId: z.uuid(), title: z.string().trim().min(1).max(300), description: z.string().trim().max(10000), dueAt: z.string().datetime(), status: z.enum(["pending", "completed", "cancelled"]), priority: z.enum(["low", "normal", "high", "urgent"]), assignedToId: optionalUuid, teamId: optionalUuid }),
   },
   "blog-categories": {
     key: "blog-categories",
@@ -882,13 +985,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "users",
     label: "Users",
     singular: "User",
-    description: "Admins manage accounts. Editors can change content, not accounts.",
-    adminOnly: true,
+    description: "Super Admins manage account access, role level, and granular permissions.",
     searchColumns: ["name", "email"],
     tableColumns: [
       { key: "name", label: "Name" },
       { key: "email", label: "Email" },
-      { key: "role", label: "Role" },
+      { key: "systemRole", label: "Role" },
+      { key: "status", label: "Status" },
       { key: "updatedAt", label: "Updated" },
     ],
     orderBy: { column: "name", direction: "asc" },
@@ -896,16 +999,79 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       { name: "name", label: "Name", type: "text", required: true, group: "Account" },
       { name: "email", label: "Email", type: "text", required: true, group: "Account" },
       {
-        name: "role",
-        label: "Role",
+        name: "systemRole",
+        label: "Authority level",
         type: "select",
         required: true,
         group: "Account",
-        defaultValue: "editor",
+        defaultValue: "staff",
         options: [
+          { value: "super_admin", label: "Super Admin" },
           { value: "admin", label: "Admin" },
-          { value: "editor", label: "Editor" },
+          { value: "staff", label: "Staff" },
         ],
+      },
+      {
+        name: "status",
+        label: "Account status",
+        type: "select",
+        required: true,
+        group: "Account",
+        defaultValue: "active",
+        options: [
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive (sign-in blocked)" },
+        ],
+      },
+      {
+        name: "permissionOverrides",
+        label: "Allowed areas",
+        type: "permissionList",
+        wide: true,
+        group: "Permissions",
+        help: "Super Admins always have complete access. For Admin and Staff, select only the areas required for their work.",
+        options: [
+          { value: "cms.pages.manage", label: "Pages and location pages" },
+          { value: "cms.catalogue.manage", label: "Products and categories" },
+          { value: "cms.content.manage", label: "Posts, galleries, certificates, catalogues and forms" },
+          { value: "cms.navigation.manage", label: "Navigation and redirects" },
+          { value: "cms.settings.manage", label: "Site, header, footer, contact and home settings" },
+          { value: "media.manage", label: "Media library and uploads" },
+          { value: "inquiries.view", label: "View enquiries" },
+          { value: "inquiries.manage", label: "Manage enquiries" },
+          { value: "crm.customers.view", label: "View customers and companies" },
+          { value: "crm.customers.manage", label: "Manage customers and companies" },
+          { value: "crm.leads.view", label: "View sales leads" },
+          { value: "crm.leads.manage", label: "Manage sales leads" },
+          { value: "crm.activities.manage", label: "Manage lead activities" },
+          { value: "crm.tasks.manage", label: "Manage follow-up tasks" },
+          { value: "crm.assign", label: "Assign CRM records" },
+          { value: "crm.reports.view", label: "View CRM reports" },
+          { value: "quotations.view", label: "View quotations" },
+          { value: "quotations.create", label: "Create quotations" },
+          { value: "quotations.edit", label: "Edit quotation drafts and revisions" },
+          { value: "quotations.submit", label: "Submit quotations for approval" },
+          { value: "quotations.approve", label: "Approve or reject quotations" },
+          { value: "quotations.send", label: "Send approved quotations" },
+          { value: "users.manage", label: "Manage users" },
+          { value: "teams.manage", label: "Manage teams" },
+          { value: "audit.view", label: "View activity history" },
+        ],
+      },
+      {
+        name: "crmVisibility",
+        label: "CRM record visibility",
+        type: "select",
+        required: true,
+        group: "Permissions",
+        defaultValue: "assigned",
+        options: [
+          { value: "own", label: "Own records" },
+          { value: "assigned", label: "Assigned records" },
+          { value: "team", label: "Team records" },
+          { value: "all", label: "All CRM records" },
+        ],
+        help: "Super Admin controls how much CRM data this user can see.",
       },
       {
         name: "password",
@@ -918,8 +1084,62 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     schema: recordSchema({
       name: z.string().trim().min(1).max(160),
       email: z.email("Enter a valid email."),
-      role: z.enum(["admin", "editor"]),
+      systemRole: z.enum(["super_admin", "admin", "staff"]),
+      status: z.enum(["active", "inactive"]),
+      permissionOverrides: z.array(z.enum([
+        "cms.pages.manage",
+        "cms.catalogue.manage",
+        "cms.content.manage",
+        "cms.navigation.manage",
+        "cms.settings.manage",
+        "media.manage",
+        "inquiries.view",
+        "inquiries.manage",
+        "crm.customers.view",
+        "crm.customers.manage",
+        "crm.leads.view",
+        "crm.leads.manage",
+        "crm.activities.manage",
+        "crm.tasks.manage",
+        "crm.assign",
+        "crm.reports.view",
+        "quotations.view",
+        "quotations.create",
+        "quotations.edit",
+        "quotations.submit",
+        "quotations.approve",
+        "quotations.send",
+        "users.manage",
+        "teams.manage",
+        "audit.view",
+      ])).max(30),
+      crmVisibility: z.enum(["own", "assigned", "team", "all"]),
       password: z.string().max(200),
+    }),
+  },
+  teams: {
+    key: "teams",
+    label: "Teams",
+    singular: "Team",
+    description: "Department groups used for responsibility and future sales/content workflow ownership.",
+    searchColumns: ["name", "description"],
+    tableColumns: [
+      { key: "name", label: "Team" },
+      { key: "description", label: "Description" },
+      { key: "isActive", label: "Active" },
+    ],
+    orderBy: { column: "name", direction: "asc" },
+    fields: [
+      { name: "name", label: "Team name", type: "text", required: true, group: "Team" },
+      { name: "description", label: "Description", type: "textarea", wide: true, group: "Team" },
+      { name: "isActive", label: "Active", type: "checkbox", group: "Team", defaultValue: true },
+      { name: "memberIds", label: "Members", type: "relationMany", relation: "users", wide: true, group: "Members" },
+    ],
+    schema: recordSchema({
+      name: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(2000),
+      isActive: z.boolean(),
+      memberIds: z.array(z.uuid()).max(100),
     }),
   },
   media: {
@@ -967,6 +1187,10 @@ const jsonFields = new Set(["mediaMany", "relationMany", "specs"]);
 export function readFormData(resource: ResourceKey, formData: FormData) {
   const raw: Record<string, unknown> = {};
   for (const field of resources[resource].fields) {
+    if (field.type === "permissionList") {
+      raw[field.name] = formData.getAll(field.name).map(String);
+      continue;
+    }
     if (field.type === "checkbox") {
       raw[field.name] = formData.get(field.name) === "on";
       continue;

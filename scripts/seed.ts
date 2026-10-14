@@ -31,17 +31,27 @@ async function main() {
   }
 
   const db = getDb();
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  const [existing] = await db.select({ id: users.id, systemRole: users.systemRole }).from(users).where(eq(users.email, email)).limit(1);
   if (existing) {
-    console.log(`Admin already exists for ${email}. Password was left unchanged.`);
+    if (existing.systemRole !== "super_admin") {
+      await db
+        .update(users)
+        .set({ systemRole: "super_admin", status: "active", updatedAt: new Date() })
+        .where(eq(users.id, existing.id));
+      console.log(`Restored Super Admin access for ${email}. Password was left unchanged.`);
+    } else {
+      console.log(`Super Admin already exists for ${email}. Password was left unchanged.`);
+    }
   } else {
     await db.insert(users).values({
       email,
       name: "Jyoti Admin",
       role: "admin",
+      systemRole: "super_admin",
+      status: "active",
       passwordHash: await hashPassword(password),
     });
-    console.log(`Created admin ${email}.`);
+    console.log(`Created Super Admin ${email}.`);
   }
 
   await closeDb();

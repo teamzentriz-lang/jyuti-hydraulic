@@ -1075,6 +1075,20 @@ html.is-navigating a[href] {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.82rem;
 }
+.site-footer__legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 1rem;
+}
+.site-footer__admin-link {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.site-footer__admin-link:hover {
+  color: var(--color-signal) !important;
+}
 .site-footer__social {
   display: flex;
   gap: 0.5rem;
@@ -2029,10 +2043,12 @@ html.is-navigating a[href] {
   min-width: 0;
 }
 .story-page__body--post .story-page__cover {
-  width: min(100%, 30rem);
-  max-height: 220px;
-  margin: 0 auto 1.25rem;
-  object-fit: contain;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  margin: 0 0 1.25rem;
+  object-fit: cover;
 }
 .story-page__body--post .story-page__article {
   padding: clamp(1rem, 2vw, 1.6rem);

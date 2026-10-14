@@ -25,6 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s · ${settings.companyName}`,
       },
       description: settings.footerText,
+      icons: {
+        icon: [{ url: "/brand/favicon.png", type: "image/png", sizes: "1024x1024" }],
+        shortcut: "/brand/favicon.png",
+        apple: "/brand/favicon.png",
+      },
       robots: noIndexRobots,
     };
   } catch {
@@ -36,6 +41,11 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       description:
         "Hydraulic machines and power packs manufactured in Faridabad, India.",
+      icons: {
+        icon: [{ url: "/brand/favicon.png", type: "image/png", sizes: "1024x1024" }],
+        shortcut: "/brand/favicon.png",
+        apple: "/brand/favicon.png",
+      },
       robots: noIndexRobots,
     };
   }

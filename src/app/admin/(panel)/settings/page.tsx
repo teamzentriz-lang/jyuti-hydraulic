@@ -1,9 +1,12 @@
 import { Notice, PageHeader } from "@/components/admin/page-header";
 import { SettingsForm } from "@/components/admin/singleton-forms";
 import { getSettings, mediaItems } from "@/lib/cms/queries";
+import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/authorization";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const params = await searchParams;
+  requirePermission(await requireUser(), "cms.settings.manage");
   const settings = await getSettings();
   const media = await mediaItems([settings.logoId, settings.catalogueId].filter((id): id is string => Boolean(id)));
 

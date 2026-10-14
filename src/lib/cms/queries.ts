@@ -12,7 +12,7 @@ import {
   type AnyColumn,
 } from "drizzle-orm";
 import type { AnyPgTable } from "drizzle-orm/pg-core";
-import { getDb } from "@/db";
+import { getDb, withDatabaseRetry } from "@/db";
 import { classifyDatabaseError, type DatabaseFailure } from "@/db/errors";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import {
@@ -20,6 +20,8 @@ import {
   blogTags,
   catalogues,
   certificates,
+  companies,
+  contacts,
   cmsForms,
   contactSettings,
   exportPages,
@@ -31,6 +33,8 @@ import {
   homeFeaturedProducts,
   homeHeroImages,
   inquiries,
+  leadActivities,
+  leads,
   locationPages,
   media,
   navLinks,
@@ -41,6 +45,9 @@ import {
   products,
   redirects,
   siteSettings,
+  followUpTasks,
+  teamMembers,
+  teams,
   users,
 } from "@/db/schema";
 import {
@@ -77,9 +84,15 @@ export const tables = {
   catalogues,
   forms: cmsForms,
   inquiries,
+  companies,
+  contacts,
+  leads,
+  "lead-activities": leadActivities,
+  "follow-ups": followUpTasks,
   redirects,
   "nav-links": navLinks,
   users,
+  teams,
   media,
 } satisfies Record<ResourceKey, AnyPgTable>;
 
@@ -98,31 +111,10 @@ let singletonSetup: Promise<void> | null = null;
 export async function ensureSingletons() {
   if (singletonSetup) return singletonSetup;
 
-  singletonSetup = (async () => {
+  singletonSetup = withDatabaseRetry(async () => {
     const db = getDb();
-    await db.execute(sql`
-      ALTER TABLE home_content
-        ADD COLUMN IF NOT EXISTS client_logos jsonb NOT NULL DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS testimonials jsonb NOT NULL DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS strengths jsonb NOT NULL DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS stats jsonb NOT NULL DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS usps jsonb NOT NULL DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS custom_band_title text NOT NULL DEFAULT 'Custom Hydraulic Solutions for Every Industry',
-        ADD COLUMN IF NOT EXISTS custom_band_eyebrow text NOT NULL DEFAULT 'Made around your application',
-        ADD COLUMN IF NOT EXISTS custom_band_body text NOT NULL DEFAULT 'From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.',
-        ADD COLUMN IF NOT EXISTS custom_band_button_text text NOT NULL DEFAULT 'Get a custom solution',
-        ADD COLUMN IF NOT EXISTS custom_band_button_href text NOT NULL DEFAULT '/contact/';
-    `);
-    await db.execute(
-      sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company';`,
-    );
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS media_blobs (
-        media_id uuid PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
-        data_base64 text NOT NULL,
-        created_at timestamptz NOT NULL DEFAULT now()
-      );
-    `);
+    // Schema changes belong in migration scripts. Runtime requests only ensure
+    // singleton rows exist, so a page render never attempts DDL or takes locks.
     await db
       .insert(siteSettings)
       .values({ id: "default" })
@@ -143,7 +135,7 @@ export async function ensureSingletons() {
       .insert(contactSettings)
       .values({ id: "default" })
       .onConflictDoNothing();
-  })();
+  });
 
   try {
     await singletonSetup;
@@ -170,9 +162,57 @@ function serializeRow(row: Record<string, unknown>) {
   return out;
 }
 
+const crmResources = new Set<ResourceKey>([
+  "inquiries",
+  "companies",
+  "contacts",
+  "leads",
+  "lead-activities",
+  "follow-ups",
+]);
+
+async function crmScopeCondition(
+  resource: ResourceKey,
+  table: AnyPgTable,
+  user: import("@/lib/auth").SessionUser,
+) {
+  if (
+    !crmResources.has(resource) ||
+    user.systemRole === "super_admin" ||
+    user.crmVisibility === "all"
+  )
+    return undefined;
+  const columns = getTableColumns(table) as Record<
+    string,
+    AnyColumn | undefined
+  >;
+  const direct = [columns.ownerId, columns.assignedToId];
+  if (user.crmVisibility === "own") direct.push(columns.createdById);
+  const directConditions = direct
+    .filter((column): column is AnyColumn => Boolean(column))
+    .map((column) => eq(column, user.id));
+  const teamCondition = columns.teamId
+    ? sql`${columns.teamId} in (select ${teamMembers.teamId} from ${teamMembers} where ${teamMembers.userId} = ${user.id})`
+    : undefined;
+
+  if (resource === "lead-activities" && columns.leadId) {
+    const leadScope =
+      user.crmVisibility === "team"
+        ? sql`(${leads.ownerId} = ${user.id} or ${leads.teamId} in (select ${teamMembers.teamId} from ${teamMembers} where ${teamMembers.userId} = ${user.id}))`
+        : sql`${leads.ownerId} = ${user.id}`;
+    return sql`exists (select 1 from ${leads} where ${leads.id} = ${columns.leadId} and ${leadScope})`;
+  }
+
+  const conditions =
+    user.crmVisibility === "team" && teamCondition
+      ? [...directConditions, teamCondition]
+      : directConditions;
+  return conditions.length ? or(...conditions) : sql`false`;
+}
+
 export async function listRecords(
   resource: ResourceKey,
-  input: { q?: string; page?: number },
+  input: { q?: string; page?: number; user?: import("@/lib/auth").SessionUser },
 ) {
   const config = resources[resource];
   const db = getDb();
@@ -199,18 +239,22 @@ export async function listRecords(
   const order =
     config.orderBy.direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
+  const scope = input.user
+    ? await crmScopeCondition(resource, table, input.user)
+    : undefined;
+  const where = search && scope ? and(search, scope) : (search ?? scope);
   const [rows, countRows] = await Promise.all([
     db
       .select()
       .from(table)
-      .where(search)
+      .where(where)
       .orderBy(order)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(table)
-      .where(search),
+      .where(where),
   ]);
 
   return {
@@ -221,13 +265,24 @@ export async function listRecords(
   };
 }
 
-export async function getRecord(resource: ResourceKey, id: string) {
+export async function getRecord(
+  resource: ResourceKey,
+  id: string,
+  user?: import("@/lib/auth").SessionUser,
+) {
   const db = getDb();
   const table = tables[resource];
   const columns = getTableColumns(table);
   const idColumn = columns.id;
   if (!idColumn) return null;
-  const [row] = await db.select().from(table).where(eq(idColumn, id)).limit(1);
+  const scope = user
+    ? await crmScopeCondition(resource, table, user)
+    : undefined;
+  const [row] = await db
+    .select()
+    .from(table)
+    .where(scope ? and(eq(idColumn, id), scope) : eq(idColumn, id))
+    .limit(1);
   if (!row) return null;
   const record = serializeRow(row as Record<string, unknown>);
 
@@ -251,10 +306,22 @@ export async function getRecord(resource: ResourceKey, id: string) {
     record.pageSections = await loadPageSections(id);
   }
 
+  if (resource === "teams") {
+    const members = await db
+      .select({ userId: teamMembers.userId })
+      .from(teamMembers)
+      .where(eq(teamMembers.teamId, id));
+    record.memberIds = members.map((member) => member.userId);
+  }
+
   return record;
 }
 
-export async function relationOptions(name: RelationName, excludeId?: string) {
+export async function relationOptions(
+  name: RelationName,
+  excludeId?: string,
+  user?: import("@/lib/auth").SessionUser,
+) {
   const db = getDb();
   if (name === "product-categories") {
     const rows = await db
@@ -280,6 +347,106 @@ export async function relationOptions(name: RelationName, excludeId?: string) {
       .filter((row) => row.id !== excludeId)
       .map((row) => ({ value: row.id, label: `${row.title}   /${row.path}/` }));
   }
+  if (name === "users") {
+    if (
+      user &&
+      user.systemRole !== "super_admin" &&
+      !user.permissionOverrides.includes("crm.assign")
+    )
+      return [];
+    const rows = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        status: users.status,
+      })
+      .from(users)
+      .orderBy(asc(users.name))
+      .limit(2000);
+    return rows
+      .filter((row) => row.id !== excludeId)
+      .map((row) => ({
+        value: row.id,
+        label: `${row.name} (${row.email})${row.status === "inactive" ? " - inactive" : ""}`,
+      }));
+  }
+  if (name === "teams") {
+    if (
+      user &&
+      user.systemRole !== "super_admin" &&
+      !user.permissionOverrides.includes("crm.assign")
+    )
+      return [];
+    const rows = await db
+      .select({ id: teams.id, name: teams.name, isActive: teams.isActive })
+      .from(teams)
+      .orderBy(asc(teams.name))
+      .limit(500);
+    return rows.map((row) => ({
+      value: row.id,
+      label: `${row.name}${row.isActive ? "" : " - inactive"}`,
+    }));
+  }
+  if (name === "companies") {
+    const rows = await db
+      .select({ id: companies.id, name: companies.name })
+      .from(companies)
+      .where(
+        user
+          ? await crmScopeCondition("companies", companies, user)
+          : undefined,
+      )
+      .orderBy(asc(companies.name))
+      .limit(2000);
+    return rows.map((row) => ({ value: row.id, label: row.name }));
+  }
+  if (name === "contacts") {
+    const rows = await db
+      .select({ id: contacts.id, name: contacts.name, email: contacts.email })
+      .from(contacts)
+      .where(
+        user ? await crmScopeCondition("contacts", contacts, user) : undefined,
+      )
+      .orderBy(asc(contacts.name))
+      .limit(2000);
+    return rows.map((row) => ({
+      value: row.id,
+      label: `${row.name}${row.email ? ` (${row.email})` : ""}`,
+    }));
+  }
+  if (name === "inquiries") {
+    const rows = await db
+      .select({
+        id: inquiries.id,
+        name: inquiries.name,
+        subject: inquiries.subject,
+      })
+      .from(inquiries)
+      .where(
+        user
+          ? await crmScopeCondition("inquiries", inquiries, user)
+          : undefined,
+      )
+      .orderBy(desc(inquiries.createdAt))
+      .limit(2000);
+    return rows.map((row) => ({
+      value: row.id,
+      label: `${row.name}${row.subject ? ` - ${row.subject}` : ""}`,
+    }));
+  }
+  if (name === "leads") {
+    const rows = await db
+      .select({ id: leads.id, title: leads.title, stage: leads.stage })
+      .from(leads)
+      .where(user ? await crmScopeCondition("leads", leads, user) : undefined)
+      .orderBy(desc(leads.updatedAt))
+      .limit(2000);
+    return rows.map((row) => ({
+      value: row.id,
+      label: `${row.title} (${row.stage})`,
+    }));
+  }
   const rows = await db
     .select({
       id: navLinks.id,
@@ -294,9 +461,21 @@ export async function relationOptions(name: RelationName, excludeId?: string) {
     .map((row) => ({ value: row.id, label: `${row.location}: ${row.label}` }));
 }
 
-export async function fieldsFor(resource: ResourceKey, currentId?: string) {
+export async function fieldsFor(
+  resource: ResourceKey,
+  currentId?: string,
+  user?: import("@/lib/auth").SessionUser,
+) {
   const fields = [];
   for (const field of resources[resource].fields) {
+    if (
+      user &&
+      crmResources.has(resource) &&
+      ["ownerId", "assignedToId", "teamId"].includes(field.name) &&
+      user.systemRole !== "super_admin" &&
+      !user.permissionOverrides.includes("crm.assign")
+    )
+      continue;
     if (
       (field.type === "relation" || field.type === "relationMany") &&
       field.relation
@@ -307,7 +486,7 @@ export async function fieldsFor(resource: ResourceKey, currentId?: string) {
           : undefined;
       fields.push({
         ...field,
-        options: await relationOptions(field.relation, exclude),
+        options: await relationOptions(field.relation, exclude, user),
       });
     } else {
       fields.push(field);
@@ -346,65 +525,70 @@ export async function mediaItems(ids: string[]) {
 }
 
 export async function getSettings() {
-  await ensureSingletons();
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(siteSettings)
-    .where(eq(siteSettings.id, "default"))
-    .limit(1);
-  if (!row) throw new Error("Site settings are missing.");
-  return row;
+  return withDatabaseRetry(async () => {
+    await ensureSingletons();
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(siteSettings)
+      .where(eq(siteSettings.id, "default"))
+      .limit(1);
+    if (!row) throw new Error("Site settings are missing.");
+    return row;
+  });
 }
 
 export async function getHome() {
-  await ensureSingletons();
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(homeContent)
-    .where(eq(homeContent.id, "default"))
-    .limit(1);
-  if (!row) throw new Error("Home content is missing.");
-  const heroes = await db
-    .select()
-    .from(homeHeroImages)
-    .orderBy(asc(homeHeroImages.sortOrder));
-  const featured = await db
-    .select()
-    .from(homeFeaturedProducts)
-    .orderBy(asc(homeFeaturedProducts.sortOrder));
-  const clientLogos =
-    row.clientLogos && row.clientLogos.length > 0
-      ? row.clientLogos
-      : defaultClients;
-  const testimonials =
-    row.testimonials && row.testimonials.length > 0
-      ? row.testimonials
-      : defaultTestimonials;
-  const strengths =
-    row.strengths && row.strengths.length > 0
-      ? row.strengths
-      : defaultStrengths;
-  const stats =
-    row.stats && row.stats.length > 0 ? row.stats : defaultStats;
-  const usps =
-    row.usps && row.usps.length > 0 ? row.usps : defaultUsps;
-  return {
-    ...row,
-    clientLogos,
-    testimonials,
-    strengths,
-    stats,
-    usps,
-    customBandTitle: row.customBandTitle || homeDefaults.customBandTitle,
-    customBandEyebrow: row.customBandEyebrow || homeDefaults.customBandEyebrow,
-    customBandBody: row.customBandBody || homeDefaults.customBandBody,
-    customBandButtonText: row.customBandButtonText || homeDefaults.customBandButtonText,
-    customBandButtonHref: row.customBandButtonHref || homeDefaults.customBandButtonHref,
-    heroMediaIds: heroes.map((item) => item.mediaId),
-    featuredProductIds: featured.map((item) => item.productId),
-  };
+  return withDatabaseRetry(async () => {
+    await ensureSingletons();
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(homeContent)
+      .where(eq(homeContent.id, "default"))
+      .limit(1);
+    if (!row) throw new Error("Home content is missing.");
+    const heroes = await db
+      .select()
+      .from(homeHeroImages)
+      .orderBy(asc(homeHeroImages.sortOrder));
+    const featured = await db
+      .select()
+      .from(homeFeaturedProducts)
+      .orderBy(asc(homeFeaturedProducts.sortOrder));
+    const clientLogos =
+      row.clientLogos && row.clientLogos.length > 0
+        ? row.clientLogos
+        : defaultClients;
+    const testimonials =
+      row.testimonials && row.testimonials.length > 0
+        ? row.testimonials
+        : defaultTestimonials;
+    const strengths =
+      row.strengths && row.strengths.length > 0
+        ? row.strengths
+        : defaultStrengths;
+    const stats = row.stats && row.stats.length > 0 ? row.stats : defaultStats;
+    const usps = row.usps && row.usps.length > 0 ? row.usps : defaultUsps;
+    return {
+      ...row,
+      clientLogos,
+      testimonials,
+      strengths,
+      stats,
+      usps,
+      customBandTitle: row.customBandTitle || homeDefaults.customBandTitle,
+      customBandEyebrow:
+        row.customBandEyebrow || homeDefaults.customBandEyebrow,
+      customBandBody: row.customBandBody || homeDefaults.customBandBody,
+      customBandButtonText:
+        row.customBandButtonText || homeDefaults.customBandButtonText,
+      customBandButtonHref:
+        row.customBandButtonHref || homeDefaults.customBandButtonHref,
+      heroMediaIds: heroes.map((item) => item.mediaId),
+      featuredProductIds: featured.map((item) => item.productId),
+    };
+  });
 }
 
 export type FeaturedProductCard = {
@@ -427,7 +611,10 @@ export async function publishedPosts(
   const search = query.trim();
   if (search) {
     const pattern = `%${search}%`;
-    const match = or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern));
+    const match = or(
+      ilike(posts.title, pattern),
+      ilike(posts.excerpt, pattern),
+    );
     if (match) conditions.push(match);
   }
   const rows = await db
@@ -455,39 +642,45 @@ export async function publishedPosts(
 }
 
 export async function getHeaderSettings() {
-  await ensureSingletons();
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(headerSettings)
-    .where(eq(headerSettings.id, "default"))
-    .limit(1);
-  if (!row) throw new Error("Header settings are missing.");
-  return row;
+  return withDatabaseRetry(async () => {
+    await ensureSingletons();
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(headerSettings)
+      .where(eq(headerSettings.id, "default"))
+      .limit(1);
+    if (!row) throw new Error("Header settings are missing.");
+    return row;
+  });
 }
 
 export async function getFooterSettings() {
-  await ensureSingletons();
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(footerSettings)
-    .where(eq(footerSettings.id, "default"))
-    .limit(1);
-  if (!row) throw new Error("Footer settings are missing.");
-  return row;
+  return withDatabaseRetry(async () => {
+    await ensureSingletons();
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(footerSettings)
+      .where(eq(footerSettings.id, "default"))
+      .limit(1);
+    if (!row) throw new Error("Footer settings are missing.");
+    return row;
+  });
 }
 
 export async function getContactSettings() {
-  await ensureSingletons();
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(contactSettings)
-    .where(eq(contactSettings.id, "default"))
-    .limit(1);
-  if (!row) throw new Error("Contact settings are missing.");
-  return row;
+  return withDatabaseRetry(async () => {
+    await ensureSingletons();
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(contactSettings)
+      .where(eq(contactSettings.id, "default"))
+      .limit(1);
+    if (!row) throw new Error("Contact settings are missing.");
+    return row;
+  });
 }
 
 /** Published catalogue PDF URL (Catalogues admin), or Site settings catalogue file as fallback. */
@@ -498,7 +691,10 @@ export async function getCataloguePdfUrl(): Promise<string | null> {
       .select({ documentId: catalogues.documentId })
       .from(catalogues)
       .where(
-        and(eq(catalogues.status, "published"), isNotNull(catalogues.documentId)),
+        and(
+          eq(catalogues.status, "published"),
+          isNotNull(catalogues.documentId),
+        ),
       )
       .orderBy(asc(catalogues.sortOrder), asc(catalogues.title))
       .limit(1);
@@ -547,7 +743,9 @@ export async function cataloguesForSite(limit = 24) {
     const mediaById = new Map(mediaRows.map((item) => [item.id, item]));
     return rows.map((row) => ({
       ...row,
-      cover: row.coverImageId ? (mediaById.get(row.coverImageId) ?? null) : null,
+      cover: row.coverImageId
+        ? (mediaById.get(row.coverImageId) ?? null)
+        : null,
       documentUrl: row.documentId
         ? (() => {
             const file = mediaById.get(row.documentId);
@@ -881,7 +1079,9 @@ export async function catalogueListing() {
       [row.thumbnailId, row.imageId].filter((id): id is string => Boolean(id)),
     ),
   );
-  const categoryMediaById = new Map(categoryMedia.map((item) => [item.id, item]));
+  const categoryMediaById = new Map(
+    categoryMedia.map((item) => [item.id, item]),
+  );
   const categoryImage = (row: (typeof categoryRows)[number]) => {
     const item =
       (row.thumbnailId ? categoryMediaById.get(row.thumbnailId) : undefined) ??
@@ -988,7 +1188,9 @@ export async function catalogueListing() {
   return { groups, items: [...childCategories, ...productItems] };
 }
 
-export async function dashboardSummary() {
+export async function dashboardSummary(
+  user?: import("@/lib/auth").SessionUser,
+) {
   const db = getDb();
   const pairs = [
     ["pages", pages],
@@ -1006,17 +1208,27 @@ export async function dashboardSummary() {
     ["forms", cmsForms],
     ["media", media],
     ["inquiries", inquiries],
+    ["companies", companies],
+    ["contacts", contacts],
+    ["leads", leads],
+    ["lead-activities", leadActivities],
+    ["follow-ups", followUpTasks],
     ["redirects", redirects],
     ["nav-links", navLinks],
     ["users", users],
+    ["teams", teams],
   ] as const;
 
   const counts = Object.fromEntries(
     await Promise.all(
       pairs.map(async ([key, table]) => {
+        const scope = user
+          ? await crmScopeCondition(key, table, user)
+          : undefined;
         const [row] = await db
           .select({ count: sql<number>`count(*)::int` })
-          .from(table);
+          .from(table)
+          .where(scope);
         return [key, row?.count ?? 0] as const;
       }),
     ),
@@ -1025,7 +1237,62 @@ export async function dashboardSummary() {
   const recent = await db
     .select()
     .from(inquiries)
+    .where(
+      user ? await crmScopeCondition("inquiries", inquiries, user) : undefined,
+    )
     .orderBy(desc(inquiries.createdAt))
     .limit(5);
   return { counts, recent };
+}
+
+export async function crmDashboardSummary(
+  user: import("@/lib/auth").SessionUser,
+) {
+  const db = getDb();
+  const [leadScope, inquiryScope, taskScope] = await Promise.all([
+    crmScopeCondition("leads", leads, user),
+    crmScopeCondition("inquiries", inquiries, user),
+    crmScopeCondition("follow-ups", followUpTasks, user),
+  ]);
+  const combine = (
+    scope: ReturnType<typeof sql> | undefined,
+    condition: ReturnType<typeof sql>,
+  ) => (scope ? and(scope, condition) : condition);
+  const [[open], [unassigned], [overdue], pipeline] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(
+        combine(leadScope, sql`${leads.stage} not in ('won','lost','closed')`),
+      ),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(inquiries)
+      .where(
+        combine(
+          inquiryScope,
+          sql`${inquiries.assignedToId} is null and ${inquiries.status} = 'new'`,
+        ),
+      ),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(followUpTasks)
+      .where(
+        combine(
+          taskScope,
+          sql`${followUpTasks.status} = 'pending' and ${followUpTasks.dueAt} < now()`,
+        ),
+      ),
+    db
+      .select({ stage: leads.stage, count: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(leadScope)
+      .groupBy(leads.stage),
+  ]);
+  return {
+    openLeads: open?.count ?? 0,
+    unassignedInquiries: unassigned?.count ?? 0,
+    overdueFollowUps: overdue?.count ?? 0,
+    pipeline,
+  };
 }

@@ -233,7 +233,12 @@ export function SiteShell({
           ) : null}
         </div>
         <div className="site-container site-footer__bar">
-          <p>{copyright}</p>
+          <div className="site-footer__legal">
+            <p>{copyright}</p>
+            <Link href="/admin/login/" className="site-footer__admin-link">
+              Admin Login
+            </Link>
+          </div>
           {social.length ? (
             <div className="site-footer__social">
               {social.map((item) => (
