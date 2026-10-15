@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logoutAction } from "@/lib/cms/actions";
 import type { SessionUser } from "@/lib/auth";
 import { hasPermission, type Permission } from "@/lib/authorization";
@@ -230,21 +230,46 @@ export function AdminShell({
 }) {
   const pathname = normalize(usePathname());
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const open = openPath === pathname;
+  const roleLabel = user.systemRole.replace("_", " ");
+  const initials = user.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-paper text-ink md:grid md:grid-cols-[250px_1fr]">
-      <div className="flex items-center justify-between border-b border-white/10 bg-navy px-4 py-3 text-white md:hidden">
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-navy px-4 py-3 text-white md:hidden">
         <Link href="/admin" className="font-semibold">
           Jyoti CMS
         </Link>
-        <button
-          type="button"
-          className="rounded-md border border-white/20 px-3 py-1 text-sm"
-          onClick={() => setOpenPath(open ? null : pathname)}
-        >
-          {open ? "Close" : "Menu"}
-        </button>
+        <div className="flex items-center gap-2">
+          <ProfileMenu
+            user={user}
+            initials={initials}
+            roleLabel={roleLabel}
+            open={profileOpen}
+            onToggle={() => setProfileOpen((value) => !value)}
+            compact
+          />
+          <button
+            type="button"
+            className="rounded-md border border-white/20 px-3 py-1 text-sm"
+            onClick={() => setOpenPath(open ? null : pathname)}
+          >
+            {open ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
       <aside
         className={`${open ? "block" : "hidden"} border-r border-white/10 bg-navy text-white md:sticky md:top-0 md:flex md:h-screen md:flex-col`}
@@ -296,22 +321,18 @@ export function AdminShell({
             </div>
           ))}
         </nav>
-        <div className="border-t border-white/10 px-4 py-4">
-          <p className="truncate text-sm font-semibold">{user.name}</p>
-          <p className="truncate text-xs text-white/60">
-            {user.systemRole.replace("_", " ")}
-          </p>
-          <form action={logoutAction} className="mt-3">
-            <button
-              type="submit"
-              className="text-sm font-semibold text-red-200 hover:text-white"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
       </aside>
       <div className="min-w-0">
+        <header className="sticky top-0 z-40 hidden h-16 items-center justify-between border-b border-line bg-white/95 px-8 shadow-sm backdrop-blur md:flex">
+          <LiveDateTime now={now} />
+          <ProfileMenu
+            user={user}
+            initials={initials}
+            roleLabel={roleLabel}
+            open={profileOpen}
+            onToggle={() => setProfileOpen((value) => !value)}
+          />
+        </header>
         <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
           {children}
         </main>
@@ -322,4 +343,114 @@ export function AdminShell({
 
 function linkClass(active: boolean) {
   return `block rounded-md px-2 py-1.5 text-sm ${active ? "bg-white/15 font-semibold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
+}
+
+function LiveDateTime({ now }: { now: Date | null }) {
+  const date = now
+    ? new Intl.DateTimeFormat("en-IN", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }).format(now)
+    : "Loading date…";
+  const time = now
+    ? new Intl.DateTimeFormat("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }).format(now)
+    : "--:--:--";
+
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="hidden font-medium text-muted lg:block">{date}</span>
+      <span className="rounded-md bg-paper px-2.5 py-1 font-semibold tabular-nums text-navy">
+        {time} IST
+      </span>
+    </div>
+  );
+}
+
+function ProfileMenu({
+  user,
+  initials,
+  roleLabel,
+  open,
+  onToggle,
+  compact = false,
+}: {
+  user: SessionUser;
+  initials: string;
+  roleLabel: string;
+  open: boolean;
+  onToggle: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${compact ? "hover:bg-white/10" : "hover:bg-paper"}`}
+      >
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-xs font-bold text-white">
+          {initials || "U"}
+        </span>
+        <span className={`${compact ? "hidden" : "hidden max-w-44 sm:block"}`}>
+          <span className="block truncate text-sm font-semibold text-navy">
+            {user.name}
+          </span>
+          <span className="block truncate text-xs capitalize text-muted">
+            {roleLabel}
+          </span>
+        </span>
+        <svg
+          className={`h-4 w-4 transition ${compact ? "text-white/70" : "text-muted"} ${open ? "rotate-180" : ""}`}
+          viewBox="0 0 20 20"
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d="m5 7 5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-xl">
+          <div className="border-b border-line px-4 py-3">
+            <p className="truncate text-sm font-semibold text-navy">
+              {user.name}
+            </p>
+            <p className="truncate text-xs text-muted">{user.email}</p>
+            <p className="mt-1 text-xs font-semibold capitalize text-signal">
+              {roleLabel}
+            </p>
+          </div>
+          <Link
+            href="/admin/account"
+            className="block px-4 py-2.5 text-sm font-medium text-navy hover:bg-paper"
+          >
+            My account
+          </Link>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
 }
