@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import { HomeView } from "@/components/site/home-view";
 import { getHome, getSettings } from "@/lib/cms/queries";
-import { siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
+import { sitePageMetadata } from "@/lib/site-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [settings, home] = await Promise.all([getSettings(), getHome()]);
-  return {
+  return sitePageMetadata({
+    companyName: settings.companyName,
+    path: "/",
     title: home.heroHeadline || settings.companyName,
     description: home.heroSubcopy || settings.footerText,
-    alternates: { canonical: `${siteOrigin()}/` },
-    robots: noIndexRobots,
-  };
+    keywords: [
+      settings.companyName,
+      "hydraulic solutions",
+      "hydraulic manufacturer",
+    ],
+  });
 }
 
 export default function HomePage() {

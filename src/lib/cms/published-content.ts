@@ -74,6 +74,14 @@ export type PublishedContent = {
   subtitle?: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
+  focusKeyword?: string | null;
+  canonicalUrl?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImage?: MediaItem | null;
+  twitterTitle?: string | null;
+  twitterDescription?: string | null;
+  twitterImage?: MediaItem | null;
   body: string;
   summary?: string;
   hero?: MediaItem | null;
@@ -124,6 +132,10 @@ export type PublishedContent = {
 };
 
 type PublishedTarget = { kind: RouteKind; entityId: string };
+
+async function optionalMedia(id: string | null) {
+  return id ? ((await mediaItems([id]))[0] ?? null) : null;
+}
 
 export async function findPublishedTarget(
   db: Db,
@@ -274,9 +286,7 @@ async function categoryProductCards(
         : [],
     ),
   );
-  const directMediaById = new Map(
-    directMedia.map((item) => [item.id, item]),
-  );
+  const directMediaById = new Map(directMedia.map((item) => [item.id, item]));
 
   const galleryImages = await db
     .select({
@@ -403,9 +413,11 @@ export async function buildPublishedContent(
       .where(eq(pages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const hero = row.heroMediaId
-      ? (await mediaItems([row.heroMediaId]))[0]
-      : null;
+    const [hero, ogImage, twitterImage] = await Promise.all([
+      optionalMedia(row.heroMediaId),
+      optionalMedia(row.ogImageId),
+      optionalMedia(row.twitterImageId),
+    ]);
     const sections = await hydratePageSections(
       await loadPageSections(entityId),
     );
@@ -415,6 +427,14 @@ export async function buildPublishedContent(
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage,
+      twitterTitle: row.twitterTitle,
+      twitterDescription: row.twitterDescription,
+      twitterImage,
       body: row.body,
       summary: row.excerpt || row.shortDescription || undefined,
       hero,
@@ -429,15 +449,23 @@ export async function buildPublishedContent(
       .where(eq(posts.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const cover = row.coverMediaId
-      ? (await mediaItems([row.coverMediaId]))[0]
-      : null;
+    const [cover, ogImage, twitterImage] = await Promise.all([
+      optionalMedia(row.coverMediaId),
+      optionalMedia(row.ogImageId),
+      optionalMedia(row.twitterImageId),
+    ]);
     return {
       kind,
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage,
+      twitterImage,
       body: row.body,
       summary: row.excerpt,
       cover,
@@ -454,7 +482,10 @@ export async function buildPublishedContent(
       .where(eq(productCategories.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const image = row.imageId ? (await mediaItems([row.imageId]))[0] : null;
+    const [image, ogImage] = await Promise.all([
+      optionalMedia(row.imageId),
+      optionalMedia(row.ogImageId),
+    ]);
     const childCategoryRows = await db
       .select({
         id: productCategories.id,
@@ -518,6 +549,9 @@ export async function buildPublishedContent(
       subtitle: row.subtitle || "ISO-9001:2015 Certified Company",
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogImage,
       body: row.body,
       summary: row.summary,
       image,
@@ -527,8 +561,7 @@ export async function buildPublishedContent(
       faqs: (await loadContentFaqs("category", row.id))
         .filter(
           (item) =>
-            item.isActive &&
-            (item.question.trim() || item.answer.trim()),
+            item.isActive && (item.question.trim() || item.answer.trim()),
         )
         .map((item) => ({
           question: item.question,
@@ -610,13 +643,17 @@ export async function buildPublishedContent(
     const primaryProductImage = primaryProductImageId
       ? (await mediaItems([primaryProductImageId]))[0]
       : null;
-    const productGallery = primaryProductImage &&
+    const productGallery =
+      primaryProductImage &&
       !extras.gallery.some((item) => item.id === primaryProductImage.id)
-      ? [primaryProductImage, ...extras.gallery]
-      : extras.gallery;
+        ? [primaryProductImage, ...extras.gallery]
+        : extras.gallery;
     const [parentCategory] = row.categoryId
       ? await db
-          .select({ title: productCategories.title, path: productCategories.path })
+          .select({
+            title: productCategories.title,
+            path: productCategories.path,
+          })
           .from(productCategories)
           .where(eq(productCategories.id, row.categoryId))
           .limit(1)
@@ -627,6 +664,14 @@ export async function buildPublishedContent(
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage: await optionalMedia(row.ogImageId),
+      twitterTitle: row.twitterTitle,
+      twitterDescription: row.twitterDescription,
+      twitterImage: await optionalMedia(row.twitterImageId),
       body: row.body,
       summary: row.summary,
       specs: extras.specs,

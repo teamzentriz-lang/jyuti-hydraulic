@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { AboutReveal } from "@/components/site/about-reveal";
-import { CertificateBoard, type CertificateCard } from "@/components/site/certificate-board";
+import {
+  CertificateBoard,
+  type CertificateCard,
+} from "@/components/site/certificate-board";
 import { contentMetadata } from "@/components/site/content-view";
 import { certificatesForSite, getSettings } from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("certificates");
@@ -16,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Certificates | ${(await getSettings()).companyName}`,
     alternates: { canonical: `${siteOrigin()}/certificates/` },
-    robots: noIndexRobots,
+    robots: { index: true, follow: true },
   };
 }
 
@@ -27,11 +29,15 @@ export default async function CertificatesPage() {
   ]);
   const rawSummary = page?.summary?.trim() ?? "";
   const summary =
-    rawSummary.length > 40 && rawSummary.length < 180 && /[.!?]/.test(rawSummary)
+    rawSummary.length > 40 &&
+    rawSummary.length < 180 &&
+    /[.!?]/.test(rawSummary)
       ? rawSummary
       : "Quality systems, compliance standards and certifications that support dependable hydraulic manufacturing.";
   const cards: CertificateCard[] = items
-    .filter((item) => !/(?:&#8211;|&ndash;|–|—)\s*Jyoti Hydraulic/i.test(item.title))
+    .filter(
+      (item) => !/(?:&#8211;|&ndash;|–|—)\s*Jyoti Hydraulic/i.test(item.title),
+    )
     .map((item) => ({
       id: item.id,
       title: item.title,

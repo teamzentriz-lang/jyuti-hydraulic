@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { contentMetadata } from "@/components/site/content-view";
-import { getSettings, publishedPosts } from "@/lib/cms/queries";
+import { getSettings, getSiteLabels, publishedPosts } from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
-import { publicPath, siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
+import { publicPath } from "@/lib/paths";
+import { sitePageMetadata } from "@/lib/site-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("blogs");
@@ -14,11 +14,18 @@ export async function generateMetadata(): Promise<Metadata> {
     return contentMetadata(content, site.settings.companyName);
   }
   const settings = await getSettings();
-  return {
-    title: `Blogs | ${settings.companyName}`,
-    alternates: { canonical: `${siteOrigin()}/blogs/` },
-    robots: noIndexRobots,
-  };
+  return sitePageMetadata({
+    companyName: settings.companyName,
+    path: "blogs",
+    title: "Insights & Articles",
+    description:
+      "Hydraulic product guidance, maintenance knowledge and engineering insights from Jyoti Hydraulic.",
+    keywords: [
+      "hydraulic blog",
+      "hydraulic engineering",
+      "industrial hydraulic insights",
+    ],
+  });
 }
 
 function BlogCard({
@@ -83,9 +90,10 @@ export default async function BlogsPage({
 }) {
   const query = await searchParams;
   const search = query.q?.trim() ?? "";
-  const [posts, cmsPage] = await Promise.all([
+  const [posts, cmsPage, labels] = await Promise.all([
     publishedPosts(24, false, search),
     resolvePublishedContentByPath("blogs"),
+    getSiteLabels(),
   ]);
   const rawSummary = cmsPage?.summary?.trim();
   const pageSummary =
@@ -97,30 +105,31 @@ export default async function BlogsPage({
     <main className="listing-page blogs-page">
       <div className="site-page-banner">
         <div className="site-container page-banner-inner">
-          <p className="page-kicker">Knowledge centre</p>
-          <h1>{cmsPage?.title || "Insights & Articles"}</h1>
+          <p className="page-kicker">{labels.blogEyebrow}</p>
+          <h1>{cmsPage?.title || labels.blogTitle}</h1>
           <p>{pageSummary}</p>
         </div>
       </div>
       <div className="site-container blog-index">
-        <form className="insights-search blog-index__search" action="/blogs/" method="get">
+        <form
+          className="insights-search blog-index__search"
+          action="/blogs/"
+          method="get"
+        >
           <input
             name="q"
             defaultValue={search}
-            placeholder="Search articles..."
-            aria-label="Search articles"
+            placeholder={labels.blogSearchPlaceholder}
+            aria-label={labels.blogSearchPlaceholder}
             suppressHydrationWarning
           />
         </form>
         <div className="blog-index__heading">
           <div>
-            <p className="section-label">Latest from Jyoti Hydraulic</p>
-            <h2>Engineering Knowledge, Made Practical</h2>
+            <p className="section-label">{labels.blogLatestEyebrow}</p>
+            <h2>{labels.blogLatestTitle}</h2>
           </div>
-          <p>
-            Stay informed with product explainers, maintenance advice and
-            industry updates.
-          </p>
+          <p>{labels.blogLatestDescription}</p>
         </div>
         {posts.length ? (
           <ul className="blog-grid">
@@ -135,7 +144,11 @@ export default async function BlogsPage({
           </ul>
         ) : (
           <div className="blog-empty">
-            <h2>{search ? `No articles match “${search}”` : "Articles are coming soon"}</h2>
+            <h2>
+              {search
+                ? `No articles match “${search}”`
+                : "Articles are coming soon"}
+            </h2>
             <p>
               {search
                 ? "Try a different word, or browse the latest articles."

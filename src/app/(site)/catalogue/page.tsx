@@ -1,51 +1,54 @@
 import type { Metadata } from "next";
 import { AboutReveal } from "@/components/site/about-reveal";
 import { CmsImage } from "@/components/site/cms-image";
-import { cataloguesForSite, getCataloguePdfUrl, getSettings } from "@/lib/cms/queries";
+import {
+  cataloguesForSite,
+  getCataloguePdfUrl,
+  getSettings,
+  getSiteLabels,
+} from "@/lib/cms/queries";
 import { siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings();
+  const [settings, labels] = await Promise.all([
+    getSettings(),
+    getSiteLabels(),
+  ]);
   return {
-    title: `Product Catalogues | ${settings.companyName}`,
-    description:
-      "Download product catalogues and technical documents from Jyoti Hydraulic.",
+    title: labels.catalogueTitle,
+    description: labels.catalogueDescription,
     alternates: { canonical: `${siteOrigin()}/catalogue/` },
-    robots: noIndexRobots,
+    robots: { index: true, follow: true },
   };
 }
 
 export default async function CataloguePage() {
-  const [catalogues, pdfUrl] = await Promise.all([
+  const [catalogues, pdfUrl, labels] = await Promise.all([
     cataloguesForSite(),
     getCataloguePdfUrl(),
+    getSiteLabels(),
   ]);
   return (
     <main className="listing-page catalogue-library-page motion-page">
       <AboutReveal />
       <div className="site-page-banner">
         <div className="site-container page-banner-inner">
-          <p className="page-kicker about-in">Technical resources</p>
+          <p className="page-kicker about-in">{labels.catalogueEyebrow}</p>
           <h1 className="about-in" style={{ animationDelay: "80ms" }}>
-            Product Catalogues
+            {labels.catalogueTitle}
           </h1>
           <p className="about-in" style={{ animationDelay: "160ms" }}>
-            Access product ranges, technical specifications and engineering
-            information in one place.
+            {labels.catalogueDescription}
           </p>
         </div>
       </div>
       <div className="site-container catalogue-page__content">
         <div className="catalogue-library__heading about-in">
           <div>
-            <p className="section-label">Download centre</p>
-            <h2>Explore Our Technical Library</h2>
+            <p className="section-label">{labels.catalogueSectionEyebrow}</p>
+            <h2>{labels.catalogueSectionTitle}</h2>
           </div>
-          <p>
-            Select a document to learn more about our products, applications and
-            specifications.
-          </p>
+          <p>{labels.catalogueSectionDescription}</p>
         </div>
         {catalogues.length ? (
           <ul className="catalogue-library__grid">
@@ -119,7 +122,10 @@ export default async function CataloguePage() {
                 <em>PDF</em>
               </span>
             </a>
-            <div className="catalogue-stage__copy about-in" style={{ animationDelay: "120ms" }}>
+            <div
+              className="catalogue-stage__copy about-in"
+              style={{ animationDelay: "120ms" }}
+            >
               <p className="section-label">Company catalogue</p>
               <h2>Explore Our Complete Product Range</h2>
               <p>
@@ -131,7 +137,12 @@ export default async function CataloguePage() {
                 <li>Technical specifications</li>
                 <li>Application notes for industrial use</li>
               </ul>
-              <a className="site-btn-primary" href={pdfUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                className="site-btn-primary"
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Open Catalogue <span aria-hidden>↗</span>
               </a>
             </div>

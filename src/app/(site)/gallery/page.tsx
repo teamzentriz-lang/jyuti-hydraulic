@@ -8,7 +8,6 @@ import { getSite } from "@/lib/cms/site";
 import { isVideoMimeType } from "@/lib/media-upload";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("gallery");
@@ -17,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Gallery | ${(await getSettings()).companyName}`,
     alternates: { canonical: `${siteOrigin()}/gallery/` },
-    robots: noIndexRobots,
+    robots: { index: true, follow: true },
   };
 }
 
@@ -28,7 +27,9 @@ export default async function GalleryPage() {
   ]);
   const rawSummary = page?.summary?.trim() ?? "";
   const summary =
-    rawSummary.length > 40 && rawSummary.length < 180 && /[.!?]/.test(rawSummary)
+    rawSummary.length > 40 &&
+    rawSummary.length < 180 &&
+    /[.!?]/.test(rawSummary)
       ? rawSummary
       : "A closer look at our manufacturing capabilities, hydraulic systems, installations and engineering work.";
   const cards: GalleryCard[] = items.map((item) => ({
@@ -36,7 +37,11 @@ export default async function GalleryPage() {
     title: item.title,
     caption: item.caption,
     src: item.media ? mediaDeliveryUrl(item.media) : null,
-    kind: !item.media ? "empty" : isVideoMimeType(item.media.mimeType) ? "video" : "image",
+    kind: !item.media
+      ? "empty"
+      : isVideoMimeType(item.media.mimeType)
+        ? "video"
+        : "image",
   }));
 
   return (

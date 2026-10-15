@@ -11,6 +11,7 @@ import { cleanPublicBody, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import {
   featuredProductsForHome,
   getHome,
+  getSiteLabels,
   homePageCategoryShowcases,
   mediaItems,
   publishedPosts,
@@ -100,11 +101,12 @@ export async function HomeView() {
     ...home.heroMediaIds,
     ...(home.aboutMediaId ? [home.aboutMediaId] : []),
   ];
-  const [media, featured, showcases, posts] = await Promise.all([
+  const [media, featured, showcases, posts, labels] = await Promise.all([
     mediaItems(mediaIds),
     featuredProductsForHome(home.featuredProductIds),
     homePageCategoryShowcases(home.showcaseCategoryPaths ?? [], 6, 3),
     publishedPosts(3),
+    getSiteLabels(),
   ]);
   const mediaById = new Map(media.map((item) => [item.id, item]));
   const heroImages = home.heroMediaIds.flatMap((id) =>
@@ -375,18 +377,15 @@ export async function HomeView() {
           <div className="site-container">
             <div className="section-heading about-in">
               <div>
-                <p className="eyebrow dark">Knowledge centre</p>
-                <h2>Insights &amp; Articles</h2>
-                <p>
-                  Practical knowledge, product guidance and industry updates
-                  from our engineering team.
-                </p>
+                <p className="eyebrow dark">{labels.blogEyebrow}</p>
+                <h2>{labels.blogTitle}</h2>
+                <p>{labels.blogLatestDescription}</p>
               </div>
               <form className="insights-search" action="/blogs/" method="get">
                 <input
                   name="q"
-                  placeholder="Search articles..."
-                  aria-label="Search articles"
+                  placeholder={labels.blogSearchPlaceholder}
+                  aria-label={labels.blogSearchPlaceholder}
                   suppressHydrationWarning
                 />
               </form>

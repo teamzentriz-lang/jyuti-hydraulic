@@ -6,14 +6,20 @@ const slug = z
   .trim()
   .min(1, "Enter a slug.")
   .max(180)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.");
+  .regex(
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    "Use lowercase letters, numbers, and hyphens.",
+  );
 
 const pathValue = z
   .string()
   .trim()
   .min(1, "Enter a URL path.")
   .max(400)
-  .regex(/^[a-z0-9]+(?:[/-][a-z0-9]+)*$/, "Use lowercase letters, numbers, hyphens, and slashes.");
+  .regex(
+    /^[a-z0-9]+(?:[/-][a-z0-9]+)*$/,
+    "Use lowercase letters, numbers, hyphens, and slashes.",
+  );
 
 const optionalText = (max: number) =>
   z
@@ -40,13 +46,29 @@ const richText = z.string().max(500_000);
 const status = z.enum(["draft", "published"]);
 const seoTitle = optionalText(300);
 const seoDescription = optionalText(500);
+const focusKeyword = optionalText(500);
+const canonicalUrl = optionalText(500);
 const specs = z
-  .array(z.object({ label: z.string().trim().max(200), value: z.string().trim().max(500) }))
+  .array(
+    z.object({
+      label: z.string().trim().max(200),
+      value: z.string().trim().max(500),
+    }),
+  )
   .max(80);
 const idList = z.array(z.uuid()).max(40);
 
 export type FieldOption = { value: string; label: string };
-export type RelationName = "product-categories" | "products" | "nav-links" | "users" | "teams" | "companies" | "contacts" | "inquiries" | "leads";
+export type RelationName =
+  | "product-categories"
+  | "products"
+  | "nav-links"
+  | "users"
+  | "teams"
+  | "companies"
+  | "contacts"
+  | "inquiries"
+  | "leads";
 
 export type FieldDef = {
   name: string;
@@ -101,6 +123,7 @@ export type ResourceKey =
   | "nav-links"
   | "users"
   | "teams"
+  | "page-html"
   | "media";
 
 export type ResourceConfig = {
@@ -138,6 +161,20 @@ const contentFields = {
     group: "Search",
     wide: true,
   } satisfies FieldDef,
+  focusKeyword: {
+    name: "focusKeyword",
+    label: "Meta keywords",
+    type: "text",
+    group: "Search",
+    help: "Comma-separated keywords, for example: hydraulic press, baling machine, Faridabad.",
+  } satisfies FieldDef,
+  canonicalUrl: {
+    name: "canonicalUrl",
+    label: "Canonical URL",
+    type: "text",
+    group: "Search",
+    wide: true,
+  } satisfies FieldDef,
   status: {
     name: "status",
     label: "Status",
@@ -154,11 +191,68 @@ function recordSchema<T extends z.ZodRawShape>(shape: T) {
 }
 
 export const resources: Record<ResourceKey, ResourceConfig> = {
+  "page-html": {
+    key: "page-html",
+    label: "Page HTML",
+    singular: "Page HTML override",
+    description: "Optional header and footer HTML for any exact public URL.",
+    searchColumns: ["path"],
+    tableColumns: [
+      { key: "path", label: "Public URL" },
+      { key: "isActive", label: "Active" },
+      { key: "updatedAt", label: "Updated" },
+    ],
+    orderBy: { column: "path", direction: "asc" },
+    fields: [
+      {
+        name: "path",
+        label: "Exact public URL",
+        type: "text",
+        required: true,
+        help: "Examples: /, /contact/, /blogs/, /products/hydraulic-jacks/",
+      },
+      {
+        name: "headerHtml",
+        label: "Page header HTML",
+        type: "richtext",
+        wide: true,
+        help: "Displayed below the common site header on this URL.",
+      },
+      {
+        name: "footerHtml",
+        label: "Page footer HTML",
+        type: "richtext",
+        wide: true,
+        help: "Displayed above the common site footer on this URL.",
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        defaultValue: true,
+      },
+    ],
+    schema: recordSchema({
+      path: z
+        .string()
+        .trim()
+        .min(1)
+        .max(500)
+        .regex(
+          /^\/(?:[^?#]*)$/,
+          "Enter a path beginning with / without query parameters.",
+        ),
+      headerHtml: richText,
+      footerHtml: richText,
+      isActive: z.boolean(),
+    }),
+  },
   pages: {
     key: "pages",
     label: "Pages",
     singular: "Page",
-    description: "About, contact, career, gallery intro, certificates, return policy, and thank-you.",
+    description:
+      "About, contact, career, gallery intro, certificates, return policy, and thank-you.",
     pathMode: "page",
     searchColumns: ["title", "path", "slug"],
     tableColumns: [
@@ -169,8 +263,20 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "updatedAt", direction: "desc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
       {
         name: "path",
         label: "URL path",
@@ -179,10 +285,23 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Content",
         help: "about-us, contact, gallery, certificates, career, return-policy, thank-you, blogs",
       },
-      { name: "heroMediaId", label: "Hero image", type: "media", group: "Content" },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
+      {
+        name: "heroMediaId",
+        label: "Hero image",
+        type: "media",
+        group: "Content",
+      },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
       contentFields.seoTitle,
       contentFields.seoDescription,
+      contentFields.focusKeyword,
+      contentFields.canonicalUrl,
       contentFields.status,
     ],
     schema: recordSchema({
@@ -193,6 +312,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       body: richText,
       seoTitle,
       seoDescription,
+      focusKeyword,
+      canonicalUrl,
       status,
     }),
   },
@@ -200,7 +321,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "product-categories",
     label: "Product categories",
     singular: "Category",
-    description: "Catalogue structure and category pages. Top-level categories can fill the Products menu when no menu links exist.",
+    description:
+      "Catalogue structure and category pages. Top-level categories can fill the Products menu when no menu links exist.",
     pathMode: "category",
     searchColumns: ["title", "path", "slug"],
     tableColumns: [
@@ -211,7 +333,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "title", direction: "asc" },
     fields: [
-      { name: "title", label: "Title (H1 in banner)", type: "text", required: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title (H1 in banner)",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
       {
         name: "subtitle",
         label: "Banner Tagline / Subtitle",
@@ -220,7 +348,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         defaultValue: "ISO-9001:2015 Certified Company",
         help: "Appears directly underneath the H1 in the top banner strip (e.g. ISO-9001:2015 Certified Company).",
       },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
       {
         name: "path",
         label: "URL path",
@@ -237,10 +371,28 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         relation: "product-categories",
         group: "Content",
       },
-      { name: "summary", label: "Summary", type: "textarea", wide: true, group: "Content" },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
+      {
+        name: "summary",
+        label: "Summary",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
       { name: "imageId", label: "Image", type: "media", group: "Content" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Publishing", defaultValue: 0 },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Publishing",
+        defaultValue: 0,
+      },
       {
         name: "showInMenu",
         label: "Show in Products menu fallback",
@@ -272,7 +424,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "products",
     label: "Products",
     singular: "Product",
-    description: "Catalogue detail pages: summary, specifications, gallery, and brochure.",
+    description:
+      "Catalogue detail pages: summary, specifications, gallery, and brochure.",
     pathMode: "product",
     searchColumns: ["title", "path", "slug"],
     tableColumns: [
@@ -283,8 +436,20 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "updatedAt", direction: "desc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
       {
         name: "path",
         label: "URL path",
@@ -301,11 +466,42 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         relation: "product-categories",
         group: "Content",
       },
-      { name: "summary", label: "Card summary", type: "textarea", wide: true, group: "Content" },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
-      { name: "specs", label: "Specifications", type: "specs", wide: true, group: "Details", defaultValue: [] },
-      { name: "galleryMediaIds", label: "Gallery", type: "mediaMany", wide: true, group: "Media", defaultValue: [] },
-      { name: "brochureMediaId", label: "Brochure PDF", type: "media", group: "Media" },
+      {
+        name: "summary",
+        label: "Card summary",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "specs",
+        label: "Specifications",
+        type: "specs",
+        wide: true,
+        group: "Details",
+        defaultValue: [],
+      },
+      {
+        name: "galleryMediaIds",
+        label: "Gallery",
+        type: "mediaMany",
+        wide: true,
+        group: "Media",
+        defaultValue: [],
+      },
+      {
+        name: "brochureMediaId",
+        label: "Brochure PDF",
+        type: "media",
+        group: "Media",
+      },
       {
         name: "relatedProductIds",
         label: "Related products",
@@ -315,7 +511,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Details",
         defaultValue: [],
       },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Publishing", defaultValue: 0 },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Publishing",
+        defaultValue: 0,
+      },
       contentFields.seoTitle,
       contentFields.seoDescription,
       contentFields.status,
@@ -352,7 +554,14 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "title", direction: "asc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, wide: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        wide: true,
+        group: "Content",
+      },
       {
         name: "slug",
         label: "Slug",
@@ -361,8 +570,19 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Content",
         help: "Published at /city/{slug}/.",
       },
-      { name: "locationName", label: "Location name", type: "text", required: true, group: "Content" },
-      { name: "region", label: "Region or state", type: "text", group: "Content" },
+      {
+        name: "locationName",
+        label: "Location name",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "region",
+        label: "Region or state",
+        type: "text",
+        group: "Content",
+      },
       {
         name: "categoryId",
         label: "Related category",
@@ -377,7 +597,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         relation: "products",
         group: "Content",
       },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
       contentFields.seoTitle,
       contentFields.seoDescription,
       contentFields.status,
@@ -410,7 +636,14 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "title", direction: "asc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, wide: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        wide: true,
+        group: "Content",
+      },
       {
         name: "slug",
         label: "Slug",
@@ -419,8 +652,19 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Content",
         help: "Published at /exports/{slug}/.",
       },
-      { name: "country", label: "Country", type: "text", required: true, group: "Content" },
-      { name: "productLine", label: "Product line", type: "text", group: "Content" },
+      {
+        name: "country",
+        label: "Country",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "productLine",
+        label: "Product line",
+        type: "text",
+        group: "Content",
+      },
       {
         name: "categoryId",
         label: "Related category",
@@ -435,7 +679,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         relation: "products",
         group: "Content",
       },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
       contentFields.seoTitle,
       contentFields.seoDescription,
       contentFields.status,
@@ -457,7 +707,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "posts",
     label: "Posts",
     singular: "Post",
-    description: "Blog articles. They stay at the site root, not under /blogs/.",
+    description:
+      "Blog articles. They stay at the site root, not under /blogs/.",
     pathMode: "post",
     searchColumns: ["title", "slug", "excerpt"],
     tableColumns: [
@@ -468,7 +719,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "publishedAt", direction: "desc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
       {
         name: "slug",
         label: "Slug",
@@ -477,10 +734,32 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Content",
         help: "Published at /{slug}/. /blogs/ is only the listing page.",
       },
-      { name: "publishedAt", label: "Publish date", type: "datetime", group: "Publishing" },
-      { name: "coverMediaId", label: "Cover image", type: "media", group: "Content" },
-      { name: "excerpt", label: "Excerpt", type: "textarea", wide: true, group: "Content" },
-      { name: "body", label: "Body", type: "richtext", wide: true, group: "Content" },
+      {
+        name: "publishedAt",
+        label: "Publish date",
+        type: "datetime",
+        group: "Publishing",
+      },
+      {
+        name: "coverMediaId",
+        label: "Cover image",
+        type: "media",
+        group: "Content",
+      },
+      {
+        name: "excerpt",
+        label: "Excerpt",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "body",
+        label: "Body",
+        type: "richtext",
+        wide: true,
+        group: "Content",
+      },
       contentFields.seoTitle,
       contentFields.seoDescription,
       contentFields.status,
@@ -501,7 +780,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "gallery",
     label: "Gallery",
     singular: "Gallery item",
-    description: "Photos and videos for the gallery grid, in the order they should appear.",
+    description:
+      "Photos and videos for the gallery grid, in the order they should appear.",
     searchColumns: ["title", "caption"],
     tableColumns: [
       { key: "title", label: "Title" },
@@ -511,9 +791,27 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     orderBy: { column: "sortOrder", direction: "asc" },
     fields: [
       { name: "title", label: "Title", type: "text", group: "Content" },
-      { name: "caption", label: "Caption", type: "textarea", wide: true, group: "Content" },
-      { name: "mediaId", label: "Image or video", type: "media", required: true, group: "Content" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Content", defaultValue: 0 },
+      {
+        name: "caption",
+        label: "Caption",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "mediaId",
+        label: "Image or video",
+        type: "media",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Content",
+        defaultValue: 0,
+      },
     ],
     schema: recordSchema({
       title: z.string().trim().max(200),
@@ -536,9 +834,27 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     orderBy: { column: "sortOrder", direction: "asc" },
     fields: [
       { name: "title", label: "Title", type: "text", group: "Content" },
-      { name: "caption", label: "Caption", type: "textarea", wide: true, group: "Content" },
-      { name: "mediaId", label: "Image", type: "media", required: true, group: "Content" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Content", defaultValue: 0 },
+      {
+        name: "caption",
+        label: "Caption",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "mediaId",
+        label: "Image",
+        type: "media",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Content",
+        defaultValue: 0,
+      },
     ],
     schema: recordSchema({
       title: z.string().trim().max(200),
@@ -551,7 +867,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "inquiries",
     label: "Inquiries",
     singular: "Inquiry",
-    description: "Quote requests and newsletter signups. A subject of Newsletter is a signup, not a product quote.",
+    description:
+      "Quote requests and newsletter signups. A subject of Newsletter is a signup, not a product quote.",
     searchColumns: ["name", "email", "phone", "message", "subject"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -563,12 +880,31 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "createdAt", direction: "desc" },
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, group: "Enquiry" },
-      { name: "email", label: "Email", type: "text", required: true, group: "Enquiry" },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Enquiry",
+      },
+      {
+        name: "email",
+        label: "Email",
+        type: "text",
+        required: true,
+        group: "Enquiry",
+      },
       { name: "phone", label: "Phone", type: "text", group: "Enquiry" },
       { name: "company", label: "Company", type: "text", group: "Enquiry" },
       { name: "subject", label: "Subject", type: "text", group: "Enquiry" },
-      { name: "message", label: "Message", type: "textarea", required: true, wide: true, group: "Enquiry" },
+      {
+        name: "message",
+        label: "Message",
+        type: "textarea",
+        required: true,
+        wide: true,
+        group: "Enquiry",
+      },
       {
         name: "source",
         label: "Source",
@@ -582,17 +918,67 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
           { value: "product", label: "Product" },
         ],
       },
-      { name: "productId", label: "Product", type: "relation", relation: "products", group: "Enquiry" },
+      {
+        name: "productId",
+        label: "Product",
+        type: "relation",
+        relation: "products",
+        group: "Enquiry",
+      },
       { name: "pagePath", label: "Page path", type: "text", group: "Enquiry" },
-      { name: "sourcePage", label: "Source page", type: "text", group: "Enquiry" },
-      { name: "sourceUrl", label: "Source URL", type: "text", wide: true, group: "Enquiry" },
-      { name: "adminNotes", label: "Admin notes", type: "textarea", wide: true, group: "Enquiry" },
-      { name: "assignedToId", label: "Assigned to", type: "relation", relation: "users", group: "Assignment" },
-      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
-      { name: "priority", label: "Priority", type: "select", group: "Assignment", defaultValue: "normal", options: [
-        { value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" },
-      ] },
-      { name: "nextFollowUpAt", label: "Next follow-up", type: "datetime", group: "Assignment" },
+      {
+        name: "sourcePage",
+        label: "Source page",
+        type: "text",
+        group: "Enquiry",
+      },
+      {
+        name: "sourceUrl",
+        label: "Source URL",
+        type: "text",
+        wide: true,
+        group: "Enquiry",
+      },
+      {
+        name: "adminNotes",
+        label: "Admin notes",
+        type: "textarea",
+        wide: true,
+        group: "Enquiry",
+      },
+      {
+        name: "assignedToId",
+        label: "Assigned to",
+        type: "relation",
+        relation: "users",
+        group: "Assignment",
+      },
+      {
+        name: "teamId",
+        label: "Team",
+        type: "relation",
+        relation: "teams",
+        group: "Assignment",
+      },
+      {
+        name: "priority",
+        label: "Priority",
+        type: "select",
+        group: "Assignment",
+        defaultValue: "normal",
+        options: [
+          { value: "low", label: "Low" },
+          { value: "normal", label: "Normal" },
+          { value: "high", label: "High" },
+          { value: "urgent", label: "Urgent" },
+        ],
+      },
+      {
+        name: "nextFollowUpAt",
+        label: "Next follow-up",
+        type: "datetime",
+        group: "Assignment",
+      },
       {
         name: "status",
         label: "Status",
@@ -629,100 +1015,487 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       teamId: optionalUuid,
       priority: z.enum(["low", "normal", "high", "urgent"]),
       nextFollowUpAt: z.string().datetime().nullable(),
-      status: z.enum(["new", "read", "archived", "contacted", "in_progress", "converted", "closed", "spam"]),
+      status: z.enum([
+        "new",
+        "read",
+        "archived",
+        "contacted",
+        "in_progress",
+        "converted",
+        "closed",
+        "spam",
+      ]),
     }),
   },
   companies: {
-    key: "companies", label: "Companies", singular: "Company", description: "Customer organisations and their ownership.",
+    key: "companies",
+    label: "Companies",
+    singular: "Company",
+    description: "Customer organisations and their ownership.",
     searchColumns: ["name", "email", "phone", "industry"],
-    tableColumns: [{ key: "name", label: "Company" }, { key: "industry", label: "Industry" }, { key: "email", label: "Email" }, { key: "updatedAt", label: "Updated" }],
+    tableColumns: [
+      { key: "name", label: "Company" },
+      { key: "industry", label: "Industry" },
+      { key: "email", label: "Email" },
+      { key: "updatedAt", label: "Updated" },
+    ],
     orderBy: { column: "updatedAt", direction: "desc" },
     fields: [
-      { name: "name", label: "Company name", type: "text", required: true, group: "Company" },
+      {
+        name: "name",
+        label: "Company name",
+        type: "text",
+        required: true,
+        group: "Company",
+      },
       { name: "industry", label: "Industry", type: "text", group: "Company" },
       { name: "website", label: "Website", type: "text", group: "Company" },
       { name: "email", label: "Email", type: "text", group: "Company" },
       { name: "phone", label: "Phone", type: "text", group: "Company" },
-      { name: "address", label: "Address", type: "textarea", wide: true, group: "Company" },
-      { name: "notes", label: "Internal notes", type: "textarea", wide: true, group: "Company" },
-      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
-      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
-      { name: "isActive", label: "Active", type: "checkbox", defaultValue: true, group: "Company" },
+      {
+        name: "address",
+        label: "Address",
+        type: "textarea",
+        wide: true,
+        group: "Company",
+      },
+      {
+        name: "notes",
+        label: "Internal notes",
+        type: "textarea",
+        wide: true,
+        group: "Company",
+      },
+      {
+        name: "ownerId",
+        label: "Owner",
+        type: "relation",
+        relation: "users",
+        group: "Assignment",
+      },
+      {
+        name: "teamId",
+        label: "Team",
+        type: "relation",
+        relation: "teams",
+        group: "Assignment",
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        defaultValue: true,
+        group: "Company",
+      },
     ],
-    schema: recordSchema({ name: z.string().trim().min(1).max(200), industry: z.string().trim().max(160), website: optionalText(500), email: z.union([z.email(), z.literal("")]), phone: z.string().trim().max(50), address: z.string().trim().max(2000), notes: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid, isActive: z.boolean() }),
+    schema: recordSchema({
+      name: z.string().trim().min(1).max(200),
+      industry: z.string().trim().max(160),
+      website: optionalText(500),
+      email: z.union([z.email(), z.literal("")]),
+      phone: z.string().trim().max(50),
+      address: z.string().trim().max(2000),
+      notes: z.string().trim().max(5000),
+      ownerId: optionalUuid,
+      teamId: optionalUuid,
+      isActive: z.boolean(),
+    }),
   },
   contacts: {
-    key: "contacts", label: "Customers", singular: "Customer", description: "Customer contacts linked with companies and sales owners.",
+    key: "contacts",
+    label: "Customers",
+    singular: "Customer",
+    description: "Customer contacts linked with companies and sales owners.",
     searchColumns: ["name", "email", "phone", "designation"],
-    tableColumns: [{ key: "name", label: "Customer" }, { key: "email", label: "Email" }, { key: "phone", label: "Phone" }, { key: "updatedAt", label: "Updated" }],
+    tableColumns: [
+      { key: "name", label: "Customer" },
+      { key: "email", label: "Email" },
+      { key: "phone", label: "Phone" },
+      { key: "updatedAt", label: "Updated" },
+    ],
     orderBy: { column: "updatedAt", direction: "desc" },
     fields: [
-      { name: "companyId", label: "Company", type: "relation", relation: "companies", group: "Customer" },
-      { name: "name", label: "Name", type: "text", required: true, group: "Customer" },
+      {
+        name: "companyId",
+        label: "Company",
+        type: "relation",
+        relation: "companies",
+        group: "Customer",
+      },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Customer",
+      },
       { name: "email", label: "Email", type: "text", group: "Customer" },
       { name: "phone", label: "Phone", type: "text", group: "Customer" },
-      { name: "designation", label: "Designation", type: "text", group: "Customer" },
-      { name: "notes", label: "Internal notes", type: "textarea", wide: true, group: "Customer" },
-      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
-      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
-      { name: "isActive", label: "Active", type: "checkbox", defaultValue: true, group: "Customer" },
+      {
+        name: "designation",
+        label: "Designation",
+        type: "text",
+        group: "Customer",
+      },
+      {
+        name: "notes",
+        label: "Internal notes",
+        type: "textarea",
+        wide: true,
+        group: "Customer",
+      },
+      {
+        name: "ownerId",
+        label: "Owner",
+        type: "relation",
+        relation: "users",
+        group: "Assignment",
+      },
+      {
+        name: "teamId",
+        label: "Team",
+        type: "relation",
+        relation: "teams",
+        group: "Assignment",
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        defaultValue: true,
+        group: "Customer",
+      },
     ],
-    schema: recordSchema({ companyId: optionalUuid, name: z.string().trim().min(1).max(200), email: z.union([z.email(), z.literal("")]), phone: z.string().trim().max(50), designation: z.string().trim().max(160), notes: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid, isActive: z.boolean() }),
+    schema: recordSchema({
+      companyId: optionalUuid,
+      name: z.string().trim().min(1).max(200),
+      email: z.union([z.email(), z.literal("")]),
+      phone: z.string().trim().max(50),
+      designation: z.string().trim().max(160),
+      notes: z.string().trim().max(5000),
+      ownerId: optionalUuid,
+      teamId: optionalUuid,
+      isActive: z.boolean(),
+    }),
   },
   leads: {
-    key: "leads", label: "Sales leads", singular: "Lead", description: "Qualified opportunities from enquiry through final outcome.",
+    key: "leads",
+    label: "Sales leads",
+    singular: "Lead",
+    description: "Qualified opportunities from enquiry through final outcome.",
     searchColumns: ["title", "description", "lostReason"],
-    tableColumns: [{ key: "title", label: "Opportunity" }, { key: "stage", label: "Stage" }, { key: "priority", label: "Priority" }, { key: "nextFollowUpAt", label: "Next follow-up" }],
+    tableColumns: [
+      { key: "title", label: "Opportunity" },
+      { key: "stage", label: "Stage" },
+      { key: "priority", label: "Priority" },
+      { key: "nextFollowUpAt", label: "Next follow-up" },
+    ],
     orderBy: { column: "updatedAt", direction: "desc" },
     fields: [
-      { name: "title", label: "Opportunity title", type: "text", required: true, wide: true, group: "Lead" },
-      { name: "description", label: "Requirement", type: "textarea", wide: true, group: "Lead" },
-      { name: "inquiryId", label: "Source enquiry", type: "relation", relation: "inquiries", group: "Links" },
-      { name: "companyId", label: "Company", type: "relation", relation: "companies", group: "Links" },
-      { name: "contactId", label: "Customer", type: "relation", relation: "contacts", group: "Links" },
-      { name: "stage", label: "Stage", type: "select", required: true, group: "Pipeline", defaultValue: "new", options: ["new", "assigned", "contacted", "qualified", "follow_up", "proposal", "negotiation", "won", "lost", "closed"].map((value) => ({ value, label: value.replace("_", " ") })) },
-      { name: "priority", label: "Priority", type: "select", required: true, group: "Pipeline", defaultValue: "normal", options: ["low", "normal", "high", "urgent"].map((value) => ({ value, label: value })) },
-      { name: "estimatedValue", label: "Expected value (INR)", type: "number", group: "Pipeline" },
-      { name: "nextFollowUpAt", label: "Next follow-up", type: "datetime", group: "Pipeline" },
-      { name: "lostReason", label: "Lost/closed reason", type: "textarea", wide: true, group: "Pipeline" },
-      { name: "ownerId", label: "Owner", type: "relation", relation: "users", group: "Assignment" },
-      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+      {
+        name: "title",
+        label: "Opportunity title",
+        type: "text",
+        required: true,
+        wide: true,
+        group: "Lead",
+      },
+      {
+        name: "description",
+        label: "Requirement",
+        type: "textarea",
+        wide: true,
+        group: "Lead",
+      },
+      {
+        name: "inquiryId",
+        label: "Source enquiry",
+        type: "relation",
+        relation: "inquiries",
+        group: "Links",
+      },
+      {
+        name: "companyId",
+        label: "Company",
+        type: "relation",
+        relation: "companies",
+        group: "Links",
+      },
+      {
+        name: "contactId",
+        label: "Customer",
+        type: "relation",
+        relation: "contacts",
+        group: "Links",
+      },
+      {
+        name: "stage",
+        label: "Stage",
+        type: "select",
+        required: true,
+        group: "Pipeline",
+        defaultValue: "new",
+        options: [
+          "new",
+          "assigned",
+          "contacted",
+          "qualified",
+          "follow_up",
+          "proposal",
+          "negotiation",
+          "won",
+          "lost",
+          "closed",
+        ].map((value) => ({ value, label: value.replace("_", " ") })),
+      },
+      {
+        name: "priority",
+        label: "Priority",
+        type: "select",
+        required: true,
+        group: "Pipeline",
+        defaultValue: "normal",
+        options: ["low", "normal", "high", "urgent"].map((value) => ({
+          value,
+          label: value,
+        })),
+      },
+      {
+        name: "estimatedValue",
+        label: "Expected value (INR)",
+        type: "number",
+        group: "Pipeline",
+      },
+      {
+        name: "nextFollowUpAt",
+        label: "Next follow-up",
+        type: "datetime",
+        group: "Pipeline",
+      },
+      {
+        name: "lostReason",
+        label: "Lost/closed reason",
+        type: "textarea",
+        wide: true,
+        group: "Pipeline",
+      },
+      {
+        name: "ownerId",
+        label: "Owner",
+        type: "relation",
+        relation: "users",
+        group: "Assignment",
+      },
+      {
+        name: "teamId",
+        label: "Team",
+        type: "relation",
+        relation: "teams",
+        group: "Assignment",
+      },
     ],
-    schema: recordSchema({ title: z.string().trim().min(1).max(300), description: z.string().trim().max(10000), inquiryId: optionalUuid, companyId: optionalUuid, contactId: optionalUuid, stage: z.enum(["new", "assigned", "contacted", "qualified", "follow_up", "proposal", "negotiation", "won", "lost", "closed"]), priority: z.enum(["low", "normal", "high", "urgent"]), estimatedValue: z.number().int().min(0).nullable(), nextFollowUpAt: z.string().datetime().nullable(), lostReason: z.string().trim().max(5000), ownerId: optionalUuid, teamId: optionalUuid }),
+    schema: recordSchema({
+      title: z.string().trim().min(1).max(300),
+      description: z.string().trim().max(10000),
+      inquiryId: optionalUuid,
+      companyId: optionalUuid,
+      contactId: optionalUuid,
+      stage: z.enum([
+        "new",
+        "assigned",
+        "contacted",
+        "qualified",
+        "follow_up",
+        "proposal",
+        "negotiation",
+        "won",
+        "lost",
+        "closed",
+      ]),
+      priority: z.enum(["low", "normal", "high", "urgent"]),
+      estimatedValue: z.number().int().min(0).nullable(),
+      nextFollowUpAt: z.string().datetime().nullable(),
+      lostReason: z.string().trim().max(5000),
+      ownerId: optionalUuid,
+      teamId: optionalUuid,
+    }),
   },
   "lead-activities": {
-    key: "lead-activities", label: "Lead activities", singular: "Activity", description: "Calls, emails, meetings and internal notes.",
-    searchColumns: ["subject", "details"], tableColumns: [{ key: "subject", label: "Activity" }, { key: "type", label: "Type" }, { key: "occurredAt", label: "Occurred" }], orderBy: { column: "occurredAt", direction: "desc" },
-    fields: [
-      { name: "leadId", label: "Lead", type: "relation", relation: "leads", required: true, group: "Activity" },
-      { name: "type", label: "Type", type: "select", required: true, defaultValue: "note", options: ["call", "email", "meeting", "note", "status_change", "assignment"].map((value) => ({ value, label: value.replace("_", " ") })), group: "Activity" },
-      { name: "subject", label: "Subject", type: "text", group: "Activity" },
-      { name: "details", label: "Details", type: "textarea", wide: true, group: "Activity" },
-      { name: "occurredAt", label: "Date and time", type: "datetime", required: true, group: "Activity", defaultValue: new Date().toISOString() },
-      { name: "nextActionAt", label: "Next action", type: "datetime", group: "Activity" },
+    key: "lead-activities",
+    label: "Lead activities",
+    singular: "Activity",
+    description: "Calls, emails, meetings and internal notes.",
+    searchColumns: ["subject", "details"],
+    tableColumns: [
+      { key: "subject", label: "Activity" },
+      { key: "type", label: "Type" },
+      { key: "occurredAt", label: "Occurred" },
     ],
-    schema: recordSchema({ leadId: z.uuid(), type: z.enum(["call", "email", "meeting", "note", "status_change", "assignment"]), subject: z.string().trim().max(300), details: z.string().trim().max(10000), occurredAt: z.string().datetime(), nextActionAt: z.string().datetime().nullable() }),
+    orderBy: { column: "occurredAt", direction: "desc" },
+    fields: [
+      {
+        name: "leadId",
+        label: "Lead",
+        type: "relation",
+        relation: "leads",
+        required: true,
+        group: "Activity",
+      },
+      {
+        name: "type",
+        label: "Type",
+        type: "select",
+        required: true,
+        defaultValue: "note",
+        options: [
+          "call",
+          "email",
+          "meeting",
+          "note",
+          "status_change",
+          "assignment",
+        ].map((value) => ({ value, label: value.replace("_", " ") })),
+        group: "Activity",
+      },
+      { name: "subject", label: "Subject", type: "text", group: "Activity" },
+      {
+        name: "details",
+        label: "Details",
+        type: "textarea",
+        wide: true,
+        group: "Activity",
+      },
+      {
+        name: "occurredAt",
+        label: "Date and time",
+        type: "datetime",
+        required: true,
+        group: "Activity",
+        defaultValue: new Date().toISOString(),
+      },
+      {
+        name: "nextActionAt",
+        label: "Next action",
+        type: "datetime",
+        group: "Activity",
+      },
+    ],
+    schema: recordSchema({
+      leadId: z.uuid(),
+      type: z.enum([
+        "call",
+        "email",
+        "meeting",
+        "note",
+        "status_change",
+        "assignment",
+      ]),
+      subject: z.string().trim().max(300),
+      details: z.string().trim().max(10000),
+      occurredAt: z.string().datetime(),
+      nextActionAt: z.string().datetime().nullable(),
+    }),
   },
   "follow-ups": {
-    key: "follow-ups", label: "Follow-ups", singular: "Follow-up", description: "Assigned next actions and overdue work.",
-    searchColumns: ["title", "description"], tableColumns: [{ key: "title", label: "Task" }, { key: "status", label: "Status" }, { key: "priority", label: "Priority" }, { key: "dueAt", label: "Due" }], orderBy: { column: "dueAt", direction: "asc" },
-    fields: [
-      { name: "leadId", label: "Lead", type: "relation", relation: "leads", required: true, group: "Follow-up" },
-      { name: "title", label: "Task", type: "text", required: true, group: "Follow-up" },
-      { name: "description", label: "Details", type: "textarea", wide: true, group: "Follow-up" },
-      { name: "dueAt", label: "Due date", type: "datetime", required: true, group: "Follow-up" },
-      { name: "status", label: "Status", type: "select", required: true, defaultValue: "pending", options: [{ value: "pending", label: "Pending" }, { value: "completed", label: "Completed" }, { value: "cancelled", label: "Cancelled" }], group: "Follow-up" },
-      { name: "priority", label: "Priority", type: "select", required: true, defaultValue: "normal", options: ["low", "normal", "high", "urgent"].map((value) => ({ value, label: value })), group: "Follow-up" },
-      { name: "assignedToId", label: "Assigned to", type: "relation", relation: "users", group: "Assignment" },
-      { name: "teamId", label: "Team", type: "relation", relation: "teams", group: "Assignment" },
+    key: "follow-ups",
+    label: "Follow-ups",
+    singular: "Follow-up",
+    description: "Assigned next actions and overdue work.",
+    searchColumns: ["title", "description"],
+    tableColumns: [
+      { key: "title", label: "Task" },
+      { key: "status", label: "Status" },
+      { key: "priority", label: "Priority" },
+      { key: "dueAt", label: "Due" },
     ],
-    schema: recordSchema({ leadId: z.uuid(), title: z.string().trim().min(1).max(300), description: z.string().trim().max(10000), dueAt: z.string().datetime(), status: z.enum(["pending", "completed", "cancelled"]), priority: z.enum(["low", "normal", "high", "urgent"]), assignedToId: optionalUuid, teamId: optionalUuid }),
+    orderBy: { column: "dueAt", direction: "asc" },
+    fields: [
+      {
+        name: "leadId",
+        label: "Lead",
+        type: "relation",
+        relation: "leads",
+        required: true,
+        group: "Follow-up",
+      },
+      {
+        name: "title",
+        label: "Task",
+        type: "text",
+        required: true,
+        group: "Follow-up",
+      },
+      {
+        name: "description",
+        label: "Details",
+        type: "textarea",
+        wide: true,
+        group: "Follow-up",
+      },
+      {
+        name: "dueAt",
+        label: "Due date",
+        type: "datetime",
+        required: true,
+        group: "Follow-up",
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        required: true,
+        defaultValue: "pending",
+        options: [
+          { value: "pending", label: "Pending" },
+          { value: "completed", label: "Completed" },
+          { value: "cancelled", label: "Cancelled" },
+        ],
+        group: "Follow-up",
+      },
+      {
+        name: "priority",
+        label: "Priority",
+        type: "select",
+        required: true,
+        defaultValue: "normal",
+        options: ["low", "normal", "high", "urgent"].map((value) => ({
+          value,
+          label: value,
+        })),
+        group: "Follow-up",
+      },
+      {
+        name: "assignedToId",
+        label: "Assigned to",
+        type: "relation",
+        relation: "users",
+        group: "Assignment",
+      },
+      {
+        name: "teamId",
+        label: "Team",
+        type: "relation",
+        relation: "teams",
+        group: "Assignment",
+      },
+    ],
+    schema: recordSchema({
+      leadId: z.uuid(),
+      title: z.string().trim().min(1).max(300),
+      description: z.string().trim().max(10000),
+      dueAt: z.string().datetime(),
+      status: z.enum(["pending", "completed", "cancelled"]),
+      priority: z.enum(["low", "normal", "high", "urgent"]),
+      assignedToId: optionalUuid,
+      teamId: optionalUuid,
+    }),
   },
   "blog-categories": {
     key: "blog-categories",
     label: "Blog categories",
     singular: "Blog category",
-    description: "Saved for organisation. The public blog lists every published post and does not filter by these categories yet.",
+    description:
+      "Saved for organisation. The public blog lists every published post and does not filter by these categories yet.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -731,13 +1504,44 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "name", direction: "asc" },
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Content" },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
       { name: "imageId", label: "Image", type: "media", group: "Content" },
       { name: "metaTitle", label: "Meta title", type: "text", group: "SEO" },
-      { name: "metaDescription", label: "Meta description", type: "textarea", wide: true, group: "SEO" },
-      { name: "status", label: "Status", type: "select", group: "Publishing", defaultValue: "draft", options: publishing },
+      {
+        name: "metaDescription",
+        label: "Meta description",
+        type: "textarea",
+        wide: true,
+        group: "SEO",
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        group: "Publishing",
+        defaultValue: "draft",
+        options: publishing,
+      },
     ],
     schema: recordSchema({
       name: z.string().trim().min(1).max(200),
@@ -753,7 +1557,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "blog-tags",
     label: "Blog tags",
     singular: "Blog tag",
-    description: "Saved with posts. The public blog does not filter by tags yet.",
+    description:
+      "Saved with posts. The public blog does not filter by tags yet.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -761,9 +1566,27 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "name", direction: "asc" },
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Content" },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
     ],
     schema: recordSchema({
       name: z.string().trim().min(1).max(200),
@@ -775,7 +1598,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "gallery-albums",
     label: "Gallery albums",
     singular: "Album",
-    description: "Not shown on the public gallery. Photos on /gallery/ come from Gallery photos.",
+    description:
+      "Not shown on the public gallery. Photos on /gallery/ come from Gallery photos.",
     searchColumns: ["title", "slug"],
     tableColumns: [
       { key: "title", label: "Title" },
@@ -785,12 +1609,48 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "sortOrder", direction: "asc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Content" },
-      { name: "coverImageId", label: "Cover image", type: "media", group: "Content" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Content", defaultValue: 0 },
-      { name: "status", label: "Status", type: "select", group: "Publishing", defaultValue: "draft", options: publishing },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "coverImageId",
+        label: "Cover image",
+        type: "media",
+        group: "Content",
+      },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Content",
+        defaultValue: 0,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        group: "Publishing",
+        defaultValue: "draft",
+        options: publishing,
+      },
     ],
     schema: recordSchema({
       title: z.string().trim().min(1).max(300),
@@ -815,15 +1675,56 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "title", direction: "asc" },
     fields: [
-      { name: "title", label: "Title", type: "text", required: true, group: "Content" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Content" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Content" },
-      { name: "coverImageId", label: "Cover image", type: "media", group: "Content" },
-      { name: "documentId", label: "Document", type: "media", group: "Content" },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Content",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Content",
+      },
+      {
+        name: "coverImageId",
+        label: "Cover image",
+        type: "media",
+        group: "Content",
+      },
+      {
+        name: "documentId",
+        label: "Document",
+        type: "media",
+        group: "Content",
+      },
       { name: "version", label: "Version", type: "text", group: "Content" },
       { name: "language", label: "Language", type: "text", group: "Content" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Content", defaultValue: 0 },
-      { name: "status", label: "Status", type: "select", group: "Publishing", defaultValue: "draft", options: publishing },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Content",
+        defaultValue: 0,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        group: "Publishing",
+        defaultValue: "draft",
+        options: publishing,
+      },
     ],
     schema: recordSchema({
       title: z.string().trim().min(1).max(300),
@@ -841,7 +1742,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "forms",
     label: "Forms",
     singular: "Form",
-    description: "Stored form definitions. The public contact form is built into the site and saves each submission under Inquiries.",
+    description:
+      "Stored form definitions. The public contact form is built into the site and saves each submission under Inquiries.",
     searchColumns: ["name", "slug"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -850,13 +1752,54 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "name", direction: "asc" },
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, group: "Form" },
-      { name: "slug", label: "Slug", type: "slug", required: true, group: "Form" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Form" },
-      { name: "submitLabel", label: "Submit label", type: "text", group: "Form", defaultValue: "Submit" },
-      { name: "successMessage", label: "Success message", type: "textarea", wide: true, group: "Form" },
-      { name: "notificationEmail", label: "Notification email", type: "text", group: "Form" },
-      { name: "isActive", label: "Active", type: "checkbox", group: "Form", defaultValue: true },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Form",
+      },
+      {
+        name: "slug",
+        label: "Slug",
+        type: "slug",
+        required: true,
+        group: "Form",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Form",
+      },
+      {
+        name: "submitLabel",
+        label: "Submit label",
+        type: "text",
+        group: "Form",
+        defaultValue: "Submit",
+      },
+      {
+        name: "successMessage",
+        label: "Success message",
+        type: "textarea",
+        wide: true,
+        group: "Form",
+      },
+      {
+        name: "notificationEmail",
+        label: "Notification email",
+        type: "text",
+        group: "Form",
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        group: "Form",
+        defaultValue: true,
+      },
     ],
     schema: recordSchema({
       name: z.string().trim().min(1).max(200),
@@ -890,7 +1833,13 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         group: "Redirect",
         help: "Old public path, such as /old-page/.",
       },
-      { name: "toPath", label: "To", type: "text", required: true, group: "Redirect" },
+      {
+        name: "toPath",
+        label: "To",
+        type: "text",
+        required: true,
+        group: "Redirect",
+      },
       {
         name: "statusCode",
         label: "Status",
@@ -903,8 +1852,20 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
           { value: "302", label: "302 temporary" },
         ],
       },
-      { name: "note", label: "Note", type: "text", wide: true, group: "Redirect" },
-      { name: "active", label: "Active", type: "checkbox", group: "Redirect", defaultValue: true },
+      {
+        name: "note",
+        label: "Note",
+        type: "text",
+        wide: true,
+        group: "Redirect",
+      },
+      {
+        name: "active",
+        label: "Active",
+        type: "checkbox",
+        group: "Redirect",
+        defaultValue: true,
+      },
     ],
     schema: recordSchema({
       fromPath: z.string().trim().min(1).max(500),
@@ -918,7 +1879,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "nav-links",
     label: "Navigation",
     singular: "Link",
-    description: "Header and footer links. For the Products hover list, use Site → Products menu.",
+    description:
+      "Header and footer links. For the Products hover list, use Site → Products menu.",
     searchColumns: ["label", "href"],
     tableColumns: [
       { key: "label", label: "Label" },
@@ -941,9 +1903,22 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
           { value: "footer", label: "Footer" },
         ],
       },
-      { name: "label", label: "Label", type: "text", required: true, group: "Link" },
+      {
+        name: "label",
+        label: "Label",
+        type: "text",
+        required: true,
+        group: "Link",
+      },
       { name: "itemSlug", label: "Slug", type: "slug", group: "Link" },
-      { name: "href", label: "URL", type: "text", required: true, group: "Link", help: "/products/ or a full https URL." },
+      {
+        name: "href",
+        label: "URL",
+        type: "text",
+        required: true,
+        group: "Link",
+        help: "/products/ or a full https URL.",
+      },
       {
         name: "itemType",
         label: "Type",
@@ -962,11 +1937,41 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
           { value: "custom_url", label: "Custom URL" },
         ],
       },
-      { name: "referenceId", label: "Reference ID", type: "text", group: "Link", help: "Target entity UUID when type is not custom URL." },
-      { name: "parentId", label: "Parent link", type: "relation", relation: "nav-links", group: "Link" },
-      { name: "sortOrder", label: "Sort order", type: "number", group: "Link", defaultValue: 0 },
-      { name: "isActive", label: "Active", type: "checkbox", group: "Link", defaultValue: true },
-      { name: "openInNewTab", label: "Open in a new tab", type: "checkbox", group: "Link", defaultValue: false },
+      {
+        name: "referenceId",
+        label: "Reference ID",
+        type: "text",
+        group: "Link",
+        help: "Target entity UUID when type is not custom URL.",
+      },
+      {
+        name: "parentId",
+        label: "Parent link",
+        type: "relation",
+        relation: "nav-links",
+        group: "Link",
+      },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "number",
+        group: "Link",
+        defaultValue: 0,
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        group: "Link",
+        defaultValue: true,
+      },
+      {
+        name: "openInNewTab",
+        label: "Open in a new tab",
+        type: "checkbox",
+        group: "Link",
+        defaultValue: false,
+      },
     ],
     schema: recordSchema({
       location: z.enum(["header", "footer", "products"]),
@@ -985,7 +1990,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "users",
     label: "Users",
     singular: "User",
-    description: "Super Admins manage account access, role level, and granular permissions.",
+    description:
+      "Super Admins manage account access, role level, and granular permissions.",
     searchColumns: ["name", "email"],
     tableColumns: [
       { key: "name", label: "Name" },
@@ -996,8 +2002,20 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "name", direction: "asc" },
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, group: "Account" },
-      { name: "email", label: "Email", type: "text", required: true, group: "Account" },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        group: "Account",
+      },
+      {
+        name: "email",
+        label: "Email",
+        type: "text",
+        required: true,
+        group: "Account",
+      },
       {
         name: "systemRole",
         label: "Authority level",
@@ -1033,14 +2051,26 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         options: [
           { value: "cms.pages.manage", label: "Pages and location pages" },
           { value: "cms.catalogue.manage", label: "Products and categories" },
-          { value: "cms.content.manage", label: "Posts, galleries, certificates, catalogues and forms" },
+          {
+            value: "cms.content.manage",
+            label: "Posts, galleries, certificates, catalogues and forms",
+          },
           { value: "cms.navigation.manage", label: "Navigation and redirects" },
-          { value: "cms.settings.manage", label: "Site, header, footer, contact and home settings" },
+          {
+            value: "cms.settings.manage",
+            label: "Site, header, footer, contact and home settings",
+          },
           { value: "media.manage", label: "Media library and uploads" },
           { value: "inquiries.view", label: "View enquiries" },
           { value: "inquiries.manage", label: "Manage enquiries" },
-          { value: "crm.customers.view", label: "View customers and companies" },
-          { value: "crm.customers.manage", label: "Manage customers and companies" },
+          {
+            value: "crm.customers.view",
+            label: "View customers and companies",
+          },
+          {
+            value: "crm.customers.manage",
+            label: "Manage customers and companies",
+          },
           { value: "crm.leads.view", label: "View sales leads" },
           { value: "crm.leads.manage", label: "Manage sales leads" },
           { value: "crm.activities.manage", label: "Manage lead activities" },
@@ -1049,9 +2079,18 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
           { value: "crm.reports.view", label: "View CRM reports" },
           { value: "quotations.view", label: "View quotations" },
           { value: "quotations.create", label: "Create quotations" },
-          { value: "quotations.edit", label: "Edit quotation drafts and revisions" },
-          { value: "quotations.submit", label: "Submit quotations for approval" },
-          { value: "quotations.approve", label: "Approve or reject quotations" },
+          {
+            value: "quotations.edit",
+            label: "Edit quotation drafts and revisions",
+          },
+          {
+            value: "quotations.submit",
+            label: "Submit quotations for approval",
+          },
+          {
+            value: "quotations.approve",
+            label: "Approve or reject quotations",
+          },
           { value: "quotations.send", label: "Send approved quotations" },
           { value: "users.manage", label: "Manage users" },
           { value: "teams.manage", label: "Manage teams" },
@@ -1086,33 +2125,37 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       email: z.email("Enter a valid email."),
       systemRole: z.enum(["super_admin", "admin", "staff"]),
       status: z.enum(["active", "inactive"]),
-      permissionOverrides: z.array(z.enum([
-        "cms.pages.manage",
-        "cms.catalogue.manage",
-        "cms.content.manage",
-        "cms.navigation.manage",
-        "cms.settings.manage",
-        "media.manage",
-        "inquiries.view",
-        "inquiries.manage",
-        "crm.customers.view",
-        "crm.customers.manage",
-        "crm.leads.view",
-        "crm.leads.manage",
-        "crm.activities.manage",
-        "crm.tasks.manage",
-        "crm.assign",
-        "crm.reports.view",
-        "quotations.view",
-        "quotations.create",
-        "quotations.edit",
-        "quotations.submit",
-        "quotations.approve",
-        "quotations.send",
-        "users.manage",
-        "teams.manage",
-        "audit.view",
-      ])).max(30),
+      permissionOverrides: z
+        .array(
+          z.enum([
+            "cms.pages.manage",
+            "cms.catalogue.manage",
+            "cms.content.manage",
+            "cms.navigation.manage",
+            "cms.settings.manage",
+            "media.manage",
+            "inquiries.view",
+            "inquiries.manage",
+            "crm.customers.view",
+            "crm.customers.manage",
+            "crm.leads.view",
+            "crm.leads.manage",
+            "crm.activities.manage",
+            "crm.tasks.manage",
+            "crm.assign",
+            "crm.reports.view",
+            "quotations.view",
+            "quotations.create",
+            "quotations.edit",
+            "quotations.submit",
+            "quotations.approve",
+            "quotations.send",
+            "users.manage",
+            "teams.manage",
+            "audit.view",
+          ]),
+        )
+        .max(30),
       crmVisibility: z.enum(["own", "assigned", "team", "all"]),
       password: z.string().max(200),
     }),
@@ -1121,7 +2164,8 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     key: "teams",
     label: "Teams",
     singular: "Team",
-    description: "Department groups used for responsibility and future sales/content workflow ownership.",
+    description:
+      "Department groups used for responsibility and future sales/content workflow ownership.",
     searchColumns: ["name", "description"],
     tableColumns: [
       { key: "name", label: "Team" },
@@ -1130,10 +2174,35 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
     ],
     orderBy: { column: "name", direction: "asc" },
     fields: [
-      { name: "name", label: "Team name", type: "text", required: true, group: "Team" },
-      { name: "description", label: "Description", type: "textarea", wide: true, group: "Team" },
-      { name: "isActive", label: "Active", type: "checkbox", group: "Team", defaultValue: true },
-      { name: "memberIds", label: "Members", type: "relationMany", relation: "users", wide: true, group: "Members" },
+      {
+        name: "name",
+        label: "Team name",
+        type: "text",
+        required: true,
+        group: "Team",
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea",
+        wide: true,
+        group: "Team",
+      },
+      {
+        name: "isActive",
+        label: "Active",
+        type: "checkbox",
+        group: "Team",
+        defaultValue: true,
+      },
+      {
+        name: "memberIds",
+        label: "Members",
+        type: "relationMany",
+        relation: "users",
+        wide: true,
+        group: "Members",
+      },
     ],
     schema: recordSchema({
       name: z.string().trim().min(1).max(120),
@@ -1156,7 +2225,15 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       { key: "size", label: "Size" },
     ],
     orderBy: { column: "createdAt", direction: "desc" },
-    fields: [{ name: "alt", label: "Alt text", type: "text", wide: true, group: "File" }],
+    fields: [
+      {
+        name: "alt",
+        label: "Alt text",
+        type: "text",
+        wide: true,
+        group: "File",
+      },
+    ],
     schema: recordSchema({
       alt: z.string().trim().max(300),
     }),
@@ -1175,7 +2252,12 @@ export function emptyValues(resource: ResourceKey) {
       continue;
     }
     if (field.type === "checkbox") values[field.name] = false;
-    else if (field.type === "mediaMany" || field.type === "relationMany" || field.type === "specs") values[field.name] = [];
+    else if (
+      field.type === "mediaMany" ||
+      field.type === "relationMany" ||
+      field.type === "specs"
+    )
+      values[field.name] = [];
     else if (field.type === "number") values[field.name] = 0;
     else values[field.name] = "";
   }
@@ -1224,13 +2306,22 @@ export function readFormData(resource: ResourceKey, formData: FormData) {
   return raw;
 }
 
-export function parseResource(resource: ResourceKey, raw: Record<string, unknown>) {
+export function parseResource(
+  resource: ResourceKey,
+  raw: Record<string, unknown>,
+) {
   const parsed = resources[resource].schema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field = issue?.path?.[0];
-    const label = resources[resource].fields.find((item) => item.name === field)?.label;
-    throw new CmsError(label ? `${label}: ${issue?.message ?? "Invalid value."}` : (issue?.message ?? "Check the form."));
+    const label = resources[resource].fields.find(
+      (item) => item.name === field,
+    )?.label;
+    throw new CmsError(
+      label
+        ? `${label}: ${issue?.message ?? "Invalid value."}`
+        : (issue?.message ?? "Check the form."),
+    );
   }
   return parsed.data;
 }

@@ -26,6 +26,8 @@ import {
   productCategories,
   sessions,
   siteSettings,
+  siteHtmlSettings,
+  siteUiSettings,
   teamMembers,
   users,
   type SpecRow,
@@ -36,9 +38,20 @@ import {
   type TestimonialItem,
   type UspItem,
 } from "@/db/schema";
-import { createSession, destroySession, hashPassword, requireSuperAdmin, requireUser, verifyPassword } from "@/lib/auth";
+import {
+  createSession,
+  destroySession,
+  hashPassword,
+  requireSuperAdmin,
+  requireUser,
+  verifyPassword,
+} from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { hasPermission, permissionForResource, requirePermission } from "@/lib/authorization";
+import {
+  hasPermission,
+  permissionForResource,
+  requirePermission,
+} from "@/lib/authorization";
 import { getRecord, tables } from "@/lib/cms/queries";
 import {
   saveContentFaqs,
@@ -50,9 +63,18 @@ import {
 import { readProductPayloadFromForm } from "@/lib/cms/parse-product-payload";
 import { readPageScalars } from "@/lib/cms/page-save";
 import { readProductScalars } from "@/lib/cms/product-save";
-import { parseResource, readFormData, resources, type ResourceKey } from "@/lib/cms/resources";
+import {
+  parseResource,
+  readFormData,
+  resources,
+  type ResourceKey,
+} from "@/lib/cms/resources";
 import { releaseRoute, reserveRoute } from "@/lib/cms/routes";
-import { normalizePath, normalizeRedirectPath, normalizeSlug } from "@/lib/paths";
+import {
+  normalizePath,
+  normalizeRedirectPath,
+  normalizeSlug,
+} from "@/lib/paths";
 import { sanitizeRichText } from "@/lib/sanitize";
 import { deleteStoredObject } from "@/lib/storage";
 
@@ -87,7 +109,14 @@ const virtualFields = new Set([
   "entityPayload",
 ]);
 
-const crmResources = new Set<ResourceKey>(["inquiries", "companies", "contacts", "leads", "lead-activities", "follow-ups"]);
+const crmResources = new Set<ResourceKey>([
+  "inquiries",
+  "companies",
+  "contacts",
+  "leads",
+  "lead-activities",
+  "follow-ups",
+]);
 const assignmentFields = ["ownerId", "assignedToId", "teamId"] as const;
 
 function adminHref(resource: string, id?: string) {
@@ -103,7 +132,8 @@ async function assertNoParentCycle(
   let current = parentId;
   const seen = new Set<string>();
   for (let depth = 0; current && depth < 12; depth += 1) {
-    if (current === id) throw new CmsError("That parent would put this item inside itself.");
+    if (current === id)
+      throw new CmsError("That parent would put this item inside itself.");
     if (seen.has(current)) break;
     seen.add(current);
     const [row] = await tx
@@ -115,7 +145,10 @@ async function assertNoParentCycle(
   }
 }
 
-export async function saveResourceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveResourceAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const resource = String(formData.get("resource") ?? "") as ResourceKey;
   const existingId = String(formData.get("id") ?? "");
   if (!resources[resource]) return { error: "Unknown section." };
@@ -135,8 +168,16 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
           ? (readPageScalars(formData) as Record<string, unknown>)
           : readFormData(resource, formData);
     if (typeof raw.slug === "string") raw.slug = normalizeSlug(raw.slug);
-    if (typeof raw.path === "string") raw.path = normalizePath(raw.path);
-    const data = resource === "products" || resource === "pages" ? raw : parseResource(resource, raw);
+    if (typeof raw.path === "string") {
+      raw.path =
+        resource === "page-html"
+          ? normalizeRedirectPath(raw.path)
+          : normalizePath(raw.path);
+    }
+    const data =
+      resource === "products" || resource === "pages"
+        ? raw
+        : parseResource(resource, raw);
     const row: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(data)) {
@@ -162,7 +203,12 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
         row[key] = sanitizeRichText(value);
         continue;
       }
-      if (resources[resource].fields.some((field) => field.name === key && field.type === "richtext") && typeof value === "string") {
+      if (
+        resources[resource].fields.some(
+          (field) => field.name === key && field.type === "richtext",
+        ) &&
+        typeof value === "string"
+      ) {
         row[key] = sanitizeRichText(value);
         continue;
       }
@@ -175,18 +221,25 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
     if (mode === "export") row.path = `exports/${data.slug}`;
     if (typeof row.email === "string") row.email = row.email.toLowerCase();
     if ("publishedAt" in row) {
-      row.publishedAt = row.publishedAt ? new Date(String(row.publishedAt)) : null;
+      row.publishedAt = row.publishedAt
+        ? new Date(String(row.publishedAt))
+        : null;
     }
     for (const field of resources[resource].fields) {
       if (field.type === "datetime" && field.name in row) {
-        row[field.name] = row[field.name] ? new Date(String(row[field.name])) : null;
+        row[field.name] = row[field.name]
+          ? new Date(String(row[field.name]))
+          : null;
       }
     }
 
     let existingScoped: Record<string, unknown> | null = null;
     if (existingId && crmResources.has(resource)) {
       existingScoped = await getRecord(resource, existingId, actor);
-      if (!existingScoped) throw new CmsError("That CRM record is outside your allowed visibility.");
+      if (!existingScoped)
+        throw new CmsError(
+          "That CRM record is outside your allowed visibility.",
+        );
     }
     if (crmResources.has(resource) && actor.systemRole !== "super_admin") {
       const canAssign = hasPermission(actor, "crm.assign");
@@ -207,7 +260,8 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
     if (resource === "redirects") {
       row.fromPath = normalizeRedirectPath(String(data.fromPath));
       row.toPath = normalizeRedirectPath(String(data.toPath));
-      if (row.fromPath === row.toPath) throw new CmsError("The redirect has to point somewhere else.");
+      if (row.fromPath === row.toPath)
+        throw new CmsError("The redirect has to point somewhere else.");
     }
     if (Array.isArray(row.specs)) {
       row.specs = row.specs.filter((item) => {
@@ -219,9 +273,12 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
     let passwordHash: string | undefined;
     if (resource === "users") {
       const password = String(data.password ?? "");
-      if (!existingId && password.length < 8) throw new CmsError("Password must be at least 8 characters.");
-      if (existingId && password && password.length < 8) throw new CmsError("Password must be at least 8 characters.");
-      if (!existingId && !password) throw new CmsError("Set a password for the new account.");
+      if (!existingId && password.length < 8)
+        throw new CmsError("Password must be at least 8 characters.");
+      if (existingId && password && password.length < 8)
+        throw new CmsError("Password must be at least 8 characters.");
+      if (!existingId && !password)
+        throw new CmsError("Set a password for the new account.");
       if (password) passwordHash = await hashPassword(password);
     }
 
@@ -234,44 +291,84 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
     const kind = routeKinds[resource as keyof typeof routeKinds];
     let previousPath: string | undefined;
     if (existingId && kind) {
-      const [existing] = await db.select().from(table).where(eq(idColumn, existingId)).limit(1);
+      const [existing] = await db
+        .select()
+        .from(table)
+        .where(eq(idColumn, existingId))
+        .limit(1);
       const path = (existing as { path?: unknown } | undefined)?.path;
       previousPath = typeof path === "string" ? path : undefined;
     }
 
     await db.transaction(async (tx) => {
       if (resource === "users" && existingId) {
-        const [existing] = await tx.select().from(users).where(eq(users.id, existingId)).limit(1);
+        const [existing] = await tx
+          .select()
+          .from(users)
+          .where(eq(users.id, existingId))
+          .limit(1);
         if (!existing) throw new CmsError("That account no longer exists.");
-        if (existing.systemRole === "super_admin" && (row.systemRole !== "super_admin" || row.status !== "active")) {
+        if (
+          existing.systemRole === "super_admin" &&
+          (row.systemRole !== "super_admin" || row.status !== "active")
+        ) {
           const [countRow] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(users)
-            .where(sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`);
-          if ((countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one active Super Admin.");
+            .where(
+              sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`,
+            );
+          if ((countRow?.count ?? 0) <= 1)
+            throw new CmsError("Keep at least one active Super Admin.");
         }
       }
 
       if (resource === "product-categories") {
-        await assertNoParentCycle(tx, productCategories, id, (row.parentId as string | null) ?? null);
+        await assertNoParentCycle(
+          tx,
+          productCategories,
+          id,
+          (row.parentId as string | null) ?? null,
+        );
       }
       if (resource === "nav-links") {
-        await assertNoParentCycle(tx, navLinks, id, (row.parentId as string | null) ?? null);
+        await assertNoParentCycle(
+          tx,
+          navLinks,
+          id,
+          (row.parentId as string | null) ?? null,
+        );
       }
 
       const values = {
         ...row,
-        ...(crmResources.has(resource) && !existingId && resource !== "inquiries" ? { createdById: actor.id } : {}),
-        ...(resource === "follow-ups" && row.status === "completed" ? { completedAt: new Date() } : {}),
-        ...(resource === "leads" && ["won", "lost", "closed"].includes(String(row.stage)) ? { closedAt: new Date() } : {}),
-        ...(resource === "users" ? { role: row.systemRole === "super_admin" ? "admin" : "editor" } : {}),
-        ...(resource === "users" && row.status === "inactive" ? { deactivatedAt: new Date() } : {}),
+        ...(crmResources.has(resource) &&
+        !existingId &&
+        resource !== "inquiries"
+          ? { createdById: actor.id }
+          : {}),
+        ...(resource === "follow-ups" && row.status === "completed"
+          ? { completedAt: new Date() }
+          : {}),
+        ...(resource === "leads" &&
+        ["won", "lost", "closed"].includes(String(row.stage))
+          ? { closedAt: new Date() }
+          : {}),
+        ...(resource === "users"
+          ? { role: row.systemRole === "super_admin" ? "admin" : "editor" }
+          : {}),
+        ...(resource === "users" && row.status === "inactive"
+          ? { deactivatedAt: new Date() }
+          : {}),
         ...(passwordHash ? { passwordHash } : {}),
         updatedAt: new Date(),
       };
 
       if (existingId) {
-        await tx.update(table).set(values as never).where(eq(idColumn, existingId));
+        await tx
+          .update(table)
+          .set(values as never)
+          .where(eq(idColumn, existingId));
       } else {
         await tx.insert(table).values({ ...values, id } as never);
       }
@@ -296,7 +393,9 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
         const sectionsRaw = String(formData.get("_sections") ?? "");
         let sections: PageSectionPayload[] = [];
         try {
-          sections = sectionsRaw ? (JSON.parse(sectionsRaw) as PageSectionPayload[]) : [];
+          sections = sectionsRaw
+            ? (JSON.parse(sectionsRaw) as PageSectionPayload[])
+            : [];
         } catch {
           throw new CmsError("Could not read page sections.");
         }
@@ -304,12 +403,21 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
       }
 
       if (resource === "teams") {
-        const memberIds = [...new Set((data.memberIds as string[] | undefined) ?? [])];
+        const memberIds = [
+          ...new Set((data.memberIds as string[] | undefined) ?? []),
+        ];
         await tx.delete(teamMembers).where(eq(teamMembers.teamId, id));
-        if (memberIds.length) await tx.insert(teamMembers).values(memberIds.map((userId) => ({ teamId: id, userId })));
+        if (memberIds.length)
+          await tx
+            .insert(teamMembers)
+            .values(memberIds.map((userId) => ({ teamId: id, userId })));
       }
 
-      if (resource === "leads" && existingScoped && existingScoped.stage !== row.stage) {
+      if (
+        resource === "leads" &&
+        existingScoped &&
+        existingScoped.stage !== row.stage
+      ) {
         await tx.insert(leadActivities).values({
           leadId: id,
           type: "status_change",
@@ -338,16 +446,26 @@ export async function saveResourceAction(_prev: ActionState, formData: FormData)
       action: existingId ? "updated" : "created",
       entityType: resource,
       entityId: id,
-      metadata: resource === "users"
-        ? { systemRole: row.systemRole, status: row.status, crmVisibility: row.crmVisibility }
-        : crmResources.has(resource)
-          ? { ownerId: row.ownerId ?? row.assignedToId ?? null, teamId: row.teamId ?? null, stage: row.stage ?? row.status ?? null }
-          : {},
+      metadata:
+        resource === "users"
+          ? {
+              systemRole: row.systemRole,
+              status: row.status,
+              crmVisibility: row.crmVisibility,
+            }
+          : crmResources.has(resource)
+            ? {
+                ownerId: row.ownerId ?? row.assignedToId ?? null,
+                teamId: row.teamId ?? null,
+                stage: row.stage ?? row.status ?? null,
+              }
+            : {},
     });
 
-    const publicPaths = [typeof row.path === "string" ? row.path : undefined, previousPath].filter(
-      (value): value is string => Boolean(value),
-    );
+    const publicPaths = [
+      typeof row.path === "string" ? row.path : undefined,
+      previousPath,
+    ].filter((value): value is string => Boolean(value));
     if (resource === "redirects" && typeof row.fromPath === "string") {
       publicPaths.push(normalizePath(row.fromPath));
     }
@@ -381,40 +499,69 @@ export async function deleteResourceAction(formData: FormData) {
 
     const kind = routeKinds[resource as keyof typeof routeKinds];
     if (kind) {
-      const [existing] = await db.select().from(table).where(eq(idColumn, id)).limit(1);
+      const [existing] = await db
+        .select()
+        .from(table)
+        .where(eq(idColumn, id))
+        .limit(1);
       const path = (existing as { path?: unknown } | undefined)?.path;
       deletedPath = typeof path === "string" ? path : undefined;
     }
 
     await db.transaction(async (tx) => {
       if (resource === "users") {
-        if (actor.id === id) throw new CmsError("You cannot delete the account you are signed in with.");
-        const [existing] = await tx.select().from(users).where(eq(users.id, id)).limit(1);
+        if (actor.id === id)
+          throw new CmsError(
+            "You cannot delete the account you are signed in with.",
+          );
+        const [existing] = await tx
+          .select()
+          .from(users)
+          .where(eq(users.id, id))
+          .limit(1);
         if (existing?.systemRole === "super_admin") {
           const [countRow] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(users)
-            .where(sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`);
-          if (existing.status === "active" && (countRow?.count ?? 0) <= 1) throw new CmsError("Keep at least one active Super Admin.");
+            .where(
+              sql`${users.systemRole} = 'super_admin' and ${users.status} = 'active'`,
+            );
+          if (existing.status === "active" && (countRow?.count ?? 0) <= 1)
+            throw new CmsError("Keep at least one active Super Admin.");
         }
       }
 
       if (resource === "media") {
-        const [file] = await tx.select().from(media).where(eq(media.id, id)).limit(1);
-        if (file) removed.push({ storageDriver: file.storageDriver, storageKey: file.storageKey });
+        const [file] = await tx
+          .select()
+          .from(media)
+          .where(eq(media.id, id))
+          .limit(1);
+        if (file)
+          removed.push({
+            storageDriver: file.storageDriver,
+            storageKey: file.storageKey,
+          });
       }
 
       if (kind) await releaseRoute(tx, id, kind);
       await tx.delete(table).where(eq(idColumn, id));
     });
 
-    await writeAuditLog({ actorId: actor.id, action: "deleted", entityType: resource, entityId: id });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "deleted",
+      entityType: resource,
+      entityId: id,
+    });
 
     const stored = removed[0];
     if (stored) {
-      await deleteStoredObject(stored.storageDriver, stored.storageKey).catch((error) => {
-        console.error("Stored file was not removed", error);
-      });
+      await deleteStoredObject(stored.storageDriver, stored.storageKey).catch(
+        (error) => {
+          console.error("Stored file was not removed", error);
+        },
+      );
     }
   } catch (error) {
     const message = toCmsMessage(error, "delete");
@@ -433,7 +580,8 @@ export async function convertInquiryToLeadAction(formData: FormData) {
   requirePermission(actor, "inquiries.manage");
   requirePermission(actor, "crm.leads.manage");
   const visible = await getRecord("inquiries", inquiryId, actor);
-  if (!visible) throw new CmsError("That enquiry is outside your allowed visibility.");
+  if (!visible)
+    throw new CmsError("That enquiry is outside your allowed visibility.");
   const db = getDb();
   let leadId = String(visible.convertedLeadId ?? "");
   if (!leadId) {
@@ -470,16 +618,39 @@ export async function convertInquiryToLeadAction(formData: FormData) {
         title: String(visible.subject || `Enquiry from ${visible.name}`),
         description: String(visible.message ?? ""),
         stage: visible.assignedToId ? "assigned" : "new",
-        priority: (visible.priority as "low" | "normal" | "high" | "urgent") ?? "normal",
+        priority:
+          (visible.priority as "low" | "normal" | "high" | "urgent") ??
+          "normal",
         ownerId: (visible.assignedToId as string | null) ?? actor.id,
         teamId: (visible.teamId as string | null) ?? null,
-        nextFollowUpAt: visible.nextFollowUpAt ? new Date(String(visible.nextFollowUpAt)) : null,
+        nextFollowUpAt: visible.nextFollowUpAt
+          ? new Date(String(visible.nextFollowUpAt))
+          : null,
         createdById: actor.id,
       });
-      await tx.update(inquiries).set({ status: "converted", convertedLeadId: leadId, updatedAt: new Date() }).where(eq(inquiries.id, inquiryId));
-      await tx.insert(leadActivities).values({ leadId, type: "note", subject: "Lead created from website enquiry", details: String(visible.message ?? ""), createdById: actor.id });
+      await tx
+        .update(inquiries)
+        .set({
+          status: "converted",
+          convertedLeadId: leadId,
+          updatedAt: new Date(),
+        })
+        .where(eq(inquiries.id, inquiryId));
+      await tx.insert(leadActivities).values({
+        leadId,
+        type: "note",
+        subject: "Lead created from website enquiry",
+        details: String(visible.message ?? ""),
+        createdById: actor.id,
+      });
     });
-    await writeAuditLog({ actorId: actor.id, action: "converted_to_lead", entityType: "inquiries", entityId: inquiryId, metadata: { leadId } });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "converted_to_lead",
+      entityType: "inquiries",
+      entityId: inquiryId,
+      metadata: { leadId },
+    });
   }
   revalidatePath("/admin");
   redirect(`/admin/leads/${leadId}/`);
@@ -525,7 +696,10 @@ function textOrNull(formData: FormData, name: string) {
   return value ? value : null;
 }
 
-export async function saveSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveSettingsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
@@ -551,7 +725,9 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
       quoteCtaHref: formData.get("quoteCtaHref"),
     });
     if (!parsed.success) {
-      throw new CmsError(parsed.error.issues[0]?.message ?? "Check the settings form.");
+      throw new CmsError(
+        parsed.error.issues[0]?.message ?? "Check the settings form.",
+      );
     }
     const data = parsed.data;
     const db = getDb();
@@ -568,7 +744,12 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
         updatedAt: new Date(),
       })
       .where(eq(siteSettings.id, "default"));
-    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "site_settings", entityId: "default" });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "site_settings",
+      entityId: "default",
+    });
     revalidatePublicSite();
     revalidatePath("/admin/settings");
     redirect("/admin/settings/?saved=1");
@@ -660,7 +841,10 @@ const headerSchema = z.object({
   stickyHeader: z.boolean(),
 });
 
-export async function saveHeaderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveHeaderAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
@@ -676,12 +860,24 @@ export async function saveHeaderAction(_prev: ActionState, formData: FormData): 
       ctaUrl: formData.get("ctaUrl"),
       stickyHeader: formData.get("stickyHeader") === "on",
     });
-    if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the header form.");
+    if (!parsed.success)
+      throw new CmsError(
+        parsed.error.issues[0]?.message ?? "Check the header form.",
+      );
     await getDb()
       .update(headerSettings)
-      .set({ ...parsed.data, email: String(parsed.data.email), updatedAt: new Date() })
+      .set({
+        ...parsed.data,
+        email: String(parsed.data.email),
+        updatedAt: new Date(),
+      })
       .where(eq(headerSettings.id, "default"));
-    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "header_settings", entityId: "default" });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "header_settings",
+      entityId: "default",
+    });
     revalidatePublicSite();
     redirect("/admin/header/?saved=1");
   } catch (error) {
@@ -689,7 +885,10 @@ export async function saveHeaderAction(_prev: ActionState, formData: FormData): 
   }
 }
 
-export async function saveFooterAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveFooterAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
@@ -702,11 +901,18 @@ export async function saveFooterAction(_prev: ActionState, formData: FormData): 
         copyrightText: String(formData.get("copyrightText") ?? ""),
         newsletterEnabled: formData.get("newsletterEnabled") === "on",
         newsletterTitle: String(formData.get("newsletterTitle") ?? ""),
-        newsletterDescription: String(formData.get("newsletterDescription") ?? ""),
+        newsletterDescription: String(
+          formData.get("newsletterDescription") ?? "",
+        ),
         updatedAt: new Date(),
       })
       .where(eq(footerSettings.id, "default"));
-    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "footer_settings", entityId: "default" });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "footer_settings",
+      entityId: "default",
+    });
     revalidatePublicSite();
     redirect("/admin/footer/?saved=1");
   } catch (error) {
@@ -714,7 +920,10 @@ export async function saveFooterAction(_prev: ActionState, formData: FormData): 
   }
 }
 
-export async function saveContactSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveContactSettingsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
@@ -726,6 +935,11 @@ export async function saveContactSettingsAction(_prev: ActionState, formData: Fo
         description: String(formData.get("description") ?? ""),
         address: String(formData.get("address") ?? ""),
         email: String(formData.get("email") ?? ""),
+        emailSecondary: String(formData.get("emailSecondary") ?? ""),
+        detailsEyebrow: String(formData.get("detailsEyebrow") ?? ""),
+        detailsTitle: String(formData.get("detailsTitle") ?? ""),
+        formTitle: String(formData.get("formTitle") ?? ""),
+        formDescription: String(formData.get("formDescription") ?? ""),
         phone: String(formData.get("phone") ?? ""),
         whatsapp: String(formData.get("whatsapp") ?? ""),
         mapUrl: textOrNull(formData, "mapUrl"),
@@ -734,7 +948,12 @@ export async function saveContactSettingsAction(_prev: ActionState, formData: Fo
         updatedAt: new Date(),
       })
       .where(eq(contactSettings.id, "default"));
-    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "contact_settings", entityId: "default" });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "contact_settings",
+      entityId: "default",
+    });
     revalidatePublicSite();
     redirect("/admin/contact-settings/?saved=1");
   } catch (error) {
@@ -742,7 +961,74 @@ export async function saveContactSettingsAction(_prev: ActionState, formData: Fo
   }
 }
 
-export async function saveHomeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveCommonHtmlAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
+    await getDb()
+      .update(siteHtmlSettings)
+      .set({
+        commonHeaderHtml: sanitizeRichText(
+          String(formData.get("commonHeaderHtml") ?? ""),
+        ),
+        commonFooterHtml: sanitizeRichText(
+          String(formData.get("commonFooterHtml") ?? ""),
+        ),
+        updatedAt: new Date(),
+      })
+      .where(eq(siteHtmlSettings.id, "default"));
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "site_html_settings",
+      entityId: "default",
+    });
+    revalidatePublicSite();
+    redirect("/admin/common-html/?saved=1");
+  } catch (error) {
+    unstable_rethrow(error);
+    return { error: toCmsMessage(error) };
+  }
+}
+
+export async function saveSiteLabelsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const actor = await requireUser();
+    requirePermission(actor, "cms.settings.manage");
+    const { siteLabelDefaults } = await import("@/lib/site-labels");
+    const labels = Object.fromEntries(
+      Object.keys(siteLabelDefaults).map((key) => [
+        key,
+        String(formData.get(key) ?? "").trim(),
+      ]),
+    );
+    await getDb()
+      .update(siteUiSettings)
+      .set({ labels, updatedAt: new Date() })
+      .where(eq(siteUiSettings.id, "default"));
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "site_ui_settings",
+      entityId: "default",
+    });
+    revalidatePublicSite();
+    redirect("/admin/site-labels/?saved=1");
+  } catch (error) {
+    return { error: toCmsMessage(error) };
+  }
+}
+
+export async function saveHomeAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
@@ -755,7 +1041,11 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
       aboutBody: formData.get("aboutBody"),
       aboutMediaId: textOrNull(formData, "aboutMediaId"),
       aboutPillars: readJson<WhyItem[]>(formData, "aboutPillars", []),
-      showcaseCategoryPaths: readJson<string[]>(formData, "showcaseCategoryPaths", []),
+      showcaseCategoryPaths: readJson<string[]>(
+        formData,
+        "showcaseCategoryPaths",
+        [],
+      ),
       featuredProductIds: readJson(formData, "featuredProductIds", []),
       whyChooseTitle: formData.get("whyChooseTitle"),
       whyChooseIntro: formData.get("whyChooseIntro"),
@@ -776,8 +1066,16 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
       customBandButtonHref: formData.get("customBandButtonHref") ?? "",
     });
 
-    await writeAuditLog({ actorId: actor.id, action: "updated", entityType: "home_content", entityId: "default" });
-    if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the home form.");
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "updated",
+      entityType: "home_content",
+      entityId: "default",
+    });
+    if (!parsed.success)
+      throw new CmsError(
+        parsed.error.issues[0]?.message ?? "Check the home form.",
+      );
     const data = parsed.data;
     const db = getDb();
     const heroes = [...new Set(data.heroMediaIds)];
@@ -793,18 +1091,28 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
           aboutTitle: data.aboutTitle,
           aboutBody: sanitizeRichText(data.aboutBody),
           aboutMediaId: data.aboutMediaId,
-          aboutPillars: data.aboutPillars.filter((item) => item.title || item.body),
+          aboutPillars: data.aboutPillars.filter(
+            (item) => item.title || item.body,
+          ),
           showcaseCategoryPaths: data.showcaseCategoryPaths.filter(Boolean),
           whyChooseTitle: data.whyChooseTitle,
           whyChooseIntro: data.whyChooseIntro,
-          whyChooseUs: data.whyChooseUs.filter((item) => item.title || item.body),
+          whyChooseUs: data.whyChooseUs.filter(
+            (item) => item.title || item.body,
+          ),
           visionTitle: data.visionTitle,
           visionBody: data.visionBody,
           missionTitle: data.missionTitle,
           missionBody: data.missionBody,
-          clientLogos: data.clientLogos.filter((item) => item.name || item.logo),
-          testimonials: data.testimonials.filter((item) => item.quote || item.author),
-          strengths: data.strengths.filter((item) => item.title || item.subtitle),
+          clientLogos: data.clientLogos.filter(
+            (item) => item.name || item.logo,
+          ),
+          testimonials: data.testimonials.filter(
+            (item) => item.quote || item.author,
+          ),
+          strengths: data.strengths.filter(
+            (item) => item.title || item.subtitle,
+          ),
           stats: data.stats.filter((item) => item.value || item.label),
           usps: data.usps.filter((item) => item.title || item.body),
           customBandTitle: data.customBandTitle,
@@ -818,13 +1126,17 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
 
       await tx.delete(homeHeroImages);
       if (heroes.length) {
-        await tx.insert(homeHeroImages).values(heroes.map((mediaId, sortOrder) => ({ mediaId, sortOrder })));
+        await tx
+          .insert(homeHeroImages)
+          .values(heroes.map((mediaId, sortOrder) => ({ mediaId, sortOrder })));
       }
       await tx.delete(homeFeaturedProducts);
       if (featured.length) {
         await tx
           .insert(homeFeaturedProducts)
-          .values(featured.map((productId, sortOrder) => ({ productId, sortOrder })));
+          .values(
+            featured.map((productId, sortOrder) => ({ productId, sortOrder })),
+          );
       }
     });
 
@@ -836,7 +1148,10 @@ export async function saveHomeAction(_prev: ActionState, formData: FormData): Pr
   }
 }
 
-export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function loginAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   let destination = "";
   try {
     const email = String(formData.get("email") ?? "")
@@ -845,19 +1160,36 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     const password = String(formData.get("password") ?? "");
     const db = getDb();
     const [user] = await db
-      .select({ id: users.id, passwordHash: users.passwordHash, status: users.status })
+      .select({
+        id: users.id,
+        passwordHash: users.passwordHash,
+        status: users.status,
+      })
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-    if (!user || user.status !== "active" || !(await verifyPassword(password, user.passwordHash))) {
+    if (
+      !user ||
+      user.status !== "active" ||
+      !(await verifyPassword(password, user.passwordHash))
+    ) {
       return { error: "Those details do not match an account." };
     }
     await db.delete(sessions).where(eq(sessions.userId, user.id));
-    await db.update(users).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(users.id, user.id));
+    await db
+      .update(users)
+      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, user.id));
     await createSession(user.id);
-    await writeAuditLog({ actorId: user.id, action: "signed_in", entityType: "session", entityId: user.id });
+    await writeAuditLog({
+      actorId: user.id,
+      action: "signed_in",
+      entityType: "session",
+      entityId: user.id,
+    });
     const next = String(formData.get("next") ?? "/admin/");
-    destination = next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin/";
+    destination =
+      next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin/";
   } catch (error) {
     unstable_rethrow(error);
     try {
@@ -874,24 +1206,40 @@ export async function logoutAction() {
   redirect("/admin/login/");
 }
 
-export async function changePasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function changePasswordAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
     const actor = await requireUser();
     const currentPassword = String(formData.get("currentPassword") ?? "");
     const newPassword = String(formData.get("newPassword") ?? "");
-    if (newPassword.length < 8) throw new CmsError("Use at least 8 characters.");
+    if (newPassword.length < 8)
+      throw new CmsError("Use at least 8 characters.");
     const db = getDb();
-    const [row] = await db.select().from(users).where(eq(users.id, actor.id)).limit(1);
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, actor.id))
+      .limit(1);
     if (!row || !(await verifyPassword(currentPassword, row.passwordHash))) {
       throw new CmsError("The current password is wrong.");
     }
     await db
       .update(users)
-      .set({ passwordHash: await hashPassword(newPassword), updatedAt: new Date() })
+      .set({
+        passwordHash: await hashPassword(newPassword),
+        updatedAt: new Date(),
+      })
       .where(eq(users.id, actor.id));
     await db.delete(sessions).where(eq(sessions.userId, actor.id));
     await createSession(actor.id);
-    await writeAuditLog({ actorId: actor.id, action: "password_changed", entityType: "user", entityId: actor.id });
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "password_changed",
+      entityType: "user",
+      entityId: actor.id,
+    });
     redirect("/admin/account/?saved=1");
   } catch (error) {
     return { error: toCmsMessage(error) };
