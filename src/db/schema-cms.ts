@@ -16,12 +16,25 @@ import {
 import { media, pages, posts, productCategories, products } from "./schema";
 
 const timestamps = {
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 };
 
-export type ProductSpecRow = { label: string; value: string; unit?: string; group?: string };
-export type TechnicalTableRow = { tableTitle: string; columns: string[]; rows: string[][] };
+export type ProductSpecRow = {
+  label: string;
+  value: string;
+  unit?: string;
+  group?: string;
+};
+export type TechnicalTableRow = {
+  tableTitle: string;
+  columns: string[];
+  rows: string[][];
+};
 export type ListingConfig = {
   layout?: string;
   productsPerPage?: number;
@@ -115,7 +128,12 @@ export const productRelationType = pgEnum("product_relation_type", [
   "upsell",
 ]);
 
-export const contentEntityKind = pgEnum("content_entity_kind", ["page", "product", "category", "post"]);
+export const contentEntityKind = pgEnum("content_entity_kind", [
+  "page",
+  "product",
+  "category",
+  "post",
+]);
 
 export const formFieldType = pgEnum("form_field_type", [
   "text",
@@ -137,9 +155,15 @@ export const headerSettings = pgTable(
   "header_settings",
   {
     id: text("id").primaryKey().default("default"),
-    logoId: uuid("logo_id").references(() => media.id, { onDelete: "set null" }),
-    mobileLogoId: uuid("mobile_logo_id").references(() => media.id, { onDelete: "set null" }),
-    faviconId: uuid("favicon_id").references(() => media.id, { onDelete: "set null" }),
+    logoId: uuid("logo_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    mobileLogoId: uuid("mobile_logo_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    faviconId: uuid("favicon_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     topBarEnabled: boolean("top_bar_enabled").notNull().default(true),
     topBarText: text("top_bar_text").notNull().default(""),
     phone: text("phone").notNull().default(""),
@@ -147,8 +171,13 @@ export const headerSettings = pgTable(
     ctaText: text("cta_text").notNull().default(""),
     ctaUrl: text("cta_url").notNull().default(""),
     stickyHeader: boolean("sticky_header").notNull().default(true),
-    mobileMenuJson: jsonb("mobile_menu_json").$type<unknown>().notNull().default(sql`'null'::jsonb`),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    mobileMenuJson: jsonb("mobile_menu_json")
+      .$type<unknown>()
+      .notNull()
+      .default(sql`'null'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [check("header_settings_singleton", sql`${t.id} = 'default'`)],
 );
@@ -157,17 +186,33 @@ export const footerSettings = pgTable(
   "footer_settings",
   {
     id: text("id").primaryKey().default("default"),
-    logoId: uuid("logo_id").references(() => media.id, { onDelete: "set null" }),
+    logoId: uuid("logo_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     description: text("description").notNull().default(""),
-    quickLinksJson: jsonb("quick_links_json").$type<{ label: string; href: string }[]>().notNull().default(sql`'[]'::jsonb`),
-    productLinksJson: jsonb("product_links_json").$type<{ label: string; href: string }[]>().notNull().default(sql`'[]'::jsonb`),
-    contactInformationJson: jsonb("contact_information_json").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
-    socialLinksJson: jsonb("social_links_json").$type<{ network: string; url: string }[]>().notNull().default(sql`'[]'::jsonb`),
+    quickLinksJson: jsonb("quick_links_json")
+      .$type<{ label: string; href: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    productLinksJson: jsonb("product_links_json")
+      .$type<{ label: string; href: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    contactInformationJson: jsonb("contact_information_json")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    socialLinksJson: jsonb("social_links_json")
+      .$type<{ network: string; url: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     newsletterEnabled: boolean("newsletter_enabled").notNull().default(false),
     newsletterTitle: text("newsletter_title").notNull().default(""),
     newsletterDescription: text("newsletter_description").notNull().default(""),
     copyrightText: text("copyright_text").notNull().default(""),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [check("footer_settings_singleton", sql`${t.id} = 'default'`)],
 );
@@ -181,6 +226,19 @@ export const contactSettings = pgTable(
     description: text("description").notNull().default(""),
     address: text("address").notNull().default(""),
     email: text("email").notNull().default(""),
+    emailSecondary: text("email_secondary")
+      .notNull()
+      .default("jyotihydraulic@gmail.com"),
+    detailsEyebrow: text("details_eyebrow").notNull().default("Reach the team"),
+    detailsTitle: text("details_title")
+      .notNull()
+      .default("We are ready to help"),
+    formTitle: text("form_title").notNull().default("Request a Quote"),
+    formDescription: text("form_description")
+      .notNull()
+      .default(
+        "Fill in the details and our team will get back to you shortly.",
+      ),
     phone: text("phone").notNull().default(""),
     whatsapp: text("whatsapp").notNull().default(""),
     mapUrl: text("map_url"),
@@ -188,9 +246,52 @@ export const contactSettings = pgTable(
     latitude: text("latitude"),
     longitude: text("longitude"),
     businessHours: text("business_hours").notNull().default(""),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [check("contact_settings_singleton", sql`${t.id} = 'default'`)],
+);
+
+export const siteHtmlSettings = pgTable(
+  "site_html_settings",
+  {
+    id: text("id").primaryKey().default("default"),
+    commonHeaderHtml: text("common_header_html").notNull().default(""),
+    commonFooterHtml: text("common_footer_html").notNull().default(""),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [check("site_html_settings_singleton", sql`${t.id} = 'default'`)],
+);
+
+export const siteUiSettings = pgTable(
+  "site_ui_settings",
+  {
+    id: text("id").primaryKey().default("default"),
+    labels: jsonb("labels")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [check("site_ui_settings_singleton", sql`${t.id} = 'default'`)],
+);
+
+export const pageHtmlOverrides = pgTable(
+  "page_html_overrides",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    path: text("path").notNull(),
+    headerHtml: text("header_html").notNull().default(""),
+    footerHtml: text("footer_html").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("page_html_overrides_path_unique").on(t.path)],
 );
 
 export const pageSections = pgTable(
@@ -198,16 +299,26 @@ export const pageSections = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     pageId: uuid("page_id").references(() => pages.id, { onDelete: "cascade" }),
-    productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
-    categoryId: uuid("category_id").references(() => productCategories.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, {
+      onDelete: "cascade",
+    }),
+    categoryId: uuid("category_id").references(() => productCategories.id, {
+      onDelete: "cascade",
+    }),
     sectionType: sectionType("section_type").notNull().default("custom"),
     title: text("title").notNull().default(""),
     subtitle: text("subtitle").notNull().default(""),
     eyebrow: text("eyebrow").notNull().default(""),
     description: text("description").notNull().default(""),
-    imageId: uuid("image_id").references(() => media.id, { onDelete: "set null" }),
-    backgroundImageId: uuid("background_image_id").references(() => media.id, { onDelete: "set null" }),
-    mobileImageId: uuid("mobile_image_id").references(() => media.id, { onDelete: "set null" }),
+    imageId: uuid("image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    backgroundImageId: uuid("background_image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    mobileImageId: uuid("mobile_image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     buttonText: text("button_text").notNull().default(""),
     buttonUrl: text("button_url").notNull().default(""),
     secondaryButtonText: text("secondary_button_text").notNull().default(""),
@@ -215,7 +326,10 @@ export const pageSections = pgTable(
     alignment: text("alignment").notNull().default(""),
     layout: text("layout").notNull().default(""),
     background: text("background").notNull().default(""),
-    customData: jsonb("custom_data").$type<SectionCustomData>().notNull().default(sql`'{}'::jsonb`),
+    customData: jsonb("custom_data")
+      .$type<SectionCustomData>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
@@ -240,7 +354,9 @@ export const productSpecifications = pgTable(
     group: text("group").notNull().default(""),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [index("product_specifications_product_idx").on(t.productId, t.sortOrder)],
+  (t) => [
+    index("product_specifications_product_idx").on(t.productId, t.sortOrder),
+  ],
 );
 
 export const productFeatures = pgTable(
@@ -252,8 +368,12 @@ export const productFeatures = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
     title: text("title").notNull().default(""),
     description: text("description").notNull().default(""),
-    iconMediaId: uuid("icon_media_id").references(() => media.id, { onDelete: "set null" }),
-    imageMediaId: uuid("image_media_id").references(() => media.id, { onDelete: "set null" }),
+    iconMediaId: uuid("icon_media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    imageMediaId: uuid("image_media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [index("product_features_product_idx").on(t.productId, t.sortOrder)],
@@ -268,10 +388,14 @@ export const productApplications = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
     title: text("title").notNull().default(""),
     description: text("description").notNull().default(""),
-    imageMediaId: uuid("image_media_id").references(() => media.id, { onDelete: "set null" }),
+    imageMediaId: uuid("image_media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [index("product_applications_product_idx").on(t.productId, t.sortOrder)],
+  (t) => [
+    index("product_applications_product_idx").on(t.productId, t.sortOrder),
+  ],
 );
 
 export const productDocuments = pgTable(
@@ -282,8 +406,12 @@ export const productDocuments = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
     title: text("title").notNull().default(""),
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
-    documentType: productDocumentType("document_type").notNull().default("other"),
+    mediaId: uuid("media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    documentType: productDocumentType("document_type")
+      .notNull()
+      .default("other"),
     description: text("description").notNull().default(""),
     version: text("version").notNull().default(""),
     documentDate: timestamp("document_date", { withTimezone: true }),
@@ -302,7 +430,9 @@ export const productOptions = pgTable(
     optionName: text("option_name").notNull().default(""),
     optionValue: text("option_value").notNull().default(""),
     description: text("description").notNull().default(""),
-    imageMediaId: uuid("image_media_id").references(() => media.id, { onDelete: "set null" }),
+    imageMediaId: uuid("image_media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [index("product_options_product_idx").on(t.productId, t.sortOrder)],
@@ -316,11 +446,19 @@ export const productTechnicalTables = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
     tableTitle: text("table_title").notNull().default(""),
-    columns: jsonb("columns").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-    rows: jsonb("rows").$type<string[][]>().notNull().default(sql`'[]'::jsonb`),
+    columns: jsonb("columns")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    rows: jsonb("rows")
+      .$type<string[][]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [index("product_technical_tables_product_idx").on(t.productId, t.sortOrder)],
+  (t) => [
+    index("product_technical_tables_product_idx").on(t.productId, t.sortOrder),
+  ],
 );
 
 export const categoryRelatedCategories = pgTable(
@@ -336,7 +474,10 @@ export const categoryRelatedCategories = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.categoryId, t.relatedCategoryId] }),
-    check("category_related_not_self", sql`${t.categoryId} <> ${t.relatedCategoryId}`),
+    check(
+      "category_related_not_self",
+      sql`${t.categoryId} <> ${t.relatedCategoryId}`,
+    ),
   ],
 );
 
@@ -347,11 +488,15 @@ export const blogCategories = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     description: text("description").notNull().default(""),
-    imageId: uuid("image_id").references(() => media.id, { onDelete: "set null" }),
+    imageId: uuid("image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
     canonicalUrl: text("canonical_url"),
-    ogImageId: uuid("og_image_id").references(() => media.id, { onDelete: "set null" }),
+    ogImageId: uuid("og_image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     robotsIndex: boolean("robots_index").notNull().default(true),
     robotsFollow: boolean("robots_follow").notNull().default(true),
     status: text("status").notNull().default("draft"),
@@ -398,7 +543,9 @@ export const galleryAlbums = pgTable(
     title: text("title").notNull(),
     slug: text("slug").notNull(),
     description: text("description").notNull().default(""),
-    coverImageId: uuid("cover_image_id").references(() => media.id, { onDelete: "set null" }),
+    coverImageId: uuid("cover_image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     status: text("status").notNull().default("draft"),
     sortOrder: integer("sort_order").notNull().default(0),
     legacyId: integer("legacy_id"),
@@ -435,8 +582,12 @@ export const catalogues = pgTable(
     title: text("title").notNull(),
     slug: text("slug").notNull(),
     description: text("description").notNull().default(""),
-    coverImageId: uuid("cover_image_id").references(() => media.id, { onDelete: "set null" }),
-    documentId: uuid("document_id").references(() => media.id, { onDelete: "set null" }),
+    coverImageId: uuid("cover_image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    documentId: uuid("document_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     version: text("version").notNull().default(""),
     publishedDate: timestamp("published_date", { withTimezone: true }),
     expiryDate: timestamp("expiry_date", { withTimezone: true }),
@@ -483,8 +634,14 @@ export const cmsFormFields = pgTable(
     fieldType: formFieldType("field_type").notNull().default("text"),
     placeholder: text("placeholder").notNull().default(""),
     required: boolean("required").notNull().default(false),
-    optionsJson: jsonb("options_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-    validationJson: jsonb("validation_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    optionsJson: jsonb("options_json")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    validationJson: jsonb("validation_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
   },
@@ -502,7 +659,9 @@ export const contentFaqs = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
   },
-  (t) => [index("content_faqs_entity_idx").on(t.entityKind, t.entityId, t.sortOrder)],
+  (t) => [
+    index("content_faqs_entity_idx").on(t.entityKind, t.entityId, t.sortOrder),
+  ],
 );
 
 export const contentTables = pgTable(
@@ -512,13 +671,25 @@ export const contentTables = pgTable(
     entityKind: contentEntityKind("entity_kind").notNull(),
     entityId: uuid("entity_id").notNull(),
     title: text("title").notNull().default(""),
-    headers: jsonb("headers").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-    rows: jsonb("rows").$type<string[][]>().notNull().default(sql`'[]'::jsonb`),
+    headers: jsonb("headers")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    rows: jsonb("rows")
+      .$type<string[][]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     caption: text("caption").notNull().default(""),
     responsiveMode: text("responsive_mode").notNull().default("scroll"),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [index("content_tables_entity_idx").on(t.entityKind, t.entityId, t.sortOrder)],
+  (t) => [
+    index("content_tables_entity_idx").on(
+      t.entityKind,
+      t.entityId,
+      t.sortOrder,
+    ),
+  ],
 );
 
 export const testimonials = pgTable(
@@ -529,7 +700,9 @@ export const testimonials = pgTable(
     company: text("company").notNull().default(""),
     designation: text("designation").notNull().default(""),
     content: text("content").notNull().default(""),
-    imageId: uuid("image_id").references(() => media.id, { onDelete: "set null" }),
+    imageId: uuid("image_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     rating: integer("rating"),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
@@ -542,7 +715,9 @@ export const statCounters = pgTable(
   "stat_counters",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    sectionId: uuid("section_id").references(() => pageSections.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").references(() => pageSections.id, {
+      onDelete: "cascade",
+    }),
     number: text("number").notNull().default(""),
     suffix: text("suffix").notNull().default(""),
     label: text("label").notNull().default(""),

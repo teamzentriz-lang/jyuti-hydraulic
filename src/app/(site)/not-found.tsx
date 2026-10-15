@@ -1,23 +1,22 @@
 import Link from "next/link";
+import { getSiteLabels } from "@/lib/cms/queries";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const labels = await getSiteLabels();
   return (
     <main className="site-container missing-page">
       <p className="eyebrow dark">404</p>
-      <h1>This page is not available</h1>
-      <p>
-        The link may be out of date. Browse the product range, or send a quote
-        request and the team will point you to the right machine.
-      </p>
+      <h1>{labels.notFoundTitle}</h1>
+      <p>{labels.notFoundDescription}</p>
       <div className="missing-page__actions">
         <Link href="/" className="site-btn-outline">
-          Home
+          {labels.notFoundHomeLabel}
         </Link>
         <Link href="/products/" className="site-btn-primary">
-          Products
+          {labels.notFoundProductsLabel}
         </Link>
         <Link href="/contact/" className="site-btn-outline">
-          Contact
+          {labels.notFoundContactLabel}
         </Link>
       </div>
     </main>

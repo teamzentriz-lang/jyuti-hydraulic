@@ -239,6 +239,49 @@ html.is-navigating a[href] {
     padding-bottom: 5.75rem;
   }
 }
+.site-html-block {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 1.5rem 1rem;
+}
+.site-html-block > :first-child {
+  margin-top: 0;
+}
+.site-html-block > :last-child {
+  margin-bottom: 0;
+}
+.site-html-block h2,
+.site-html-block h3,
+.site-html-block h4 {
+  color: #062747;
+  font-weight: 700;
+  margin: 0.9rem 0 0.45rem;
+}
+.site-html-block p,
+.site-html-block li {
+  color: #526273;
+  line-height: 1.7;
+}
+.site-html-block a {
+  color: #e96b16;
+  text-decoration: underline;
+}
+.site-html-block img {
+  height: auto;
+  max-width: 100%;
+}
+.site-html-block table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.site-html-block th,
+.site-html-block td {
+  border: 1px solid #dbe3ec;
+  padding: 0.65rem;
+  text-align: left;
+}
 @media (min-width: 1024px) {
   .float-actions.is-on-dark a {
     background: #fff;
@@ -352,6 +395,29 @@ html.is-navigating a[href] {
 .rich-text a {
   color: var(--color-navy);
   text-decoration: underline;
+}
+
+.admin-ckeditor .ck.ck-editor {
+  width: 100%;
+}
+.admin-ckeditor .ck.ck-toolbar {
+  border-color: var(--color-line);
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: #f8fafc;
+}
+.admin-ckeditor .ck.ck-editor__main > .ck-editor__editable {
+  min-height: 15rem;
+  border-color: var(--color-line);
+  border-radius: 0 0 0.375rem 0.375rem;
+  color: var(--color-ink);
+  font-family: var(--font-source), sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+.admin-ckeditor
+  .ck.ck-editor__editable.ck-focused:not(.ck-editor__nested-editable) {
+  border-color: var(--color-navy);
+  box-shadow: 0 0 0 2px rgb(6 39 70 / 15%);
 }
 
 /* Shared public-page system */
@@ -1074,20 +1140,6 @@ html.is-navigating a[href] {
   margin: 0;
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.82rem;
-}
-.site-footer__legal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 1rem;
-}
-.site-footer__admin-link {
-  color: rgba(255, 255, 255, 0.7) !important;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.site-footer__admin-link:hover {
-  color: var(--color-signal) !important;
 }
 .site-footer__social {
   display: flex;

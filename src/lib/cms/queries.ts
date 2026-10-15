@@ -38,6 +38,7 @@ import {
   locationPages,
   media,
   navLinks,
+  pageHtmlOverrides,
   pages,
   posts,
   productCategories,
@@ -49,6 +50,8 @@ import {
   teamMembers,
   teams,
   users,
+  siteHtmlSettings,
+  siteUiSettings,
 } from "@/db/schema";
 import {
   defaultClients,
@@ -93,6 +96,7 @@ export const tables = {
   "nav-links": navLinks,
   users,
   teams,
+  "page-html": pageHtmlOverrides,
   media,
 } satisfies Record<ResourceKey, AnyPgTable>;
 
@@ -133,6 +137,14 @@ export async function ensureSingletons() {
       .onConflictDoNothing();
     await db
       .insert(contactSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+    await db
+      .insert(siteHtmlSettings)
+      .values({ id: "default" })
+      .onConflictDoNothing();
+    await db
+      .insert(siteUiSettings)
       .values({ id: "default" })
       .onConflictDoNothing();
   });
@@ -683,6 +695,17 @@ export async function getContactSettings() {
   });
 }
 
+export async function getSiteLabels() {
+  const { withSiteLabelDefaults } = await import("@/lib/site-labels");
+  await ensureSingletons();
+  const [row] = await getDb()
+    .select()
+    .from(siteUiSettings)
+    .where(eq(siteUiSettings.id, "default"))
+    .limit(1);
+  return withSiteLabelDefaults(row?.labels);
+}
+
 /** Published catalogue PDF URL (Catalogues admin), or Site settings catalogue file as fallback. */
 export async function getCataloguePdfUrl(): Promise<string | null> {
   try {
@@ -1217,6 +1240,7 @@ export async function dashboardSummary(
     ["nav-links", navLinks],
     ["users", users],
     ["teams", teams],
+    ["page-html", pageHtmlOverrides],
   ] as const;
 
   const counts = Object.fromEntries(

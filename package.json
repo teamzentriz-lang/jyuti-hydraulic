@@ -13,6 +13,7 @@
     "db:migrate-phase-two": "tsx scripts/migrate-phase-two.ts",
     "db:migrate-phase-three": "tsx scripts/migrate-phase-three.ts",
     "db:migrate-runtime-schema": "tsx scripts/migrate-runtime-schema.ts",
+    "db:migrate-cms-html": "tsx scripts/migrate-cms-html.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "db:verify-phase-one": "tsx scripts/verify-phase-one.ts",
@@ -36,7 +37,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1145.0",
+    "@ckeditor/ckeditor5-react": "^12.0.0",
     "bcryptjs": "^3.0.3",
+    "ckeditor5": "^49.0.0",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.8",
     "nodemailer": "^10.0.16",

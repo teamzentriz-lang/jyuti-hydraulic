@@ -1,7 +1,15 @@
 import { cache } from "react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { footerSettings, headerSettings, media, navLinks, redirects } from "@/db/schema";
+import {
+  footerSettings,
+  headerSettings,
+  media,
+  navLinks,
+  pageHtmlOverrides,
+  redirects,
+  siteHtmlSettings,
+} from "@/db/schema";
 import { storageService } from "@/lib/storage";
 import {
   getFooterSettings,
@@ -42,6 +50,16 @@ export type SiteContext = {
   footerLogo: MediaItem | null;
   headerNav: NavItem[];
   footerNav: NavItem[];
+  html: {
+    commonHeaderHtml: string;
+    commonFooterHtml: string;
+    overrides: {
+      path: string;
+      headerHtml: string;
+      footerHtml: string;
+      isActive: boolean;
+    }[];
+  };
 };
 
 function buildNavTree(
@@ -94,7 +112,8 @@ async function loadAvailableMedia(ids: string[]) {
     .where(inArray(media.id, ids));
   for (const row of rows) {
     const remote =
-      /^https?:\/\//i.test(row.url) || Boolean(row.legacyUrl && /^https?:\/\//i.test(row.legacyUrl));
+      /^https?:\/\//i.test(row.url) ||
+      Boolean(row.legacyUrl && /^https?:\/\//i.test(row.legacyUrl));
     let local = false;
     try {
       local = await storageService.exists(row.storageKey, row.storageDriver);
@@ -114,37 +133,77 @@ async function loadAvailableMedia(ids: string[]) {
 }
 
 export const getSite = cache(async (): Promise<SiteContext> => {
-  const [settings, header, footer] = await Promise.all([getSettings(), getHeaderSettings(), getFooterSettings()]);
+  const [settings, header, footer] = await Promise.all([
+    getSettings(),
+    getHeaderSettings(),
+    getFooterSettings(),
+  ]);
   const db = getDb();
+  const [htmlSettings, htmlOverrides] = await Promise.all([
+    db
+      .select()
+      .from(siteHtmlSettings)
+      .where(eq(siteHtmlSettings.id, "default"))
+      .limit(1),
+    db
+      .select()
+      .from(pageHtmlOverrides)
+      .where(eq(pageHtmlOverrides.isActive, true)),
+  ]);
   const navRows = await db
     .select()
     .from(navLinks)
     .where(eq(navLinks.isActive, true))
     .orderBy(asc(navLinks.sortOrder));
   const catalogNav = await buildCatalogNavItems(db);
-  const headerNavTree = dedupeNavRoots(buildNavTree(navRows.filter((row) => row.location === "header")));
-  const productsMenuNav = buildProductsDropdownNav(navRows, headerNavTree, catalogNav);
-  const mediaIds = [header.logoId, header.mobileLogoId, footer.logoId, settings.logoId].filter(
-    (id): id is string => Boolean(id),
+  const headerNavTree = dedupeNavRoots(
+    buildNavTree(navRows.filter((row) => row.location === "header")),
   );
+  const productsMenuNav = buildProductsDropdownNav(
+    navRows,
+    headerNavTree,
+    catalogNav,
+  );
+  const mediaIds = [
+    header.logoId,
+    header.mobileLogoId,
+    footer.logoId,
+    settings.logoId,
+  ].filter((id): id is string => Boolean(id));
   const uniqueMediaIds = [...new Set(mediaIds)];
   const mediaById = await loadAvailableMedia(uniqueMediaIds);
   const siteLogo = settings.logoId ? mediaById.get(settings.logoId) : undefined;
   const headerNav = mergeProductsNavChildren(headerNavTree, productsMenuNav);
-  const footerNav = dedupeNavRoots(buildNavTree(navRows.filter((row) => row.location === "footer")));
+  const footerNav = dedupeNavRoots(
+    buildNavTree(navRows.filter((row) => row.location === "footer")),
+  );
   return {
     settings: withBrandDefaults(settings),
     header,
     footer,
-    logo: header.logoId ? (mediaById.get(header.logoId) ?? null) : (siteLogo ?? null),
-    mobileLogo: header.mobileLogoId ? (mediaById.get(header.mobileLogoId) ?? null) : null,
+    logo: header.logoId
+      ? (mediaById.get(header.logoId) ?? null)
+      : (siteLogo ?? null),
+    mobileLogo: header.mobileLogoId
+      ? (mediaById.get(header.mobileLogoId) ?? null)
+      : null,
     footerLogo: footer.logoId ? (mediaById.get(footer.logoId) ?? null) : null,
     headerNav: headerNav.length ? headerNav : fallbackHeaderNav(catalogNav),
     footerNav: footerNav.length ? footerNav : fallbackFooterNav(catalogNav),
+    html: {
+      commonHeaderHtml: htmlSettings[0]?.commonHeaderHtml ?? "",
+      commonFooterHtml: htmlSettings[0]?.commonFooterHtml ?? "",
+      overrides: htmlOverrides,
+    },
   };
 });
 
-function navItem(id: string, label: string, href: string, children: NavItem[] = []): NavItem {
+function navItem(
+  id: string,
+  label: string,
+  href: string,
+  children: NavItem[] = [],
+): NavItem {
   return { id, label, href, openInNewTab: false, children };
 }
 
@@ -168,7 +227,9 @@ function fallbackFooterNav(catalog: NavItem[]): NavItem[] {
     navItem("footer-products", "Products", catalog[0]?.href || "/products/"),
     navItem("footer-blogs", "Blogs", publicPath("blogs")),
     navItem("footer-contact", "Contact Us", publicPath("contact")),
-    ...catalog.slice(0, 3).map((item) => navItem(`footer-${item.id}`, item.label, item.href)),
+    ...catalog
+      .slice(0, 3)
+      .map((item) => navItem(`footer-${item.id}`, item.label, item.href)),
   ];
 }
 
@@ -183,7 +244,9 @@ export async function findActiveRedirect(requestPath: string) {
   return row ?? null;
 }
 
-export async function resolvePublishedContent(pathSegments: string[]): Promise<PublishedContent | null> {
+export async function resolvePublishedContent(
+  pathSegments: string[],
+): Promise<PublishedContent | null> {
   const path = normalizePath(pathSegments.join("/"));
   if (!path) return null;
 

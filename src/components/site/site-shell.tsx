@@ -5,10 +5,13 @@ import { NavList } from "@/components/site/nav-list";
 import { NewsletterForm } from "@/components/site/newsletter-form";
 import { SiteHeader } from "@/components/site/site-header";
 import { WhatsAppFloat } from "@/components/site/whatsapp-float";
+import { PageHtmlBlock } from "@/components/site/page-html-block";
 
 import type { SiteContext } from "@/lib/cms/site";
 
 import { publicPath } from "@/lib/paths";
+import { mediaDeliveryUrl } from "@/lib/media-url";
+import { getSiteLabels } from "@/lib/cms/queries";
 
 function socialLinks(site: SiteContext) {
   const fromFooter = site.footer.socialLinksJson.filter((item) =>
@@ -38,14 +41,26 @@ function SocialMark({ network }: { network: string }) {
   const name = network.toLowerCase();
   if (name.includes("youtube")) {
     return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden
+      >
         <path d="M23 12.2s0-3.2-.4-4.6c-.2-.9-.9-1.6-1.8-1.8C19.2 5.4 12 5.4 12 5.4s-7.2 0-8.8.4c-.9.2-1.6.9-1.8 1.8C1 9 1 12.2 1 12.2s0 3.2.4 4.6c.2.9.9 1.6 1.8 1.8 1.6.4 8.8.4 8.8.4s7.2 0 8.8-.4c.9-.2 1.6-.9 1.8-1.8.4-1.4.4-4.6.4-4.6ZM9.8 15.5v-6.6l6.2 3.3-6.2 3.3Z" />
       </svg>
     );
   }
   if (name.includes("facebook")) {
     return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden
+      >
         <path d="M14.5 8.5V6.8c0-.7.5-1 1.2-1H17V3h-2.1C12.2 3 11 4.4 11 6.6v1.9H9v2.8h2V21h3.5v-9.7h2.3l.4-2.8h-2.7Z" />
       </svg>
     );
@@ -53,7 +68,15 @@ function SocialMark({ network }: { network: string }) {
   if (name.includes("instagram")) {
     return (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="2" />
+        <rect
+          x="4"
+          y="4"
+          width="16"
+          height="16"
+          rx="4"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
         <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="2" />
         <circle cx="17.2" cy="6.8" r="1" fill="currentColor" />
       </svg>
@@ -61,7 +84,13 @@ function SocialMark({ network }: { network: string }) {
   }
   if (name.includes("linkedin")) {
     return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden
+      >
         <path d="M6.5 9H4V20h2.5V9ZM5.2 4C4.3 4 3.6 4.7 3.6 5.6S4.3 7.2 5.2 7.2 6.8 6.5 6.8 5.6 6.1 4 5.2 4ZM20 20h-2.5v-5.6c0-1.6-.6-2.6-2-2.6-1 0-1.6.7-1.9 1.4-.1.2-.1.6-.1.9V20H11V9h2.4v1.5c.4-.7 1.3-1.8 3.2-1.8 2.3 0 4 1.5 4 4.8V20Z" />
       </svg>
     );
@@ -69,22 +98,16 @@ function SocialMark({ network }: { network: string }) {
   return <span>{network.slice(0, 1)}</span>;
 }
 
-export function SiteShell({
+export async function SiteShell({
   site,
   children,
 }: {
   site: SiteContext;
   children: React.ReactNode;
 }) {
-  const {
-    settings,
-    header,
-    footer,
-    logo,
-    mobileLogo,
-    headerNav,
-    footerNav,
-  } = site;
+  const labels = await getSiteLabels();
+  const { settings, header, footer, logo, mobileLogo, headerNav, footerNav } =
+    site;
 
   const topEmail = header.email?.trim() || settings.emailPrimary;
 
@@ -95,8 +118,14 @@ export function SiteShell({
   const quoteHref = header.ctaUrl?.trim() || settings.quoteCtaHref;
 
   const footerBlurb = footer.description?.trim() || settings.footerText;
+  const footerLogo = site.footerLogo ?? site.logo;
+  const footerLogoUrl = footerLogo
+    ? mediaDeliveryUrl(footerLogo)
+    : "/brand/logo.jpg";
+  const footerLogoAlt = footerLogo?.alt || settings.companyName;
 
-  const storedCopyright = footer.copyrightText?.trim() || settings.copyrightText?.trim() || "";
+  const storedCopyright =
+    footer.copyrightText?.trim() || settings.copyrightText?.trim() || "";
   const copyright =
     storedCopyright && !/by\s*$/i.test(storedCopyright)
       ? storedCopyright
@@ -106,89 +135,118 @@ export function SiteShell({
   const announcement = header.topBarText?.trim() ?? "";
   const repeatsContact =
     (topEmail && announcement.includes(topEmail)) ||
-    (topPhone && announcement.replace(/\s/g, "").includes(topPhone.replace(/\s/g, "")));
+    (topPhone &&
+      announcement.replace(/\s/g, "").includes(topPhone.replace(/\s/g, "")));
 
   return (
     <div className="public-site min-h-screen bg-white text-ink">
       <div className={header.stickyHeader ? "site-header-stack" : undefined}>
-      {header.topBarEnabled !== false ? (
-        <div className="hidden border-b border-line bg-navy text-xs text-white/90 lg:block">
-          <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-2 lg:px-6">
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              {!repeatsContact && announcement ? <span>{announcement}</span> : null}
+        {header.topBarEnabled !== false ? (
+          <div className="hidden border-b border-line bg-navy text-xs text-white/90 lg:block">
+            <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-2 lg:px-6">
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {!repeatsContact && announcement ? (
+                  <span>{announcement}</span>
+                ) : null}
 
-              {topEmail ? (
-                <a
-                  href={`mailto:${topEmail}`}
-                  className="transition hover:text-signal"
-                >
-                  {topEmail}
-                </a>
-              ) : null}
+                {topEmail ? (
+                  <a
+                    href={`mailto:${topEmail}`}
+                    className="transition hover:text-signal"
+                  >
+                    {topEmail}
+                  </a>
+                ) : null}
 
-              {topEmail && topPhone ? <span className="text-white/35" aria-hidden>|</span> : null}
+                {topEmail && topPhone ? (
+                  <span className="text-white/35" aria-hidden>
+                    |
+                  </span>
+                ) : null}
 
-              {topPhone ? (
-                <a
-                  href={`tel:${topPhone.replace(/\s/g, "")}`}
-                  className="transition hover:text-signal"
-                >
-                  {topPhone}
-                </a>
-              ) : null}
-            </p>
+                {topPhone ? (
+                  <a
+                    href={`tel:${topPhone.replace(/\s/g, "")}`}
+                    className="transition hover:text-signal"
+                  >
+                    {topPhone}
+                  </a>
+                ) : null}
+              </p>
 
-            <Link href={publicPath(quoteHref)} className="top-quote">
-              {quoteLabel}
-            </Link>
+              <Link href={publicPath(quoteHref)} className="top-quote">
+                {quoteLabel}
+              </Link>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <SiteHeader
-        companyName={settings.companyName}
+        <SiteHeader
+          companyName={settings.companyName}
 
-        logo={logo}
+          logo={logo}
 
-        mobileLogo={mobileLogo}
+          mobileLogo={mobileLogo}
 
-        nav={headerNav}
+          nav={headerNav}
 
-        phone={topPhone}
+          phone={topPhone}
 
-        quoteLabel={quoteLabel}
+          quoteLabel={quoteLabel}
 
-        quoteHref={quoteHref}
+          quoteHref={quoteHref}
 
-        sticky={false}
-      />
+          sticky={false}
+        />
       </div>
+
+      <PageHtmlBlock
+        position="header"
+        commonHtml={site.html.commonHeaderHtml}
+        overrides={site.html.overrides}
+      />
 
       {children}
 
+      <PageHtmlBlock
+        position="footer"
+        commonHtml={site.html.commonFooterHtml}
+        overrides={site.html.overrides}
+      />
+
       {settings.whatsapp ? (
-        <WhatsAppFloat href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}`} />
+        <WhatsAppFloat
+          href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}`}
+        />
       ) : null}
 
       <footer className="site-footer">
         <div className="site-container site-footer__main">
           <div className="site-footer__brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.jpg" alt={settings.companyName} className="site-footer__logo" />
+            <img
+              src={footerLogoUrl}
+              alt={footerLogoAlt}
+              className="site-footer__logo"
+            />
             <p>{footerBlurb}</p>
           </div>
 
           <div>
-            <h2>Links</h2>
+            <h2>{labels.footerLinksTitle}</h2>
             {footerNav.length ? (
               <nav aria-label="Footer">
-                <NavList items={footerNav} variant="footer" className="site-footer__links" />
+                <NavList
+                  items={footerNav}
+                  variant="footer"
+                  className="site-footer__links"
+                />
               </nav>
             ) : null}
           </div>
 
           <div>
-            <h2>Contact</h2>
+            <h2>{labels.footerContactTitle}</h2>
             <ul className="site-footer__contact">
               {settings.address ? (
                 <li>
@@ -201,10 +259,14 @@ export function SiteShell({
                   <span aria-hidden>✉</span>
                   <p>
                     {settings.emailSecondary ? (
-                      <a href={`mailto:${settings.emailSecondary}`}>{settings.emailSecondary}</a>
+                      <a href={`mailto:${settings.emailSecondary}`}>
+                        {settings.emailSecondary}
+                      </a>
                     ) : null}
                     {settings.emailPrimary ? (
-                      <a href={`mailto:${settings.emailPrimary}`}>{settings.emailPrimary}</a>
+                      <a href={`mailto:${settings.emailPrimary}`}>
+                        {settings.emailPrimary}
+                      </a>
                     ) : null}
                   </p>
                 </li>
@@ -213,7 +275,9 @@ export function SiteShell({
                 <li>
                   <span aria-hidden>☎</span>
                   <p>
-                    <a href={`tel:${settings.phonePrimary.replace(/\s/g, "")}`}>{settings.phonePrimary}</a>
+                    <a href={`tel:${settings.phonePrimary.replace(/\s/g, "")}`}>
+                      {settings.phonePrimary}
+                    </a>
                   </p>
                 </li>
               ) : null}
@@ -223,22 +287,21 @@ export function SiteShell({
           {footer.newsletterEnabled ? (
             <div className="site-footer__news">
               <h2>
-                {/[aeiou]/i.test((footer.newsletterTitle ?? "").replace(/[^a-z]/gi, ""))
+                {/[aeiou]/i.test(
+                  (footer.newsletterTitle ?? "").replace(/[^a-z]/gi, ""),
+                )
                   ? footer.newsletterTitle
-                  : "Newsletter"}
+                  : labels.footerNewsletterTitle}
               </h2>
-              {footer.newsletterDescription ? <p>{footer.newsletterDescription}</p> : null}
+              {footer.newsletterDescription ? (
+                <p>{footer.newsletterDescription}</p>
+              ) : null}
               <NewsletterForm />
             </div>
           ) : null}
         </div>
         <div className="site-container site-footer__bar">
-          <div className="site-footer__legal">
-            <p>{copyright}</p>
-            <Link href="/admin/login/" className="site-footer__admin-link">
-              Admin Login
-            </Link>
-          </div>
+          <p>{copyright}</p>
           {social.length ? (
             <div className="site-footer__social">
               {social.map((item) => (

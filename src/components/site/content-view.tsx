@@ -13,7 +13,6 @@ import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
 import type { MediaItem } from "@/lib/cms/queries";
 
 type CatalogueCard = {
@@ -39,7 +38,11 @@ export function ContentView({
 }) {
   if (content.kind === "product") return <ProductDetail content={content} />;
   if (content.kind === "category") return <CategoryListing content={content} />;
-  if (content.kind === "post" || content.kind === "location" || content.kind === "export") {
+  if (
+    content.kind === "post" ||
+    content.kind === "location" ||
+    content.kind === "export"
+  ) {
     return <StoryView content={content} />;
   }
   if (
@@ -295,14 +298,13 @@ export function ContentView({
           <section className="mt-12">
             <h2 className="text-xl font-semibold text-navy">Gallery</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {content.gallery
-                .map((item) => (
-                  <CmsImage
-                    key={item.id}
-                    item={item}
-                    className="aspect-[4/3] w-full rounded-lg border border-line object-cover"
-                  />
-                ))}
+              {content.gallery.map((item) => (
+                <CmsImage
+                  key={item.id}
+                  item={item}
+                  className="aspect-[4/3] w-full rounded-lg border border-line object-cover"
+                />
+              ))}
             </div>
           </section>
         ) : null}
@@ -507,7 +509,6 @@ export function ContentView({
             </ul>
           </section>
         ) : null}
-
       </div>
     </main>
   );
@@ -524,20 +525,47 @@ export function contentMetadata(
 ) {
   const title = content.seoTitle || content.title;
   const description = content.seoDescription || content.summary || undefined;
-  const url = `${siteOrigin()}${publicPath(content.path)}`;
-  const visual = content.gallery?.[0] ?? content.image ?? content.cover ?? content.hero ?? null;
+  const defaultUrl = `${siteOrigin()}${publicPath(content.path)}`;
+  const url = content.canonicalUrl?.trim() || defaultUrl;
+  const visual =
+    content.ogImage ??
+    content.gallery?.[0] ??
+    content.image ??
+    content.cover ??
+    content.hero ??
+    null;
   const image = visual ? absoluteUrl(mediaDeliveryUrl(visual)) : undefined;
+  const twitterImage = content.twitterImage
+    ? absoluteUrl(mediaDeliveryUrl(content.twitterImage))
+    : image;
+  const keywords = content.focusKeyword
+    ?.split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
   return {
     title,
     description,
+    keywords: keywords?.length ? keywords : [companyName, content.title],
     alternates: { canonical: url },
-    robots: noIndexRobots,
+    authors: [{ name: companyName, url: siteOrigin() }],
+    robots: {
+      index: content.robotsIndex ?? true,
+      follow: content.robotsFollow ?? true,
+    },
     openGraph: {
-      title,
-      description,
+      type: "website" as const,
+      title: content.ogTitle || title,
+      description: content.ogDescription || description,
       siteName: companyName,
       url,
       images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: twitterImage ? "summary_large_image" : "summary",
+      title: content.twitterTitle || content.ogTitle || title,
+      description:
+        content.twitterDescription || content.ogDescription || description,
+      images: twitterImage ? [twitterImage] : undefined,
     },
   };
 }

@@ -8,6 +8,8 @@ const allowedTags = [
   "br",
   "strong",
   "em",
+  "u",
+  "s",
   "ul",
   "ol",
   "li",

@@ -7,6 +7,7 @@ import type { MediaItem } from "@/lib/cms/queries";
 import type { NavItem } from "@/lib/cms/site";
 import { isProductsNavItem } from "@/lib/cms/product-nav";
 import { publicPath } from "@/lib/paths";
+import { mediaDeliveryUrl } from "@/lib/media-url";
 
 import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 
@@ -385,6 +386,8 @@ function TabIcon({
 
 export function SiteHeader({
   companyName,
+  logo,
+  mobileLogo,
   nav,
   phone,
   quoteLabel,
@@ -405,6 +408,8 @@ export function SiteHeader({
   const [logoFailed, setLogoFailed] = useState(false);
   const current = pathname.replace(/\/$/, "") || "/";
   const closeMenu = () => setOpen(false);
+  const desktopLogo = logo ? mediaDeliveryUrl(logo) : "/brand/logo.jpg";
+  const compactLogo = mobileLogo ? mediaDeliveryUrl(mobileLogo) : desktopLogo;
 
   useEffect(() => {
     document.body.classList.toggle("nav-open", open);
@@ -428,13 +433,17 @@ export function SiteHeader({
         >
           {!logoFailed ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/logo.jpg"
-                alt={companyName}
-                className="header-logo"
-                onError={() => setLogoFailed(true)}
-              />
+              <picture>
+                {mobileLogo ? (
+                  <source media="(max-width: 640px)" srcSet={compactLogo} />
+                ) : null}
+                <img
+                  src={desktopLogo}
+                  alt={logo?.alt || companyName}
+                  className="header-logo"
+                  onError={() => setLogoFailed(true)}
+                />
+              </picture>
             </>
           ) : (
             <span className="header-wordmark">{companyName}</span>

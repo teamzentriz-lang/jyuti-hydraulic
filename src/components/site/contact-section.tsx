@@ -16,7 +16,11 @@ function formatHours(value: string) {
 import { AboutReveal } from "@/components/site/about-reveal";
 import { QuoteForm } from "@/components/site/quote-form";
 import { withBrandDefaults } from "@/lib/brand";
-import { getContactSettings, getSettings } from "@/lib/cms/queries";
+import {
+  getContactSettings,
+  getSettings,
+  getSiteLabels,
+} from "@/lib/cms/queries";
 
 export async function ContactSection({
   subject = "",
@@ -27,16 +31,17 @@ export async function ContactSection({
   pagePath?: string;
   embedded?: boolean;
 }) {
-  const [contact, rawSettings] = await Promise.all([
+  const [contact, rawSettings, labels] = await Promise.all([
     getContactSettings(),
     getSettings(),
+    getSiteLabels(),
   ]);
   const settings = withBrandDefaults(rawSettings);
   const address = contact.address?.trim() || settings.address;
   const email = contact.email?.trim() || settings.emailPrimary;
   const emailSecondary =
-    settings.emailSecondary && settings.emailSecondary !== email
-      ? settings.emailSecondary
+    (contact.emailSecondary?.trim() || settings.emailSecondary) !== email
+      ? contact.emailSecondary?.trim() || settings.emailSecondary
       : "";
   const phone = contact.phone?.trim() || settings.phonePrimary;
   const phoneSecondary = settings.phoneSecondary;
@@ -98,7 +103,7 @@ export async function ContactSection({
       {embedded ? null : (
         <div className="site-page-banner">
           <div className="site-container page-banner-inner">
-            <p className="page-kicker about-in">Get in touch</p>
+            <p className="page-kicker about-in">{labels.contactEyebrow}</p>
             <h1 className="about-in" style={{ animationDelay: "80ms" }}>
               {contact.title?.trim() || "Contact"}
             </h1>
@@ -110,9 +115,11 @@ export async function ContactSection({
       )}
       <div className="site-container contact-layout">
         <section className="contact-details">
-          <p className="section-label about-in">Reach the team</p>
+          <p className="section-label about-in">
+            {contact.detailsEyebrow || "Reach the team"}
+          </p>
           <h2 className="about-in" style={{ animationDelay: "80ms" }}>
-            We are ready to help
+            {contact.detailsTitle || "We are ready to help"}
           </h2>
           <ul>
             {details.map((item, index) => (
@@ -143,9 +150,10 @@ export async function ContactSection({
             className="contact-form-card about-in"
             style={{ animationDelay: "180ms" }}
           >
-            <h2>Request a Quote</h2>
+            <h2>{contact.formTitle || "Request a Quote"}</h2>
             <p>
-              Fill in the details and our team will get back to you shortly.
+              {contact.formDescription ||
+                "Fill in the details and our team will get back to you shortly."}
             </p>
             <QuoteForm subject={subject} pagePath={pagePath} />
           </div>
@@ -154,8 +162,8 @@ export async function ContactSection({
           <section className="contact-map" aria-label="Our location">
             <div className="contact-map__heading">
               <div>
-                <p className="section-label">Visit our facility</p>
-                <h2>Find Jyoti Hydraulic</h2>
+                <p className="section-label">{labels.mapEyebrow}</p>
+                <h2>{labels.mapTitle}</h2>
               </div>
               <a
                 href={`https://maps.google.com/?q=${encodeURIComponent(address.replace(/&amp;/g, "&"))}`}
