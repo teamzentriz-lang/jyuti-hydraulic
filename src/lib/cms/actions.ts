@@ -893,12 +893,32 @@ export async function saveFooterAction(
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
     const logoId = textOrNull(formData, "logoId");
+    const contactInformationJson = {
+      address: String(formData.get("contactAddress") ?? "").trim(),
+      email: String(formData.get("contactEmail") ?? "").trim(),
+      emailSecondary: String(
+        formData.get("contactEmailSecondary") ?? "",
+      ).trim(),
+      phone: String(formData.get("contactPhone") ?? "").trim(),
+    };
+    const socialLinksJson = String(formData.get("socialLinks") ?? "")
+      .split(/\r?\n/)
+      .map((line) => {
+        const [network, ...urlParts] = line.split("|");
+        return {
+          network: network?.trim() ?? "",
+          url: urlParts.join("|").trim(),
+        };
+      })
+      .filter((link) => link.network && /^https?:\/\//i.test(link.url));
     await getDb()
       .update(footerSettings)
       .set({
         logoId,
         description: String(formData.get("description") ?? ""),
         copyrightText: String(formData.get("copyrightText") ?? ""),
+        contactInformationJson,
+        socialLinksJson,
         newsletterEnabled: formData.get("newsletterEnabled") === "on",
         newsletterTitle: String(formData.get("newsletterTitle") ?? ""),
         newsletterDescription: String(

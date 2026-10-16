@@ -149,6 +149,8 @@ export function FooterForm({
     newsletterEnabled: boolean;
     newsletterTitle: string;
     newsletterDescription: string;
+    contactInformationJson: Record<string, string>;
+    socialLinksJson: { network: string; url: string }[];
   };
   media: MediaItem[];
 }) {
@@ -176,6 +178,19 @@ export function FooterForm({
           defaultValue={footer.description}
         />
       </label>
+      <div className="rounded-md border border-line bg-paper px-3 py-3 text-sm">
+        <p className="font-semibold text-navy">Footer links</p>
+        <p className="mt-1 text-muted">
+          Add, edit, reorder, or remove the Links column from the Navigation
+          CMS screen. Set a link location to <strong>Footer</strong>.
+        </p>
+        <a
+          href="/admin/nav-links"
+          className="mt-2 inline-block font-semibold text-navy underline underline-offset-2"
+        >
+          Manage footer links
+        </a>
+      </div>
       <label>
         <span className={labelClass}>Copyright</span>
         <input
@@ -183,6 +198,67 @@ export function FooterForm({
           name="copyrightText"
           defaultValue={footer.copyrightText}
         />
+      </label>
+      <div className="grid gap-4 border-t border-line pt-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <p className="text-sm font-semibold text-navy">Footer contact</p>
+          <p className="mt-1 text-xs text-muted">
+            These details appear only in the website footer.
+          </p>
+        </div>
+        <label className="md:col-span-2">
+          <span className={labelClass}>Address</span>
+          <textarea
+            className={inputClass}
+            name="contactAddress"
+            rows={3}
+            defaultValue={footer.contactInformationJson.address ?? ""}
+          />
+        </label>
+        <label>
+          <span className={labelClass}>Primary email</span>
+          <input
+            className={inputClass}
+            name="contactEmail"
+            type="email"
+            defaultValue={footer.contactInformationJson.email ?? ""}
+          />
+        </label>
+        <label>
+          <span className={labelClass}>Secondary email</span>
+          <input
+            className={inputClass}
+            name="contactEmailSecondary"
+            type="email"
+            defaultValue={footer.contactInformationJson.emailSecondary ?? ""}
+          />
+        </label>
+        <label>
+          <span className={labelClass}>Phone / mobile number</span>
+          <input
+            className={inputClass}
+            name="contactPhone"
+            type="tel"
+            defaultValue={footer.contactInformationJson.phone ?? ""}
+          />
+        </label>
+      </div>
+      <label>
+        <span className={labelClass}>Social links</span>
+        <textarea
+          className={inputClass}
+          name="socialLinks"
+          rows={4}
+          defaultValue={footer.socialLinksJson
+            .map((link) => `${link.network} | ${link.url}`)
+            .join("\n")}
+          placeholder={
+            "YouTube | https://youtube.com/...\nFacebook | https://facebook.com/..."
+          }
+        />
+        <span className="mt-1 block text-xs text-muted">
+          One link per line: Network name | full URL
+        </span>
       </label>
       <label className="flex items-center gap-2">
         <input

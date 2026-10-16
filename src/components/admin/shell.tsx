@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { logoutAction } from "@/lib/cms/actions";
 import type { SessionUser } from "@/lib/auth";
 import { hasPermission, type Permission } from "@/lib/authorization";
 
-const groups = [
+type AdminLink = {
+  href: string;
+  label: string;
+  permission?: string;
+  superAdminOnly?: boolean;
+};
+
+type AdminGroup = { label: string; items: AdminLink[] };
+
+const groups: AdminGroup[] = [
   {
     label: "Site",
     items: [
@@ -216,6 +225,28 @@ const groups = [
   },
 ];
 
+const searchAliases: Record<string, string> = {
+  "/admin/settings":
+    "site identity seo metadata title description keywords social sharing og open graph canonical",
+  "/admin/header":
+    "favicon site icon browser icon header logo mobile logo top bar navigation menu phone quote button",
+  "/admin/footer": "site footer copyright social links newsletter quick links",
+  "/admin/contact-settings":
+    "contact email address phone whatsapp map business hours enquiry recipient",
+  "/admin/common-html": "global html common header footer script code banner",
+  "/admin/page-html": "page specific html header footer custom code script",
+  "/admin/site-labels": "button text labels heading wording interface copy",
+  "/admin/home": "homepage hero banner sections client logos testimonials",
+  "/admin/products": "product overview specifications features videos catalogue",
+  "/admin/nav-links": "navigation links menus url",
+  "/admin/media": "images files uploads photos documents",
+  "/admin/pages": "static pages seo content editor",
+  "/admin/posts": "blogs articles news seo",
+  "/admin/users": "admin staff user login password permissions role",
+  "/admin/teams": "teams staff access permission roles",
+  "/admin/quotation-settings": "quotation company details pdf terms",
+};
+
 function normalize(path: string) {
   if (path.length > 1 && path.endsWith("/")) return path.slice(0, -1);
   return path;
@@ -241,6 +272,19 @@ export function AdminShell({
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+  const quickSearchItems = [
+    { href: "/admin", label: "Dashboard", group: "Overview" },
+    ...groups.flatMap((group) =>
+      group.items
+        .filter(
+          (item) =>
+            (!item.permission ||
+              hasPermission(user, item.permission as Permission)) &&
+            (!item.superAdminOnly || user.systemRole === "super_admin"),
+        )
+        .map((item) => ({ ...item, group: group.label })),
+    ),
+  ];
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -324,7 +368,10 @@ export function AdminShell({
       </aside>
       <div className="min-w-0">
         <header className="sticky top-0 z-40 hidden h-16 items-center justify-between border-b border-line bg-white/95 px-8 shadow-sm backdrop-blur md:flex">
-          <LiveDateTime now={now} />
+          <div className="flex min-w-0 items-center gap-5">
+            <LiveDateTime now={now} />
+            <AdminQuickSearch items={quickSearchItems} />
+          </div>
           <ProfileMenu
             user={user}
             initials={initials}
@@ -371,6 +418,108 @@ function LiveDateTime({ now }: { now: Date | null }) {
       <span className="rounded-md bg-paper px-2.5 py-1 font-semibold tabular-nums text-navy">
         {time} IST
       </span>
+    </div>
+  );
+}
+
+function AdminQuickSearch({
+  items,
+}: {
+  items: Array<AdminLink & { group: string }>;
+}) {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches = items
+    .filter((item) => {
+      const searchable = `${item.label} ${item.group} ${searchAliases[item.href] ?? ""}`.toLowerCase();
+      return !normalizedQuery || searchable.includes(normalizedQuery);
+    })
+    .slice(0, 8);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        setIsOpen(true);
+      }
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  useEffect(() => {
+    const handleOutsidePointer = (event: PointerEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointer);
+  }, []);
+
+  return (
+    <div ref={searchRef} className="relative w-[min(38vw,430px)]">
+      <label className="sr-only" htmlFor="admin-quick-search">
+        Search admin controls
+      </label>
+      <svg
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden
+      >
+        <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+        <path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+      <input
+        ref={inputRef}
+        id="admin-quick-search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        onFocus={() => setIsOpen(true)}
+        placeholder="Search settings, pages, products…"
+        className="h-10 w-full rounded-lg border border-line bg-paper pl-9 pr-12 text-sm text-ink outline-none transition placeholder:text-muted focus:border-navy focus:bg-white focus:ring-2 focus:ring-navy/10"
+      />
+      <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-white px-1.5 py-0.5 text-[10px] font-medium text-muted">
+        Ctrl K
+      </kbd>
+      {isOpen ? (
+        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-xl">
+          {matches.length ? (
+            matches.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => {
+                  setIsOpen(false);
+                  setQuery("");
+                }}
+                className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-paper"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-navy">
+                    {item.label}
+                  </span>
+                  <span className="block text-xs text-muted">{item.group}</span>
+                </span>
+                <span className="text-xs text-muted">Open</span>
+              </Link>
+            ))
+          ) : (
+            <p className="px-4 py-3 text-sm text-muted">
+              No accessible admin control found.
+            </p>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
