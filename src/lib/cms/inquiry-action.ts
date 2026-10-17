@@ -6,8 +6,10 @@ import { getDb } from "@/db";
 import { inquiries, products } from "@/db/schema";
 import { sendEnquiryEmail } from "@/lib/mail";
 import { getSettings } from "@/lib/cms/queries";
+import { sendPushToAllSubscribers } from "@/lib/push";
 
-export type InquiryState = { ok: true; message: string } | { error: string } | null;
+export type InquiryState =
+  { ok: true; message: string } | { error: string } | null;
 
 const inquirySchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -39,7 +41,9 @@ export async function submitInquiryAction(
     pagePath: formData.get("pagePath"),
   });
   if (!parsed.success) {
-    return { error: "Please add your name, a valid email, and a short message." };
+    return {
+      error: "Please add your name, a valid email, and a short message.",
+    };
   }
 
   const productId = String(formData.get("productId") ?? "").trim();
@@ -55,15 +59,32 @@ export async function submitInquiryAction(
         message: parsed.data.message,
         source: parsed.data.source,
         pagePath: parsed.data.pagePath || null,
-        productId: z.string().uuid().safeParse(productId).success ? productId : null,
+        productId: z.string().uuid().safeParse(productId).success
+          ? productId
+          : null,
       });
   } catch {
-    return { error: "We could not save your enquiry. Please call us or try again." };
+    return {
+      error: "We could not save your enquiry. Please call us or try again.",
+    };
+  }
+
+  try {
+    await sendPushToAllSubscribers({
+      title: "New website enquiry",
+      body: `${parsed.data.name}${parsed.data.subject ? ` — ${parsed.data.subject}` : ""}`,
+      url: "/admin/inquiries/",
+      tag: "new-enquiry",
+    });
+  } catch {
+    // Notification delivery should never block a successful website enquiry.
   }
 
   try {
     const settings = await getSettings();
-    const savedProductId = z.string().uuid().safeParse(productId).success ? productId : "";
+    const savedProductId = z.string().uuid().safeParse(productId).success
+      ? productId
+      : "";
     const [product] = savedProductId
       ? await getDb()
           .select({ enquiryEmail: products.enquiryEmail })
@@ -71,7 +92,8 @@ export async function submitInquiryAction(
           .where(eq(products.id, savedProductId))
           .limit(1)
       : [];
-    const to = product?.enquiryEmail || settings.enquiryToEmail || settings.emailPrimary;
+    const to =
+      product?.enquiryEmail || settings.enquiryToEmail || settings.emailPrimary;
     const lines = [
       `Name: ${parsed.data.name}`,
       `Email: ${parsed.data.email}`,
@@ -104,9 +126,19 @@ export async function subscribeNewsletterAction(
   if (String(formData.get("companyWebsite") ?? "").trim()) {
     return { ok: true, message: "You are subscribed." };
   }
-  const email = z.string().trim().email().max(180).safeParse(formData.get("email"));
+  const email = z
+    .string()
+    .trim()
+    .email()
+    .max(180)
+    .safeParse(formData.get("email"));
   if (!email.success) return { error: "Enter a valid email address." };
-  const name = email.data.split("@")[0]?.replace(/[._-]+/g, " ").trim().slice(0, 120) || "Subscriber";
+  const name =
+    email.data
+      .split("@")[0]
+      ?.replace(/[._-]+/g, " ")
+      .trim()
+      .slice(0, 120) || "Subscriber";
   try {
     await getDb().insert(inquiries).values({
       name,

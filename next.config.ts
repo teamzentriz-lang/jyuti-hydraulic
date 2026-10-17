@@ -1,9 +1,6 @@
-
 import type { NextConfig } from "next";
 
-const remotePatterns: NonNullable<
-  NextConfig["images"]
->["remotePatterns"] = [];
+const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [];
 
 const publicMedia = process.env.R2_PUBLIC_URL;
 
@@ -25,10 +22,7 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   devIndicators: false,
 
-  serverExternalPackages: [
-    "postgres",
-    "bcryptjs",
-  ],
+  serverExternalPackages: ["postgres", "bcryptjs", "web-push"],
 
   images: {
     remotePatterns,

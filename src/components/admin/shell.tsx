@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { logoutAction } from "@/lib/cms/actions";
 import type { SessionUser } from "@/lib/auth";
 import { hasPermission, type Permission } from "@/lib/authorization";
+import { PushNotificationControl } from "@/components/admin/push-notification-control";
+import { PwaInstallControl } from "@/components/site/pwa-install-control";
 
 type AdminLink = {
   href: string;
@@ -237,7 +239,8 @@ const searchAliases: Record<string, string> = {
   "/admin/page-html": "page specific html header footer custom code script",
   "/admin/site-labels": "button text labels heading wording interface copy",
   "/admin/home": "homepage hero banner sections client logos testimonials",
-  "/admin/products": "product overview specifications features videos catalogue",
+  "/admin/products":
+    "product overview specifications features videos catalogue",
   "/admin/nav-links": "navigation links menus url",
   "/admin/media": "images files uploads photos documents",
   "/admin/pages": "static pages seo content editor",
@@ -298,6 +301,8 @@ export function AdminShell({
           Jyoti CMS
         </Link>
         <div className="flex items-center gap-2">
+          <PwaInstallControl compact />
+          <PushNotificationControl compact />
           <ProfileMenu
             user={user}
             initials={initials}
@@ -372,13 +377,17 @@ export function AdminShell({
             <LiveDateTime now={now} />
             <AdminQuickSearch items={quickSearchItems} />
           </div>
-          <ProfileMenu
-            user={user}
-            initials={initials}
-            roleLabel={roleLabel}
-            open={profileOpen}
-            onToggle={() => setProfileOpen((value) => !value)}
-          />
+          <div className="flex items-center gap-3">
+            <PwaInstallControl />
+            <PushNotificationControl />
+            <ProfileMenu
+              user={user}
+              initials={initials}
+              roleLabel={roleLabel}
+              open={profileOpen}
+              onToggle={() => setProfileOpen((value) => !value)}
+            />
+          </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
           {children}
@@ -434,7 +443,8 @@ function AdminQuickSearch({
   const normalizedQuery = query.trim().toLowerCase();
   const matches = items
     .filter((item) => {
-      const searchable = `${item.label} ${item.group} ${searchAliases[item.href] ?? ""}`.toLowerCase();
+      const searchable =
+        `${item.label} ${item.group} ${searchAliases[item.href] ?? ""}`.toLowerCase();
       return !normalizedQuery || searchable.includes(normalizedQuery);
     })
     .slice(0, 8);
@@ -462,7 +472,8 @@ function AdminQuickSearch({
       }
     };
     document.addEventListener("pointerdown", handleOutsidePointer);
-    return () => document.removeEventListener("pointerdown", handleOutsidePointer);
+    return () =>
+      document.removeEventListener("pointerdown", handleOutsidePointer);
   }, []);
 
   return (
@@ -476,8 +487,19 @@ function AdminQuickSearch({
         fill="none"
         aria-hidden
       >
-        <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.8" />
-        <path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <circle
+          cx="8.5"
+          cy="8.5"
+          r="5.5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="m13 13 4 4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
       </svg>
       <input
         ref={inputRef}

@@ -6,6 +6,7 @@ import { siteOrigin } from "@/lib/paths";
 import { noIndexRobots } from "@/lib/seo-robots";
 import { NavigationFeedback } from "@/components/site/navigation-feedback";
 import { mediaDeliveryUrl } from "@/lib/media-url";
+import { PwaServiceWorker } from "@/components/site/pwa-service-worker";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -81,6 +82,7 @@ export default function RootLayout({
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
       </head>
       <body className="min-h-full">
+        <PwaServiceWorker />
         <Suspense fallback={null}>
           <NavigationFeedback />
         </Suspense>
