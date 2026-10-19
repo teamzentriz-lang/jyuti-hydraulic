@@ -44,7 +44,15 @@ export default async function NewResourcePage({
     return (
       <>
         <PageHeader eyebrow={config.label} title="New product" description={config.description} />
-        <ProductForm initial={{ status: "draft", isActive: true, enquiryEnabled: true }} payload={emptyPayload} media={[]} categoryOptions={categories} productOptions={productOptions} canDelete={false} />
+        <ProductForm
+          initial={{ status: "draft", isActive: true, enquiryEnabled: true }}
+          payload={emptyPayload}
+          media={[]}
+          categoryOptions={categories}
+          productOptions={productOptions}
+          pageHtml={null}
+          canDelete={false}
+        />
       </>
     );
   }
