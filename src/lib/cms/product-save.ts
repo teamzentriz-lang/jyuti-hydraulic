@@ -85,6 +85,8 @@ export const productScalarsSchema = z.object({
   canonicalUrl: optionalText(500),
   robotsIndex: z.boolean(),
   robotsFollow: z.boolean(),
+  ogTitle: optionalText(300),
+  ogDescription: optionalText(500),
   ogImageId: optionalUuid,
   status: z.enum(["draft", "published"]),
 });
@@ -138,6 +140,8 @@ export function readProductScalars(formData: FormData) {
     canonicalUrl: text("canonicalUrl") || null,
     robotsIndex: formData.get("robotsIndex") === "on",
     robotsFollow: formData.get("robotsFollow") === "on",
+    ogTitle: text("ogTitle") || null,
+    ogDescription: text("ogDescription") || null,
     ogImageId: text("ogImageId") || null,
     status: text("status") || "draft",
   };

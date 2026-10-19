@@ -375,6 +375,19 @@ export function ProductForm({
                   <span className="text-sm">Allow following links</span>
                 </label>
                 <div className="md:col-span-2">
+                  <p className="mb-2 text-sm font-semibold text-navy">
+                    Open Graph (Facebook, WhatsApp, LinkedIn)
+                  </p>
+                </div>
+                <label className="md:col-span-2">
+                  <span className={labelClass}>Open Graph title</span>
+                  <input className={inputClass} name="ogTitle" defaultValue={asText(initial.ogTitle)} />
+                </label>
+                <label className="md:col-span-2">
+                  <span className={labelClass}>Open Graph description</span>
+                  <textarea className={inputClass} name="ogDescription" rows={3} defaultValue={asText(initial.ogDescription)} />
+                </label>
+                <div className="md:col-span-2">
                   <span className={labelClass}>Open Graph image</span>
                   <MediaPicker name="ogImageId" initialIds={asText(initial.ogImageId) ? [asText(initial.ogImageId)] : []} known={media} />
                 </div>
