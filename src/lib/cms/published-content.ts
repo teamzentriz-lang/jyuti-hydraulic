@@ -84,6 +84,11 @@ export type PublishedContent = {
   twitterImage?: MediaItem | null;
   body: string;
   summary?: string;
+  brand?: string | null;
+  modelNumber?: string | null;
+  stock?: string | null;
+  rating?: number | null;
+  shippingArea?: string | null;
   hero?: MediaItem | null;
   cover?: MediaItem | null;
   image?: MediaItem | null;
@@ -252,7 +257,6 @@ function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
 async function categoryProductCards(
   db: Db,
   categoryId: string,
-  includeSubcategory = false,
 ) {
   const productRows = await db
     .select({
@@ -266,12 +270,10 @@ async function categoryProductCards(
     .from(products)
     .where(
       and(
-        includeSubcategory
-          ? or(
-              eq(products.categoryId, categoryId),
-              eq(products.subCategoryId, categoryId),
-            )
-          : eq(products.categoryId, categoryId),
+        or(
+          eq(products.categoryId, categoryId),
+          eq(products.subCategoryId, categoryId),
+        ),
         eq(products.status, "published"),
       ),
     )
@@ -517,7 +519,7 @@ export async function buildPublishedContent(
           childMediaById.get(thumbnailId || imageId || "") ?? null;
         if (categoryImage) return { ...item, image: categoryImage };
 
-        const [firstProduct] = await categoryProductCards(db, item.id, true);
+        const [firstProduct] = await categoryProductCards(db, item.id);
         return {
           ...item,
           image: null,
@@ -674,6 +676,11 @@ export async function buildPublishedContent(
       twitterImage: await optionalMedia(row.twitterImageId),
       body: row.body,
       summary: row.summary,
+      brand: row.brand,
+      modelNumber: row.modelNumber,
+      stock: row.stock,
+      rating: row.rating,
+      shippingArea: row.shippingArea,
       specs: extras.specs,
       gallery: productGallery,
       related: relatedSorted.map((item) => {

@@ -4,7 +4,6 @@ import { useState } from "react";
 
 export function TabShell({ tabs }: { tabs: { id: string; label: string; content: React.ReactNode }[] }) {
   const [active, setActive] = useState(tabs[0]?.id ?? "");
-  const current = tabs.find((tab) => tab.id === active) ?? tabs[0];
 
   return (
     <div>
@@ -20,7 +19,13 @@ export function TabShell({ tabs }: { tabs: { id: string; label: string; content:
           </button>
         ))}
       </div>
-      <div>{current?.content}</div>
+      <div>
+        {tabs.map((tab) => (
+          <div key={tab.id} hidden={tab.id !== active}>
+            {tab.content}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

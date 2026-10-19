@@ -634,6 +634,8 @@ export const products = pgTable(
     }),
     price: text("price"),
     stock: text("stock"),
+    rating: integer("rating"),
+    shippingArea: text("shipping_area"),
     isFeatured: boolean("is_featured").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     enquiryEnabled: boolean("enquiry_enabled").notNull().default(true),

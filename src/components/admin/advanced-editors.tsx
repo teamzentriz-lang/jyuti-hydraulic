@@ -430,6 +430,7 @@ const sectionTypes = [
   "rich_text",
   "features",
   "video",
+  "testimonials",
   "product_grid",
   "cta",
   "faq",
@@ -527,7 +528,7 @@ export function PageSectionsEditor({ name, initial, media }: { name: string; ini
               <select className={inputClass} value={asText(section.sectionType) || "text"} onChange={(e) => patch(index, { sectionType: e.target.value })}>
                 {sectionTypes.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {t === "testimonials" ? "review" : t}
                   </option>
                 ))}
               </select>

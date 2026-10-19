@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import {
   ApplicationsEditor,
   DocumentsEditor,
+  FaqsEditor,
   FeaturesEditor,
   FullSpecsEditor,
   OptionsEditor,
@@ -47,6 +48,7 @@ export function ProductForm({
   media,
   categoryOptions,
   productOptions,
+  pageHtml,
   canDelete,
 }: {
   id?: string;
@@ -55,6 +57,7 @@ export function ProductForm({
   media: MediaItem[];
   categoryOptions: { value: string; label: string }[];
   productOptions: { value: string; label: string }[];
+  pageHtml: { headerHtml: string; footerHtml: string; isActive: boolean } | null;
   canDelete: boolean;
 }) {
   const [state, action, pending] = useActionState(saveResourceAction, null);
@@ -66,6 +69,12 @@ export function ProductForm({
   const specificationRows = specificationsForForm(initial, payload);
 
   const preview = publicPath(path);
+  const updateTitle = (nextTitle: string) => {
+    setTitle(nextTitle);
+    if (!slugEdited.current) setSlug(normalizeSlug(nextTitle));
+    if (!pathEdited.current)
+      setPath(`products/${normalizeSlug(nextTitle)}`);
+  };
 
   return (
     <form action={action} className="space-y-6">
@@ -91,11 +100,7 @@ export function ProductForm({
                     name="title"
                     value={title ?? ""}
                     required
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      if (!slugEdited.current) setSlug(normalizeSlug(e.target.value));
-                      if (!pathEdited.current) setPath(`products/${normalizeSlug(e.target.value)}`);
-                    }}
+                    onChange={(e) => updateTitle(e.target.value)}
                   />
                 </label>
                 <label>
@@ -167,8 +172,9 @@ export function ProductForm({
                   <textarea className={inputClass} name="summary" rows={3} defaultValue={asText(initial.summary)} />
                 </label>
                 <label>
-                  <span className={labelClass}>Sort order</span>
+                  <span className={labelClass}>Category display order</span>
                   <input className={inputClass} name="sortOrder" type="number" defaultValue={asText(initial.sortOrder ?? 0)} />
+                  <span className={helpClass}>Lower number appears first inside the selected category.</span>
                 </label>
                 <label>
                   <span className={labelClass}>Status</span>
@@ -193,6 +199,21 @@ export function ProductForm({
                   <span className={labelClass}>Stock (optional)</span>
                   <input className={inputClass} name="stock" defaultValue={asText(initial.stock)} />
                 </label>
+                <label>
+                  <span className={labelClass}>Product rating</span>
+                  <select className={inputClass} name="rating" defaultValue={asText(initial.rating)}>
+                    <option value="">Not shown</option>
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <option key={rating} value={rating}>
+                        {rating} star{rating === 1 ? "" : "s"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className={labelClass}>Shipping area</span>
+                  <input className={inputClass} name="shippingArea" defaultValue={asText(initial.shippingArea)} placeholder="All over India" />
+                </label>
               </section>
             ),
           },
@@ -201,10 +222,17 @@ export function ProductForm({
             label: "Description",
             content: (
               <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+                <label>
+                  <span className={labelClass}>Overview content</span>
+                  <RichTextEditor
+                    name="overview"
+                    defaultValue={asText(initial.overview) || asText(initial.body) || asText(initial.richContent)}
+                  />
+                  <span className={helpClass}>
+                    This is the only primary description editor for this product. The product name is managed from the General tab.
+                  </span>
+                </label>
                 {[
-                  ["overview", "Overview"],
-                  ["body", "Main body"],
-                  ["richContent", "Rich content"],
                   ["featuresText", "Features (text)"],
                   ["benefits", "Benefits"],
                   ["advantages", "Advantages"],
@@ -318,10 +346,51 @@ export function ProductForm({
           },
           {
             id: "sections",
-            label: "Page sections",
+            label: "Video & reviews",
             content: (
-              <section className="rounded-lg border border-line bg-white p-4">
+              <section className="space-y-3 rounded-lg border border-line bg-white p-4">
+                <p className={helpClass}>
+                  Add a <strong>video</strong> section for the Video tab, or a <strong>review</strong> section for the Reviews tab. Tabs only appear on the product page when active content is added here.
+                </p>
                 <PageSectionsEditor name="_sections" initial={payload.sections} media={media} />
+              </section>
+            ),
+          },
+          {
+            id: "faqs",
+            label: "FAQs",
+            content: (
+              <section className="space-y-3 rounded-lg border border-line bg-white p-4">
+                <p className={helpClass}>Only active FAQs appear in the product page FAQ tab.</p>
+                <FaqsEditor name="_faqs" initial={payload.faqs} />
+              </section>
+            ),
+          },
+          {
+            id: "page-html",
+            label: "Page HTML",
+            content: (
+              <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+                <label className="flex items-center gap-2 text-sm text-navy">
+                  <input
+                    name="_pageHtmlEnabled"
+                    type="checkbox"
+                    defaultChecked={pageHtml?.isActive ?? false}
+                    className="h-4 w-4 accent-navy"
+                  />
+                  Enable this product&apos;s custom header and footer HTML
+                </label>
+                <p className={helpClass}>
+                  This applies only to this product URL. Common HTML remains available under Site → Common HTML and appears across all public pages.
+                </p>
+                <div>
+                  <span className={labelClass}>Custom header HTML</span>
+                  <RichTextEditor name="_pageHeaderHtml" defaultValue={pageHtml?.headerHtml ?? ""} />
+                </div>
+                <div>
+                  <span className={labelClass}>Custom footer HTML</span>
+                  <RichTextEditor name="_pageFooterHtml" defaultValue={pageHtml?.footerHtml ?? ""} />
+                </div>
               </section>
             ),
           },

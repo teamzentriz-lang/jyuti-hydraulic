@@ -3797,6 +3797,33 @@ html.is-navigating a[href] {
 .product-stage img {
   max-height: 420px;
 }
+.product-visual {
+  min-width: 0;
+}
+.product-visual__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.product-visual__quick-actions a {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-navy);
+  box-shadow: 0 2px 8px rgba(8, 29, 49, 0.08);
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease;
+}
+.product-visual__quick-actions a:hover,
+.product-visual__quick-actions a:focus-visible {
+  background: var(--color-navy);
+  color: #fff;
+  transform: translateY(-2px);
+}
 .feature-pills {
   display: flex;
   flex-wrap: wrap;
@@ -3992,6 +4019,55 @@ html.is-navigating a[href] {
   font-size: 1rem;
   line-height: 1.8;
 }
+.product-summary__rating {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  color: var(--color-navy);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.product-summary__rating > span:last-child {
+  display: inline-flex;
+  gap: 0.1rem;
+}
+.product-summary__facts {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  color: #566474;
+  font-size: 0.9rem;
+  list-style: none;
+}
+.product-summary__facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.product-summary__facts li > span {
+  display: inline-grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #2877b7;
+  color: white;
+  font-size: 0.7rem;
+}
+.product-summary__facts strong {
+  color: var(--color-navy);
+}
+.product-summary__actions--detailed {
+  gap: 0.55rem;
+}
+.product-summary__actions--detailed a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 .product-summary .feature-pills {
   display: grid;
   gap: 0.55rem;
@@ -4150,6 +4226,26 @@ html.is-navigating a[href] {
   color: var(--color-navy);
   font-size: 0.85rem;
   font-weight: 750;
+}
+.product-faq-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.product-faq-list details {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.9rem 1rem;
+}
+.product-faq-list summary {
+  cursor: pointer;
+  color: var(--color-navy);
+  font-weight: 750;
+}
+.product-faq-list p {
+  margin: 0.75rem 0 0;
+  color: #3c4b5c;
+  line-height: 1.65;
 }
 .product-quote-card {
   position: sticky;

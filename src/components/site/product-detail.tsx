@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Award, FileText, Mail, MessageCircle, Play, Star } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { ProductCard } from "@/components/site/product-card";
 import { ProductGallery } from "@/components/site/product-gallery";
@@ -51,7 +52,11 @@ function absoluteUrl(url: string) {
 }
 
 function readableArticle(html: string) {
-  let next = html.replace(/inquiry now/gi, "");
+  let next = html
+    .replace(/inquiry now/gi, "")
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+    .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "");
   const cuts = [
     /<h3[^>]*>\s*Contact With Us/i,
     /Feel free to write our/i,
@@ -65,7 +70,7 @@ function readableArticle(html: string) {
     .filter((index) => index > 40);
   if (cuts.length) next = next.slice(0, Math.min(...cuts));
   return next
-    .replace(/<p>\s*<\/p>/gi, "")
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
     .replace(/<ul>\s*<\/ul>/gi, "")
     .trim();
 }
@@ -85,6 +90,14 @@ function sameHeading(title: string, pageTitle: string) {
   const b = norm(pageTitle);
   if (!a || !b) return false;
   return a.includes(b.slice(0, 24)) || b.includes(a.slice(0, 24));
+}
+
+function removeDuplicatePageTitle(html: string, pageTitle: string) {
+  return html.replace(
+    /^\s*<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/i,
+    (match, _level, heading) =>
+      sameHeading(textOf(heading), pageTitle) ? "" : match,
+  );
 }
 
 function youtubeEmbedUrl(raw: unknown) {
@@ -117,8 +130,13 @@ function articleSections(html: string) {
   const chunks = html.split(/<h2[^>]*>/i);
   const sections: { title: string; html: string }[] = [];
   const push = (title: string, body: string) => {
-    const cleaned = body.replace(/<p>\s*<\/p>/gi, "").trim();
-    if (!textOf(cleaned) && !/<img\b/i.test(cleaned)) return;
+    const cleaned = body
+      .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+      .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
+      .replace(/<img\b[^>]*>/gi, "")
+      .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
+      .trim();
+    if (!textOf(cleaned)) return;
     sections.push({ title, html: cleaned });
   };
   if (chunks[0]) push("", chunks[0]);
@@ -137,57 +155,39 @@ function ArticleBlocks({
   html: string;
   pageTitle: string;
 }) {
-  const sections = articleSections(html);
+  const sections = articleSections(removeDuplicatePageTitle(html, pageTitle));
   const renderSection = (
     sectionHtml: string,
     index: number,
     heading?: string,
   ) => {
-    const images = [...sectionHtml.matchAll(/<img\b[^>]*>/gi)].map(
-      (match) => match[0],
-    );
     const text = sectionHtml
+      .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+      .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
       .replace(/<img\b[^>]*>/gi, "")
-      .replace(/<p>\s*<\/p>/gi, "")
+      .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
       .trim();
-    const hasText = Boolean(textOf(text));
+    if (!textOf(text)) return null;
     return (
       <section
         key={`${heading ?? "overview"}-${index}`}
         className="product-article__block"
       >
         {heading ? <h2>{heading}</h2> : null}
-        {images.length && hasText ? (
-          <div className="media-split">
-            <RichTextHtml html={text} className="product-prose" />
-            <RichTextHtml
-              html={images.join("")}
-              className="media-split__media"
-            />
-          </div>
-        ) : images.length ? (
-          <RichTextHtml html={images.join("")} className="media-split__media" />
-        ) : text ? (
-          <RichTextHtml
-            html={text}
-            className={
-              (text.match(/<p\b/gi) ?? []).length > 1
-                ? "product-prose product-prose--columns"
-                : "product-prose"
-            }
-          />
-        ) : null}
+        <RichTextHtml html={text} className="product-prose" />
       </section>
     );
   };
   if (!sections.length) {
-    return <div className="product-article">{renderSection(html, 0)}</div>;
+    const fallback = renderSection(html, 0);
+    return fallback ? <div className="product-article">{fallback}</div> : null;
   }
   return (
     <div className="product-article">
       {sections.map((section, index) => {
         const showTitle =
           Boolean(section.title) &&
+          !sameHeading(section.title, "Overview") &&
           !(index === 0 && sameHeading(section.title, pageTitle));
         return renderSection(
           section.html,
@@ -249,6 +249,36 @@ export async function ProductDetail({
       url: siteOrigin(),
     },
   };
+  const hasSpecifications = Boolean(
+    content.specs?.length ||
+      content.technicalTables?.length ||
+      content.contentTables?.length,
+  );
+  const videoSections = (content.sections ?? []).filter(
+    (section) =>
+      section.sectionType === "video" &&
+      section.isActive &&
+      youtubeEmbedUrl(section.customData.videoUrl),
+  );
+  const reviewSections = (content.sections ?? []).filter(
+    (section) =>
+      section.sectionType === "testimonials" &&
+      section.isActive &&
+      (section.title.trim() || section.description.trim()),
+  );
+  const faqs = (content.faqs ?? []).filter(
+    (item) => item.question.trim() || item.answer.trim(),
+  );
+  const certificate = (content.documents ?? []).find(
+    (document) => document.documentType === "certificate" && document.url,
+  );
+  const whatsappNumber = settings.whatsapp?.replace(/\D/g, "") ?? "";
+  const productInfo = [
+    content.shippingArea ? { label: "Shipping area", value: content.shippingArea } : null,
+    content.modelNumber ? { label: "Model", value: content.modelNumber } : null,
+    content.brand ? { label: "Brand", value: content.brand } : null,
+    content.stock ? { label: "Availability", value: content.stock } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
   const comingSoon = (
     <div className="product-tabs__empty">
       <h3>Coming soon</h3>
@@ -257,6 +287,7 @@ export async function ProductDetail({
   );
   const tabs = [
     {
+      visible: Boolean(overviewHtml),
       id: "overview",
       label: labels.productOverviewLabel,
       icon: "overview",
@@ -267,6 +298,7 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: hasSpecifications,
       id: "specifications",
       label: labels.productSpecificationsLabel,
       icon: "specifications",
@@ -343,6 +375,7 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: Boolean(content.features?.length),
       id: "features",
       label: labels.productFeaturesLabel,
       icon: "features",
@@ -366,21 +399,13 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: videoSections.length > 0,
       id: "video",
       label: labels.productVideoLabel,
       icon: "video",
-      content: content.sections?.some(
-        (section) =>
-          section.sectionType === "video" &&
-          section.isActive &&
-          youtubeEmbedUrl(section.customData.videoUrl),
-      ) ? (
+      content: videoSections.length ? (
         <div className="product-video-list">
-          {content.sections
-            .filter(
-              (section) => section.sectionType === "video" && section.isActive,
-            )
-            .map((section, index) => {
+          {videoSections.map((section, index) => {
               const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
               if (!embedUrl) return null;
               return (
@@ -406,16 +431,17 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: reviewSections.length > 0,
       id: "reviews",
       label: labels.productReviewsLabel,
       icon: "reviews",
-      content: home.testimonials.length ? (
+      content: reviewSections.length ? (
         <ul className="product-review-list">
-          {home.testimonials.map((review, index) => (
-            <li key={`${review.author}-${index}`}>
+          {reviewSections.map((review, index) => (
+            <li key={review.id ?? `review-${index}`}>
               <span aria-hidden="true">★★★★★</span>
-              <blockquote>{review.quote}</blockquote>
-              <p>{review.author}</p>
+              {review.description ? <blockquote>{review.description}</blockquote> : null}
+              {review.title ? <p>{review.title}</p> : null}
             </li>
           ))}
         </ul>
@@ -423,7 +449,25 @@ export async function ProductDetail({
         comingSoon
       ),
     },
-  ];
+    {
+      visible: faqs.length > 0,
+      id: "faq",
+      label: "FAQ",
+      icon: "faq",
+      content: (
+        <div className="product-faq-list">
+          {faqs.map((faq, index) => (
+            <details key={`${faq.question}-${index}`}>
+              <summary>{faq.question || `Question ${index + 1}`}</summary>
+              {faq.answer ? <p>{faq.answer}</p> : null}
+            </details>
+          ))}
+        </div>
+      ),
+    },
+  ]
+    .filter((tab) => tab.visible)
+    .map(({ id, label, icon, content }) => ({ id, label, icon, content }));
 
   const enquireHref = `/contact/?product=${encodeURIComponent(title)}`;
 
@@ -462,17 +506,69 @@ export async function ProductDetail({
       </section>
 
       <div className="site-container product-page__hero">
-        {galleryImages.length ? (
-          <ProductGallery images={galleryImages} />
-        ) : (
-          <div className="product-gallery__stage">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/placeholders/product.svg" alt={title} />
+        <div className="product-visual">
+          {galleryImages.length ? (
+            <ProductGallery images={galleryImages} />
+          ) : (
+            <div className="product-gallery__stage">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/placeholders/product.svg" alt={title} />
+            </div>
+          )}
+          {videoSections.length || certificate?.url || content.brochureUrl || whatsappNumber ? (
+            <nav className="product-visual__quick-actions" aria-label="Product quick actions">
+              {videoSections.length ? (
+                <a href="#product-tab-video" title="Watch product video" aria-label="Watch product video">
+                  <Play className="h-5 w-5" aria-hidden="true" />
+                </a>
+              ) : null}
+              {certificate?.url ? (
+                <a href={certificate.url} target="_blank" rel="noopener noreferrer" title="View certificate" aria-label="View certificate">
+                  <Award className="h-5 w-5" aria-hidden="true" />
+                </a>
+              ) : null}
+              {content.brochureUrl ? (
+                <a href={content.brochureUrl} target="_blank" rel="noopener noreferrer" title="View product PDF" aria-label="View product PDF">
+                  <FileText className="h-5 w-5" aria-hidden="true" />
+                </a>
+              ) : null}
+              {whatsappNumber ? (
+                <a
+                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Enquire on WhatsApp"
+                  aria-label="Enquire on WhatsApp"
+                >
+                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                </a>
+              ) : null}
+            </nav>
+          ) : null}
           </div>
-        )}
         <div className="product-summary">
           <p className="eyebrow dark">{labels.productOverviewEyebrow}</p>
           {lead ? <p className="product-summary__lead">{lead}</p> : null}
+          {content.rating ? (
+            <div className="product-summary__rating" aria-label={`${content.rating} out of 5 stars`}>
+              <span>Rating:</span>
+              <span aria-hidden="true">
+                {Array.from({ length: content.rating }, (_, index) => (
+                  <Star key={index} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                ))}
+              </span>
+            </div>
+          ) : null}
+          {productInfo.length ? (
+            <ul className="product-summary__facts">
+              {productInfo.map((item) => (
+                <li key={item.label}>
+                  <span aria-hidden="true">✓</span>
+                  <strong>{item.label}:</strong> {item.value}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {pills.length ? (
             <ul className="feature-pills">
               {pills.map((pill) => (
@@ -480,9 +576,22 @@ export async function ProductDetail({
               ))}
             </ul>
           ) : null}
-          <div className="product-summary__actions">
+          <div className="product-summary__actions product-summary__actions--detailed">
+            {videoSections.length ? (
+              <a href="#product-tab-video" className="site-btn-outline">
+                <Play className="h-4 w-4" aria-hidden="true" />
+                Watch video
+              </a>
+            ) : null}
+            {certificate?.url ? (
+              <a href={certificate.url} className="site-btn-outline" target="_blank" rel="noopener noreferrer">
+                <Award className="h-4 w-4" aria-hidden="true" />
+                View certificate
+              </a>
+            ) : null}
             {content.enquiryEnabled !== false ? (
               <Link href={enquireHref} className="site-btn-primary">
+                <Mail className="h-4 w-4" aria-hidden="true" />
                 Get a Quote
               </Link>
             ) : null}
@@ -493,7 +602,18 @@ export async function ProductDetail({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Download Brochure
+                <span>View PDF</span>
+              </a>
+            ) : null}
+            {whatsappNumber ? (
+              <a
+                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
+                className="site-btn-outline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                WhatsApp
               </a>
             ) : null}
           </div>
@@ -593,32 +713,6 @@ export async function ProductDetail({
                   </div>
                   <h3>{item.title}</h3>
                   <p>{item.body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-      {home.testimonials.length ? (
-        <section
-          className="testimonials-section product-testimonials"
-          aria-labelledby="product-testimonials-title"
-        >
-          <div className="site-container">
-            <div className="section-heading centered">
-              <div>
-                <p className="eyebrow">Customer feedback</p>
-                <h2 id="product-testimonials-title">What Our Customers Say</h2>
-              </div>
-            </div>
-            <ul className="testimonials-grid">
-              {home.testimonials.slice(0, 3).map((item, index) => (
-                <li key={`${item.author}-${index}`}>
-                  <span className="quote-mark" aria-hidden>
-                    &ldquo;
-                  </span>
-                  <blockquote>{item.quote}</blockquote>
-                  <p>{item.author}</p>
                 </li>
               ))}
             </ul>

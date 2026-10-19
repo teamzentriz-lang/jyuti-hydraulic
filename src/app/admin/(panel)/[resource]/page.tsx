@@ -10,6 +10,7 @@ import { canAccessResource, hasPermission, permissionForResource } from "@/lib/a
 import { isResourceKey, resources } from "@/lib/cms/resources";
 import { listRecords } from "@/lib/cms/queries";
 import { currentStorageDriver } from "@/lib/storage";
+import { ProductListActions } from "@/components/admin/product-list-actions";
 
 const dateKeys = new Set(["updatedAt", "createdAt", "publishedAt", "occurredAt", "dueAt", "nextFollowUpAt"]);
 const pillKeys = new Set(["status", "active", "stage", "priority", "isActive"]);
@@ -67,6 +68,9 @@ export default async function ResourceListPage({
                   {column.label}
                 </th>
               ))}
+              {key === "products" ? (
+                <th className="px-3 py-2 font-semibold">Actions</th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -108,6 +112,15 @@ export default async function ResourceListPage({
                     </td>
                   );
                 })}
+                {key === "products" ? (
+                  <td className="px-3 py-3 align-middle">
+                    <ProductListActions
+                      id={String(row.id)}
+                      path={String(row.path ?? "")}
+                      published={row.status === "published"}
+                    />
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

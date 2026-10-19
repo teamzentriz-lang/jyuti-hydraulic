@@ -38,6 +38,22 @@ const optionalText = (max: number) =>
 
 const richText = z.string().max(500_000);
 
+function removeLeadingOverviewTitle(html: string, title: string) {
+  const normalize = (value: string) =>
+    value
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .trim();
+  const normalizedTitle = normalize(title);
+  return html.replace(
+    /^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i,
+    (match, heading) =>
+      normalize(heading) === normalizedTitle ? "" : match,
+  );
+}
+
 export const productScalarsSchema = z.object({
   title: z.string().trim().min(1).max(300),
   slug,
@@ -73,6 +89,8 @@ export const productScalarsSchema = z.object({
   brochureMediaId: optionalUuid,
   price: optionalText(80),
   stock: optionalText(80),
+  rating: z.number().int().min(1).max(5).nullable(),
+  shippingArea: optionalText(240),
   sortOrder: z.coerce.number().int().min(0).max(100000),
   isFeatured: z.boolean(),
   isActive: z.boolean(),
@@ -128,6 +146,8 @@ export function readProductScalars(formData: FormData) {
     brochureMediaId: text("brochureMediaId") || null,
     price: text("price") || null,
     stock: text("stock") || null,
+    rating: text("rating") ? Number(text("rating")) : null,
+    shippingArea: text("shippingArea") || null,
     sortOrder: text("sortOrder") || "0",
     isFeatured: formData.get("isFeatured") === "on",
     isActive: formData.get("isActive") === "on",
@@ -152,6 +172,7 @@ export function readProductScalars(formData: FormData) {
   const data = parsed.data;
   return {
     ...data,
+    overview: removeLeadingOverviewTitle(data.overview, data.title),
     enquiryEmail: data.enquiryEmail || null,
   };
 }

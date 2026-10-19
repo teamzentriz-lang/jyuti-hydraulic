@@ -9,10 +9,11 @@ import { formatBytes, formatWhen } from "@/components/admin/status-pill";
 import { requireUser } from "@/lib/auth";
 import { canAccessResource } from "@/lib/authorization";
 import type { PageSectionPayload, ProductPayload } from "@/lib/cms/entity-data";
-import { fieldsFor, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
+import { fieldsFor, getPageHtmlOverride, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
 import { isResourceKey, resources, type FieldDef } from "@/lib/cms/resources";
 import { convertInquiryToLeadAction } from "@/lib/cms/actions";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/admin/styles";
+import { publicPath } from "@/lib/paths";
 import { hasPermission, permissionForResource } from "@/lib/authorization";
 
 function mediaIds(record: Record<string, unknown>, fields: FieldDef[]) {
@@ -47,7 +48,11 @@ export default async function EditResourcePage({
   const canEdit = hasPermission(user, permissionForResource(key));
 
   if (key === "products") {
-    const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products", id)]);
+    const [categories, productOptions, pageHtml] = await Promise.all([
+      relationOptions("product-categories"),
+      relationOptions("products", id),
+      getPageHtmlOverride(publicPath(String(record.path ?? ""))),
+    ]);
     const payload = (record.productPayload ?? {
       specifications: [],
       features: [],
@@ -67,7 +72,7 @@ export default async function EditResourcePage({
         <PageHeader eyebrow={config.label} title={String(record.title)} />
         {query.saved ? <Notice tone="ok">Saved.</Notice> : null}
         {query.error ? <Notice tone="error">{query.error}</Notice> : null}
-        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} productOptions={productOptions} canDelete />
+        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} productOptions={productOptions} pageHtml={pageHtml} canDelete />
       </>
     );
   }

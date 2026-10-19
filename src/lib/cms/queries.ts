@@ -550,6 +550,18 @@ export async function getSettings() {
   });
 }
 
+export async function getPageHtmlOverride(path: string) {
+  return withDatabaseRetry(async () => {
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(pageHtmlOverrides)
+      .where(eq(pageHtmlOverrides.path, path))
+      .limit(1);
+    return row ?? null;
+  });
+}
+
 export async function getHome() {
   return withDatabaseRetry(async () => {
     await ensureSingletons();
