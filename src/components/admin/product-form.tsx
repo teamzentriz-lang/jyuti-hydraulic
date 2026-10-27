@@ -47,6 +47,7 @@ export function ProductForm({
   payload,
   media,
   categoryOptions,
+  categoryIds,
   productOptions,
   pageHtml,
   canDelete,
@@ -56,6 +57,7 @@ export function ProductForm({
   payload: ProductPayload;
   media: MediaItem[];
   categoryOptions: { value: string; label: string }[];
+  categoryIds: string[];
   productOptions: { value: string; label: string }[];
   pageHtml: { headerHtml: string; footerHtml: string; isActive: boolean } | null;
   canDelete: boolean;
@@ -66,6 +68,11 @@ export function ProductForm({
   const [title, setTitle] = useState(() => asText(initial.title));
   const [slug, setSlug] = useState(() => asText(initial.slug));
   const [path, setPath] = useState(() => asText(initial.path));
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState(() =>
+    categoryIds.length
+      ? categoryIds
+      : [asText(initial.categoryId), asText(initial.subCategoryId)].filter(Boolean),
+  );
   const specificationRows = specificationsForForm(initial, payload);
 
   const preview = publicPath(path);
@@ -80,6 +87,29 @@ export function ProductForm({
     <form action={action} className="space-y-6">
       <input type="hidden" name="resource" value="products" />
       <input type="hidden" name="id" value={id ?? ""} />
+      {[
+        "body",
+        "richContent",
+        "featuresText",
+        "benefits",
+        "advantages",
+        "applicationsText",
+        "workingPrinciple",
+        "construction",
+        "material",
+        "manufacturingDetails",
+        "qualityInformation",
+        "maintenanceInformation",
+        "safetyInformation",
+        "customizationInformation",
+        "thumbnailId",
+        "diagramImageId",
+        "technicalDrawingId",
+        "dimensionDrawingId",
+        "installationImageId",
+      ].map((name) => (
+        <input key={name} type="hidden" name={name} value={asText(initial[name])} />
+      ))}
       {state?.error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
       {preview ? (
         <p className="rounded-md bg-paper px-3 py-2 text-sm text-navy">
@@ -87,10 +117,11 @@ export function ProductForm({
         </p>
       ) : null}
       <TabShell
+        stacked
         tabs={[
           {
             id: "general",
-            label: "General",
+            label: "Product basics",
             content: (
               <section className="grid gap-4 rounded-lg border border-line bg-white p-4 md:grid-cols-2">
                 <label className="md:col-span-2">
@@ -138,38 +169,12 @@ export function ProductForm({
                   <input className={inputClass} name="productCode" defaultValue={asText(initial.productCode)} />
                 </label>
                 <label>
-                  <span className={labelClass}>Category</span>
-                  <select className={inputClass} name="categoryId" defaultValue={asText(initial.categoryId)}>
-                    <option value="">None</option>
-                    {categoryOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className={labelClass}>Sub-category</span>
-                  <select className={inputClass} name="subCategoryId" defaultValue={asText(initial.subCategoryId)}>
-                    <option value="">None</option>
-                    {categoryOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
                   <span className={labelClass}>Brand</span>
                   <input className={inputClass} name="brand" defaultValue={asText(initial.brand)} />
                 </label>
                 <label>
                   <span className={labelClass}>Model number</span>
                   <input className={inputClass} name="modelNumber" defaultValue={asText(initial.modelNumber)} />
-                </label>
-                <label className="md:col-span-2">
-                  <span className={labelClass}>Short description</span>
-                  <textarea className={inputClass} name="summary" rows={3} defaultValue={asText(initial.summary)} />
                 </label>
                 <label>
                   <span className={labelClass}>Category display order</span>
@@ -219,9 +224,13 @@ export function ProductForm({
           },
           {
             id: "description",
-            label: "Description",
+            label: "Content and details",
             content: (
               <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+                <label>
+                  <span className={labelClass}>Short summary</span>
+                  <textarea className={inputClass} name="summary" rows={3} defaultValue={asText(initial.summary)} />
+                </label>
                 <label>
                   <span className={labelClass}>Overview content</span>
                   <RichTextEditor
@@ -229,34 +238,88 @@ export function ProductForm({
                     defaultValue={asText(initial.overview) || asText(initial.body) || asText(initial.richContent)}
                   />
                   <span className={helpClass}>
-                    This is the only primary description editor for this product. The product name is managed from the General tab.
+                    Use this single editor for the primary product story. Product name stays in General.
                   </span>
                 </label>
-                {[
-                  ["featuresText", "Features (text)"],
-                  ["benefits", "Benefits"],
-                  ["advantages", "Advantages"],
-                  ["applicationsText", "Applications (text)"],
-                  ["workingPrinciple", "Working principle"],
-                  ["construction", "Construction"],
-                  ["material", "Material"],
-                  ["manufacturingDetails", "Manufacturing"],
-                  ["qualityInformation", "Quality"],
-                  ["maintenanceInformation", "Maintenance"],
-                  ["safetyInformation", "Safety"],
-                  ["customizationInformation", "Customization"],
-                ].map(([name, label]) => (
-                  <div key={name}>
-                    <span className={labelClass}>{label}</span>
-                    <RichTextEditor name={name} defaultValue={asText(initial[name])} />
+                <div className="rounded-md border border-line p-4">
+                  <span className={labelClass}>Show this product in categories</span>
+                  <p className={`${helpClass} mb-3`}>Tick every category where this product should appear. The first two selections remain the primary and secondary categories for older navigation.</p>
+                  <input type="hidden" name="categoryId" value={selectedCategoryIds[0] ?? ""} />
+                  <input type="hidden" name="subCategoryId" value={selectedCategoryIds[1] ?? ""} />
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {categoryOptions.map((option) => {
+                      const checked = selectedCategoryIds.includes(option.value);
+                      return <label key={option.value} className="flex items-start gap-2 rounded border border-line px-3 py-2 text-sm text-navy">
+                        <input
+                          name="categoryIds"
+                          type="checkbox"
+                          value={option.value}
+                          checked={checked}
+                          onChange={() => setSelectedCategoryIds((current) => checked ? current.filter((id) => id !== option.value) : [...current, option.value])}
+                          className="mt-0.5 h-4 w-4 accent-navy"
+                        />
+                        <span>{option.label}</span>
+                      </label>;
+                    })}
                   </div>
-                ))}
+                </div>
+                <details open className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Images</summary>
+                  <div className="mt-4 space-y-4">
+                    <div><span className={labelClass}>Main product image</span><MediaPicker name="featuredImageId" initialIds={asText(initial.featuredImageId) ? [asText(initial.featuredImageId)] : []} known={media} /></div>
+                    <div><span className={labelClass}>Product gallery (optional)</span><MediaPicker name="galleryMediaIds" multiple initialIds={payload.galleryMediaIds ?? []} known={media} /></div>
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Specifications</summary>
+                  <div className="mt-4"><FullSpecsEditor name="_specs" initial={specificationRows} /></div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Related products</summary>
+                  <div className="mt-4"><RelatedProductsEditor name="_related" initial={payload.relatedProducts} options={productOptions} /></div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Features and applications</summary>
+                  <div className="mt-4 space-y-6">
+                    <FeaturesEditor name="_features" initial={payload.features} media={media} />
+                    <ApplicationsEditor name="_applications" initial={payload.applications} media={media} />
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Technical data and options</summary>
+                  <div className="mt-4 space-y-6">
+                    <TechnicalTablesEditor name="_technicalTables" initial={payload.technicalTables} />
+                    <OptionsEditor name="_options" initial={payload.options} media={media} />
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Documents</summary>
+                  <div className="mt-4 space-y-5">
+                    <div>
+                      <span className={labelClass}>Product PDF brochure</span>
+                      <MediaPicker name="brochureMediaId" initialIds={asText(initial.brochureMediaId) ? [asText(initial.brochureMediaId)] : []} known={media} />
+                      <span className={helpClass}>This file powers the public “View PDF” button.</span>
+                    </div>
+                    <div>
+                      <span className={helpClass}>Add a document with type “Certificate” to enable the public View Certificates button and certificate icons.</span>
+                      <DocumentsEditor name="_documents" initial={payload.documents} media={media} />
+                    </div>
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">Video, reviews and FAQs</summary>
+                  <div className="mt-4 space-y-6">
+                    <PageSectionsEditor name="_sections" initial={payload.sections} media={media} />
+                    <FaqsEditor name="_faqs" initial={payload.faqs} />
+                  </div>
+                </details>
               </section>
             ),
           },
           {
             id: "images",
             label: "Images",
+            hidden: true,
             content: (
               <section className="grid gap-4 rounded-lg border border-line bg-white p-4 md:grid-cols-2">
                 {[
@@ -284,6 +347,7 @@ export function ProductForm({
           {
             id: "features",
             label: "Features",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <FeaturesEditor name="_features" initial={payload.features} media={media} />
@@ -293,6 +357,7 @@ export function ProductForm({
           {
             id: "applications",
             label: "Applications",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <ApplicationsEditor name="_applications" initial={payload.applications} media={media} />
@@ -302,6 +367,7 @@ export function ProductForm({
           {
             id: "specifications",
             label: "Specifications",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <FullSpecsEditor name="_specs" initial={specificationRows} />
@@ -311,6 +377,7 @@ export function ProductForm({
           {
             id: "tables",
             label: "Technical tables",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <TechnicalTablesEditor name="_technicalTables" initial={payload.technicalTables} />
@@ -320,6 +387,7 @@ export function ProductForm({
           {
             id: "options",
             label: "Options",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <OptionsEditor name="_options" initial={payload.options} media={media} />
@@ -329,6 +397,7 @@ export function ProductForm({
           {
             id: "documents",
             label: "Documents",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <DocumentsEditor name="_documents" initial={payload.documents} media={media} />
@@ -338,6 +407,7 @@ export function ProductForm({
           {
             id: "related",
             label: "Related products",
+            hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
                 <RelatedProductsEditor name="_related" initial={payload.relatedProducts} options={productOptions} />
@@ -347,6 +417,7 @@ export function ProductForm({
           {
             id: "sections",
             label: "Video & reviews",
+            hidden: true,
             content: (
               <section className="space-y-3 rounded-lg border border-line bg-white p-4">
                 <p className={helpClass}>
@@ -359,6 +430,7 @@ export function ProductForm({
           {
             id: "faqs",
             label: "FAQs",
+            hidden: true,
             content: (
               <section className="space-y-3 rounded-lg border border-line bg-white p-4">
                 <p className={helpClass}>Only active FAQs appear in the product page FAQ tab.</p>

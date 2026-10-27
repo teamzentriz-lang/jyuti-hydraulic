@@ -49,6 +49,7 @@ export default async function NewResourcePage({
           payload={emptyPayload}
           media={[]}
           categoryOptions={categories}
+          categoryIds={[]}
           productOptions={productOptions}
           pageHtml={null}
           canDelete={false}

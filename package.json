@@ -15,6 +15,7 @@
     "db:migrate-runtime-schema": "tsx scripts/migrate-runtime-schema.ts",
     "db:migrate-push-notifications": "tsx scripts/migrate-push-notifications.ts",
     "db:migrate-product-details": "tsx scripts/migrate-product-details.ts",
+    "db:migrate-product-category-assignments": "tsx scripts/migrate-product-category-assignments.ts",
     "push:generate-vapid": "web-push generate-vapid-keys",
     "db:migrate-cms-html": "tsx scripts/migrate-cms-html.ts",
     "db:push": "drizzle-kit push",

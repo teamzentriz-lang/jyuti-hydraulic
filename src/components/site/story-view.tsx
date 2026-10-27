@@ -35,6 +35,24 @@ export function StoryView({ content }: { content: PublishedContent }) {
   const lead = cleanPublicExcerpt(content.summary ?? "", 320);
   const cover = content.cover ?? content.hero ?? null;
 
+  const meta = content.meta ?? {};
+  const updatedDateRaw =
+    meta.updatedDateText?.trim() || formatDate(meta.updatedAt) || date;
+  const updatedDateDisplay = updatedDateRaw
+    ? updatedDateRaw.toLowerCase().startsWith("updated")
+      ? updatedDateRaw
+      : `Updated ${updatedDateRaw}`
+    : "";
+  const authorName = meta.author?.trim();
+  const authorRole = meta.authorRole?.trim();
+  const authorUrl = meta.authorUrl?.trim();
+  const reviewedByName = meta.reviewedByName?.trim();
+  const reviewedByRole = meta.reviewedByRole?.trim();
+  const reviewedByUrl = meta.reviewedByUrl?.trim();
+  const verifiedByName = meta.verifiedByName?.trim();
+  const verifiedByRole = meta.verifiedByRole?.trim();
+  const verifiedByUrl = meta.verifiedByUrl?.trim();
+
   if (content.kind === "location") {
     return (
       <main className="product-page location-page">
@@ -76,7 +94,80 @@ export function StoryView({ content }: { content: PublishedContent }) {
           <div className="site-container story-page__title-inner">
             <p className="page-kicker">{kicker}</p>
             <h1>{title}</h1>
-            {date ? <p className="story-page__date">{date}</p> : null}
+            <ul className="story-meta__list" aria-label="Article metadata">
+              {updatedDateDisplay ? (
+                <li className="story-meta__item">
+                  <span className="story-meta__bullet" aria-hidden="true" />
+                  <span>{updatedDateDisplay}</span>
+                </li>
+              ) : null}
+              {authorName ? (
+                <li className="story-meta__item">
+                  <span className="story-meta__bullet" aria-hidden="true" />
+                  <span>
+                    Written by{" "}
+                    {authorUrl ? (
+                      <a
+                        href={authorUrl}
+                        className="story-meta__link"
+                        {...(authorUrl.startsWith("http")
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {authorName}
+                      </a>
+                    ) : (
+                      <span className="story-meta__name">{authorName}</span>
+                    )}
+                    {authorRole ? ` (${authorRole})` : null}
+                  </span>
+                </li>
+              ) : null}
+              {reviewedByName ? (
+                <li className="story-meta__item">
+                  <span className="story-meta__bullet" aria-hidden="true" />
+                  <span>
+                    Reviewed by{" "}
+                    {reviewedByUrl ? (
+                      <a
+                        href={reviewedByUrl}
+                        className="story-meta__link"
+                        {...(reviewedByUrl.startsWith("http")
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {reviewedByName}
+                      </a>
+                    ) : (
+                      <span className="story-meta__name">{reviewedByName}</span>
+                    )}
+                    {reviewedByRole ? ` (${reviewedByRole})` : null}
+                  </span>
+                </li>
+              ) : null}
+              {verifiedByName ? (
+                <li className="story-meta__item">
+                  <span className="story-meta__bullet" aria-hidden="true" />
+                  <span>
+                    Verified by{" "}
+                    {verifiedByUrl ? (
+                      <a
+                        href={verifiedByUrl}
+                        className="story-meta__link"
+                        {...(verifiedByUrl.startsWith("http")
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {verifiedByName}
+                      </a>
+                    ) : (
+                      <span className="story-meta__name">{verifiedByName}</span>
+                    )}
+                    {verifiedByRole ? ` , ${verifiedByRole}` : null}
+                  </span>
+                </li>
+              ) : null}
+            </ul>
           </div>
         </header>
       ) : (

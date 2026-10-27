@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import {
   Autoformat, BlockQuote, Bold, ClassicEditor, Essentials, GeneralHtmlSupport,
@@ -13,12 +13,12 @@ import { helpClass } from "@/components/admin/styles";
 const licenseKey = process.env.NEXT_PUBLIC_CKEDITOR_LICENSE_KEY?.trim() || "GPL";
 
 export function CKEditorField({ name, defaultValue }: { name: string; defaultValue: string }) {
-  const [html, setHtml] = useState(defaultValue ?? "");
+  const valueRef = useRef<HTMLInputElement>(null);
   return (
     <div className="admin-ckeditor">
       <CKEditor
         editor={ClassicEditor}
-        data={html}
+        data={defaultValue ?? ""}
         config={{
           licenseKey,
           plugins: [Essentials, Paragraph, Heading, Bold, Italic, Underline, Strikethrough, Link, List, BlockQuote, Table, TableToolbar, Autoformat, RemoveFormat, SourceEditing, GeneralHtmlSupport],
@@ -31,9 +31,11 @@ export function CKEditorField({ name, defaultValue }: { name: string; defaultVal
           htmlSupport: { allow: [{ name: /^(p|h2|h3|h4|ul|ol|li|a|strong|em|u|s|blockquote|table|thead|tbody|tr|th|td|br)$/, attributes: true, classes: true, styles: true }] },
           placeholder: "Write and format content…",
         }}
-        onChange={(_event, editor) => setHtml(editor.getData())}
+        onChange={(_event, editor) => {
+          if (valueRef.current) valueRef.current.value = editor.getData();
+        }}
       />
-      <input type="hidden" name={name} value={html} />
+      <input ref={valueRef} type="hidden" name={name} defaultValue={defaultValue ?? ""} />
       <p className={helpClass}>CKEditor: headings, formatting, lists, links, quotes, tables and HTML source.</p>
     </div>
   );

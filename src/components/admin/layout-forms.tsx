@@ -96,6 +96,9 @@ export function HeaderForm({
           name="phone"
           defaultValue={header.phone}
         />
+        <span className="mt-1 block text-xs text-muted">
+          Add multiple numbers separated by a comma. Example: +91 9541424317, 8813881451
+        </span>
       </label>
       <label>
         <span className={labelClass}>Email</span>

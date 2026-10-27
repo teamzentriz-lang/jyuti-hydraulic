@@ -675,6 +675,25 @@ export const products = pgTable(
   ],
 );
 
+/** Additional category placements for a product. The legacy primary/sub-category
+ * columns stay in place for backwards-compatible routes and navigation. */
+export const productCategoryAssignments = pgTable(
+  "product_category_assignments",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => productCategories.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.productId, t.categoryId] }),
+    index("product_category_assignments_category_idx").on(t.categoryId, t.sortOrder),
+  ],
+);
+
 export const homeFeaturedProducts = pgTable(
   "home_featured_products",
   {
@@ -800,6 +819,15 @@ export const posts = pgTable(
     }),
     categoryId: uuid("category_id"),
     author: text("author").notNull().default(""),
+    authorRole: text("author_role"),
+    authorUrl: text("author_url"),
+    reviewedByName: text("reviewed_by_name"),
+    reviewedByRole: text("reviewed_by_role"),
+    reviewedByUrl: text("reviewed_by_url"),
+    verifiedByName: text("verified_by_name"),
+    verifiedByRole: text("verified_by_role"),
+    verifiedByUrl: text("verified_by_url"),
+    updatedDateText: text("updated_date_text"),
     excerpt: text("excerpt").notNull().default(""),
     body: text("body").notNull().default(""),
     readingTime: integer("reading_time"),

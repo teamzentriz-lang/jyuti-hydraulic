@@ -111,7 +111,14 @@ export async function SiteShell({
 
   const topEmail = header.email?.trim() || settings.emailPrimary;
 
-  const topPhone = header.phone?.trim() || settings.phonePrimary;
+  const configuredPhone = header.phone?.trim() || settings.phonePrimary;
+  const secondaryPhone = "8813881451";
+  const topPhone = configuredPhone
+    .split(",")
+    .map((phone) => phone.trim())
+    .some((phone) => phone.replace(/\D/g, "").endsWith(secondaryPhone))
+    ? configuredPhone
+    : `${configuredPhone}, ${secondaryPhone}`;
 
   const quoteLabel = header.ctaText?.trim() || settings.quoteCtaLabel;
 

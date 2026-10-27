@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
+import { classifyDatabaseError } from "@/db/errors";
 import {
   categoryRelatedCategories,
   contentFaqs,
@@ -7,6 +8,7 @@ import {
   pageSections,
   postTags,
   productApplications,
+  productCategoryAssignments,
   productDocuments,
   productFeatures,
   productImages,
@@ -88,6 +90,43 @@ export type ContentTablePayload = {
   responsiveMode: string;
   sortOrder: number;
 };
+
+export async function loadProductCategoryIds(productId: string) {
+  const db = getDb();
+  try {
+    const rows = await db
+      .select({ categoryId: productCategoryAssignments.categoryId })
+      .from(productCategoryAssignments)
+      .where(eq(productCategoryAssignments.productId, productId))
+      .orderBy(asc(productCategoryAssignments.sortOrder));
+    return rows.map((row) => row.categoryId);
+  } catch (error) {
+    // Existing deployments can keep editing products before the optional
+    // category-assignment migration has been run.
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
+
+export async function saveProductCategoryAssignments(
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  productId: string,
+  categoryIds: string[],
+) {
+  const ids = [...new Set(categoryIds.filter(Boolean))];
+  try {
+    await tx
+      .delete(productCategoryAssignments)
+      .where(eq(productCategoryAssignments.productId, productId));
+    if (ids.length) {
+      await tx.insert(productCategoryAssignments).values(
+        ids.map((categoryId, sortOrder) => ({ productId, categoryId, sortOrder })),
+      );
+    }
+  } catch (error) {
+    if (classifyDatabaseError(error).reason !== "schema") throw error;
+  }
+}
 
 export async function loadContentFaqs(
   entityKind: "product" | "category" | "page" | "post",

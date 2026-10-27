@@ -7,6 +7,7 @@ import {
   pages,
   posts,
   productCategories,
+  productCategoryAssignments,
   productImages,
   products,
   routes,
@@ -259,7 +260,7 @@ async function categoryProductCards(
   categoryId: string,
 ) {
   const productRows = await db
-    .select({
+    .selectDistinct({
       id: products.id,
       title: products.title,
       path: products.path,
@@ -268,11 +269,16 @@ async function categoryProductCards(
       thumbnailId: products.thumbnailId,
     })
     .from(products)
+    .leftJoin(
+      productCategoryAssignments,
+      eq(productCategoryAssignments.productId, products.id),
+    )
     .where(
       and(
         or(
           eq(products.categoryId, categoryId),
           eq(products.subCategoryId, categoryId),
+          eq(productCategoryAssignments.categoryId, categoryId),
         ),
         eq(products.status, "published"),
       ),
@@ -471,9 +477,20 @@ export async function buildPublishedContent(
       body: row.body,
       summary: row.excerpt,
       cover,
-      meta: row.publishedAt
-        ? { publishedAt: row.publishedAt.toISOString() }
-        : undefined,
+      meta: {
+        ...(row.publishedAt ? { publishedAt: row.publishedAt.toISOString() } : {}),
+        ...(row.updatedAt ? { updatedAt: row.updatedAt.toISOString() } : {}),
+        ...(row.updatedDateText ? { updatedDateText: row.updatedDateText } : {}),
+        ...(row.author ? { author: row.author } : {}),
+        ...(row.authorRole ? { authorRole: row.authorRole } : {}),
+        ...(row.authorUrl ? { authorUrl: row.authorUrl } : {}),
+        ...(row.reviewedByName ? { reviewedByName: row.reviewedByName } : {}),
+        ...(row.reviewedByRole ? { reviewedByRole: row.reviewedByRole } : {}),
+        ...(row.reviewedByUrl ? { reviewedByUrl: row.reviewedByUrl } : {}),
+        ...(row.verifiedByName ? { verifiedByName: row.verifiedByName } : {}),
+        ...(row.verifiedByRole ? { verifiedByRole: row.verifiedByRole } : {}),
+        ...(row.verifiedByUrl ? { verifiedByUrl: row.verifiedByUrl } : {}),
+      },
     };
   }
 

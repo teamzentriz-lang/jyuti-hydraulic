@@ -24,6 +24,7 @@ import {
   media,
   navLinks,
   productCategories,
+  posts,
   products,
   pageHtmlOverrides,
   routes,
@@ -58,6 +59,7 @@ import {
 import { getRecord, tables } from "@/lib/cms/queries";
 import {
   saveContentFaqs,
+  saveProductCategoryAssignments,
   saveProductPayload,
   savePageSections,
   loadProductPayload,
@@ -384,6 +386,13 @@ export async function saveResourceAction(
       if (resource === "products") {
         const payload = readProductPayloadFromForm(formData);
         await saveProductPayload(tx, id, payload);
+        await saveProductCategoryAssignments(
+          tx,
+          id,
+          formData
+            .getAll("categoryIds")
+            .filter((value): value is string => typeof value === "string"),
+        );
 
         const overridePath = publicPath(String(row.path ?? ""));
         const headerHtml = sanitizeRichText(
@@ -597,6 +606,92 @@ export async function cloneProductAction(formData: FormData) {
   } catch (error) {
     const message = toCmsMessage(error);
     redirect(`/admin/products/?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function clonePostAction(formData: FormData) {
+  const sourceId = String(formData.get("id") ?? "");
+  if (!sourceId) redirect("/admin/posts/");
+
+  try {
+    const actor = await requireUser();
+    requirePermission(actor, "cms.content.manage");
+    const db = getDb();
+    const [source] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, sourceId))
+      .limit(1);
+    if (!source) throw new CmsError("That post no longer exists.");
+
+    const basePath = normalizePath(source.path);
+    const baseSlug = normalizeSlug(source.slug);
+    let duplicatePath = "";
+    let duplicateSlug = "";
+    for (let copyNumber = 1; copyNumber <= 999; copyNumber += 1) {
+      const suffix = copyNumber === 1 ? "-copy" : `-copy-${copyNumber}`;
+      const pathCandidate = `${basePath.slice(0, 400 - suffix.length)}${suffix}`;
+      const slugCandidate = `${baseSlug.slice(0, 180 - suffix.length)}${suffix}`;
+      const [taken] = await db
+        .select({ path: routes.path })
+        .from(routes)
+        .where(eq(routes.path, pathCandidate))
+        .limit(1);
+      if (!taken) {
+        duplicatePath = pathCandidate;
+        duplicateSlug = slugCandidate;
+        break;
+      }
+    }
+    if (!duplicatePath) {
+      throw new CmsError("Could not create an unused copy URL.");
+    }
+
+    const id = randomUUID();
+    const {
+      id: _sourceId,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      legacyId: _legacyId,
+      legacySlug: _legacySlug,
+      legacyUrl: _legacyUrl,
+      legacyType: _legacyType,
+      ...sourceValues
+    } = source;
+    const title = `${source.title} (Copy)`.slice(0, 300);
+
+    await db.transaction(async (tx) => {
+      await tx.insert(posts).values({
+        ...sourceValues,
+        id,
+        title,
+        slug: duplicateSlug,
+        path: duplicatePath,
+        canonicalUrl: null,
+        status: "draft",
+        publishedAt: null,
+        updatedAt: new Date(),
+      });
+      await reserveRoute(tx, {
+        path: duplicatePath,
+        kind: "post",
+        entityId: id,
+        status: "draft",
+      });
+    });
+
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "cloned",
+      entityType: "posts",
+      entityId: id,
+      metadata: { sourceId },
+    });
+    revalidatePath("/admin/posts");
+    redirect(`${adminHref("posts", id)}?cloned=1`);
+  } catch (error) {
+    const message = toCmsMessage(error);
+    redirect(`/admin/posts/?error=${encodeURIComponent(message)}`);
   }
 }
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, FileText, Mail, MessageCircle, Play, Star } from "lucide-react";
+import { Award, BadgeCheck, FileText, Mail, Play, Star } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { ProductCard } from "@/components/site/product-card";
 import { ProductGallery } from "@/components/site/product-gallery";
@@ -124,6 +124,24 @@ function youtubeEmbedUrl(raw: unknown) {
   } catch {
     return null;
   }
+}
+
+function YouTubeIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8Z" />
+      <path fill="#fff" d="m9.6 15.8 6.2-3.8-6.2-3.8v7.6Z" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.2 11.3A8.2 8.2 0 0 1 8.1 18.5L3.8 20l1.4-4.1A8.2 8.2 0 1 1 20.2 11.3Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.1 7.7c.2-.3.5-.4.8-.2l1 .6c.3.2.4.5.3.8l-.2 1c0 .2-.2.4-.4.5l-.5.2c.5 1.1 1.4 2 2.5 2.5l.2-.5c.1-.2.3-.4.5-.4l1-.2c.3 0 .6.1.8.3l.6 1c.2.3.1.6-.2.8l-.7.7c-.2.2-.5.3-.8.2-3.5-.7-6.3-3.5-7-7-.1-.3 0-.6.2-.8l.7-.7Z" fill="currentColor" />
+    </svg>
+  );
 }
 
 function articleSections(html: string) {
@@ -272,6 +290,11 @@ export async function ProductDetail({
   const certificate = (content.documents ?? []).find(
     (document) => document.documentType === "certificate" && document.url,
   );
+  const certificateHref = certificate?.url || "/certificates/";
+  const youtubeHref =
+    videoSections.length > 0
+      ? "#product-tab-video"
+      : settings.youtubeUrl || null;
   const whatsappNumber = settings.whatsapp?.replace(/\D/g, "") ?? "";
   const productInfo = [
     content.shippingArea ? { label: "Shipping area", value: content.shippingArea } : null,
@@ -515,36 +538,6 @@ export async function ProductDetail({
               <img src="/placeholders/product.svg" alt={title} />
             </div>
           )}
-          {videoSections.length || certificate?.url || content.brochureUrl || whatsappNumber ? (
-            <nav className="product-visual__quick-actions" aria-label="Product quick actions">
-              {videoSections.length ? (
-                <a href="#product-tab-video" title="Watch product video" aria-label="Watch product video">
-                  <Play className="h-5 w-5" aria-hidden="true" />
-                </a>
-              ) : null}
-              {certificate?.url ? (
-                <a href={certificate.url} target="_blank" rel="noopener noreferrer" title="View certificate" aria-label="View certificate">
-                  <Award className="h-5 w-5" aria-hidden="true" />
-                </a>
-              ) : null}
-              {content.brochureUrl ? (
-                <a href={content.brochureUrl} target="_blank" rel="noopener noreferrer" title="View product PDF" aria-label="View product PDF">
-                  <FileText className="h-5 w-5" aria-hidden="true" />
-                </a>
-              ) : null}
-              {whatsappNumber ? (
-                <a
-                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Enquire on WhatsApp"
-                  aria-label="Enquire on WhatsApp"
-                >
-                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
-                </a>
-              ) : null}
-            </nav>
-          ) : null}
           </div>
         <div className="product-summary">
           <p className="eyebrow dark">{labels.productOverviewEyebrow}</p>
@@ -557,6 +550,7 @@ export async function ProductDetail({
                   <Star key={index} className="h-4 w-4 fill-amber-400 text-amber-400" />
                 ))}
               </span>
+              <strong>{content.rating} of 5</strong>
             </div>
           ) : null}
           {productInfo.length ? (
@@ -576,17 +570,98 @@ export async function ProductDetail({
               ))}
             </ul>
           ) : null}
-          <div className="product-summary__actions product-summary__actions--detailed">
-            {videoSections.length ? (
-              <a href="#product-tab-video" className="site-btn-outline">
-                <Play className="h-4 w-4" aria-hidden="true" />
-                Watch video
+          <nav className="product-summary__resource-strip" aria-label="Product resources">
+            {youtubeHref ? (
+              <a
+                className="resource-icon resource-icon--youtube"
+                href={youtubeHref}
+                {...(youtubeHref.startsWith("http")
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                title="Watch product video"
+                aria-label="Watch product video"
+              >
+                <YouTubeIcon />
               </a>
             ) : null}
-            {certificate?.url ? (
-              <a href={certificate.url} className="site-btn-outline" target="_blank" rel="noopener noreferrer">
-                <Award className="h-4 w-4" aria-hidden="true" />
-                View certificate
+            <Link
+              className="resource-icon resource-icon--badge resource-icon--iso"
+              href={certificateHref}
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+              title="ISO 9001:2015 Certified Company"
+              aria-label="ISO 9001:2015 Certified Company"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/iso-9001-certified.png"
+                alt="ISO 9001:2015 Certified Company"
+                width={48}
+                height={48}
+                className="resource-badge-img"
+              />
+            </Link>
+            <Link
+              className="resource-icon resource-icon--badge resource-icon--ce"
+              href={certificateHref}
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+              title="Quality CE Certificate"
+              aria-label="Quality CE Certificate"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/quality-ce-certified.svg"
+                alt="Quality CE Certificate"
+                width={48}
+                height={48}
+                className="resource-badge-img"
+              />
+            </Link>
+            <span className="resource-strip__divider" aria-hidden="true" />
+            <a
+              className="resource-icon resource-icon--email"
+              href={`mailto:${settings.emailPrimary}`}
+              title="Email us"
+              aria-label="Email us"
+            >
+              <Mail aria-hidden="true" />
+            </a>
+            {whatsappNumber ? (
+              <a
+                className="resource-icon resource-icon--whatsapp"
+                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Enquire on WhatsApp"
+                aria-label="Enquire on WhatsApp"
+              >
+                <WhatsAppIcon />
+              </a>
+            ) : null}
+          </nav>
+          <div className="product-summary__actions product-summary__actions--detailed">
+            <Link
+              href={certificateHref}
+              className="site-btn-outline"
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+            >
+              <Award className="h-4 w-4" aria-hidden="true" />
+              View Certificates
+            </Link>
+            {content.brochureUrl ? (
+              <a
+                href={content.brochureUrl}
+                className="site-btn-outline product-summary__pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                <span>View PDF</span>
               </a>
             ) : null}
             {content.enquiryEnabled !== false ? (
@@ -594,27 +669,6 @@ export async function ProductDetail({
                 <Mail className="h-4 w-4" aria-hidden="true" />
                 Get a Quote
               </Link>
-            ) : null}
-            {content.brochureUrl ? (
-              <a
-                href={content.brochureUrl}
-                className="site-btn-outline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>View PDF</span>
-              </a>
-            ) : null}
-            {whatsappNumber ? (
-              <a
-                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
-                className="site-btn-outline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                WhatsApp
-              </a>
             ) : null}
           </div>
         </div>
@@ -719,6 +773,30 @@ export async function ProductDetail({
           </div>
         </section>
       ) : null}
+      {home.testimonials.length ? (
+        <section
+          className="testimonials-section product-testimonials"
+          aria-labelledby="product-testimonials-title"
+        >
+          <div className="site-container">
+            <div className="section-heading centered">
+              <div>
+                <p className="eyebrow">Customer feedback</p>
+                <h2 id="product-testimonials-title">What Our Customers Say</h2>
+              </div>
+            </div>
+            <ul className="testimonials-grid">
+              {home.testimonials.slice(0, 3).map((item, index) => (
+                <li key={`${item.author}-${index}`}>
+                  <span className="quote-mark" aria-hidden>“</span>
+                  <blockquote>{item.quote}</blockquote>
+                  <p>{item.author}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
       {posts.length ? (
         <section className="section-shell product-insights">
           <div className="site-container">
@@ -731,9 +809,13 @@ export async function ProductDetail({
                   from our engineering team.
                 </p>
               </div>
-              <Link href="/blogs/" className="site-btn-outline">
-                View all articles
-              </Link>
+              <form className="insights-search" action="/blogs/" method="get">
+                <input
+                  name="q"
+                  placeholder={labels.blogSearchPlaceholder}
+                  aria-label={labels.blogSearchPlaceholder}
+                />
+              </form>
             </div>
             <ul className="insights-grid">
               {posts.map((post) => (
