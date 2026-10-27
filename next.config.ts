@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   devIndicators: false,
 
+  experimental: {
+    // Product records can contain long imported HTML plus tables and gallery
+    // metadata. Keep valid CMS saves comfortably above the 1 MB default.
+    serverActions: { bodySizeLimit: "5mb" },
+  },
+
   serverExternalPackages: ["postgres", "bcryptjs", "web-push"],
 
   images: {

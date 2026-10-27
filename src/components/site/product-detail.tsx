@@ -16,6 +16,7 @@ import {
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
+import { readableProductArticle } from "@/lib/cms/product-article";
 
 function normalizeCopy(html: string) {
   return textOf(html)
@@ -49,30 +50,6 @@ function dedupedHtml(parts: Array<string | undefined>) {
 function absoluteUrl(url: string) {
   if (/^https?:\/\//i.test(url)) return url;
   return `${siteOrigin()}${url.startsWith("/") ? url : `/${url}`}`;
-}
-
-function readableArticle(html: string) {
-  let next = html
-    .replace(/inquiry now/gi, "")
-    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
-    .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
-    .replace(/<img\b[^>]*>/gi, "");
-  const cuts = [
-    /<h3[^>]*>\s*Contact With Us/i,
-    /Feel free to write our/i,
-    /Our Blogs/i,
-    /Our Products/i,
-    /Read More/i,
-    /Get in Touch/i,
-    /Get Your Quote/i,
-  ]
-    .map((pattern) => next.search(pattern))
-    .filter((index) => index > 40);
-  if (cuts.length) next = next.slice(0, Math.min(...cuts));
-  return next
-    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
-    .replace(/<ul>\s*<\/ul>/gi, "")
-    .trim();
 }
 
 function textOf(html: string) {
@@ -129,7 +106,10 @@ function youtubeEmbedUrl(raw: unknown) {
 function YouTubeIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8Z" />
+      <path
+        fill="currentColor"
+        d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8Z"
+      />
       <path fill="#fff" d="m9.6 15.8 6.2-3.8-6.2-3.8v7.6Z" />
     </svg>
   );
@@ -137,9 +117,23 @@ function YouTubeIcon({ className = "h-6 w-6" }: { className?: string }) {
 
 function WhatsAppIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M20.2 11.3A8.2 8.2 0 0 1 8.1 18.5L3.8 20l1.4-4.1A8.2 8.2 0 1 1 20.2 11.3Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9.1 7.7c.2-.3.5-.4.8-.2l1 .6c.3.2.4.5.3.8l-.2 1c0 .2-.2.4-.4.5l-.5.2c.5 1.1 1.4 2 2.5 2.5l.2-.5c.1-.2.3-.4.5-.4l1-.2c.3 0 .6.1.8.3l.6 1c.2.3.1.6-.2.8l-.7.7c-.2.2-.5.3-.8.2-3.5-.7-6.3-3.5-7-7-.1-.3 0-.6.2-.8l.7-.7Z" fill="currentColor" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M20.2 11.3A8.2 8.2 0 0 1 8.1 18.5L3.8 20l1.4-4.1A8.2 8.2 0 1 1 20.2 11.3Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.1 7.7c.2-.3.5-.4.8-.2l1 .6c.3.2.4.5.3.8l-.2 1c0 .2-.2.4-.4.5l-.5.2c.5 1.1 1.4 2 2.5 2.5l.2-.5c.1-.2.3-.4.5-.4l1-.2c.3 0 .6.1.8.3l.6 1c.2.3.1.6-.2.8l-.7.7c-.2.2-.5.3-.8.2-3.5-.7-6.3-3.5-7-7-.1-.3 0-.6.2-.8l.7-.7Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -233,7 +227,7 @@ export async function ProductDetail({
     .map((item) => item.title.trim())
     .filter(Boolean)
     .slice(0, 4);
-  const overviewHtml = readableArticle(
+  const overviewHtml = readableProductArticle(
     dedupedHtml([
       content.detailBlocks?.find((block) => block.heading === "Overview")?.html,
       content.body,
@@ -269,8 +263,8 @@ export async function ProductDetail({
   };
   const hasSpecifications = Boolean(
     content.specs?.length ||
-      content.technicalTables?.length ||
-      content.contentTables?.length,
+    content.technicalTables?.length ||
+    content.contentTables?.length,
   );
   const videoSections = (content.sections ?? []).filter(
     (section) =>
@@ -297,7 +291,9 @@ export async function ProductDetail({
       : settings.youtubeUrl || null;
   const whatsappNumber = settings.whatsapp?.replace(/\D/g, "") ?? "";
   const productInfo = [
-    content.shippingArea ? { label: "Shipping area", value: content.shippingArea } : null,
+    content.shippingArea
+      ? { label: "Shipping area", value: content.shippingArea }
+      : null,
     content.modelNumber ? { label: "Model", value: content.modelNumber } : null,
     content.brand ? { label: "Brand", value: content.brand } : null,
     content.stock ? { label: "Availability", value: content.stock } : null,
@@ -429,25 +425,25 @@ export async function ProductDetail({
       content: videoSections.length ? (
         <div className="product-video-list">
           {videoSections.map((section, index) => {
-              const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
-              if (!embedUrl) return null;
-              return (
-                <section key={section.id ?? `video-${index}`}>
-                  {section.title ? <h3>{section.title}</h3> : null}
-                  {section.description ? <p>{section.description}</p> : null}
-                  <div className="product-video-list__frame">
-                    <iframe
-                      src={embedUrl}
-                      title={section.title || `${title} video ${index + 1}`}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      allowFullScreen
-                    />
-                  </div>
-                </section>
-              );
-            })}
+            const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
+            if (!embedUrl) return null;
+            return (
+              <section key={section.id ?? `video-${index}`}>
+                {section.title ? <h3>{section.title}</h3> : null}
+                {section.description ? <p>{section.description}</p> : null}
+                <div className="product-video-list__frame">
+                  <iframe
+                    src={embedUrl}
+                    title={section.title || `${title} video ${index + 1}`}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </section>
+            );
+          })}
         </div>
       ) : (
         comingSoon
@@ -463,7 +459,9 @@ export async function ProductDetail({
           {reviewSections.map((review, index) => (
             <li key={review.id ?? `review-${index}`}>
               <span aria-hidden="true">★★★★★</span>
-              {review.description ? <blockquote>{review.description}</blockquote> : null}
+              {review.description ? (
+                <blockquote>{review.description}</blockquote>
+              ) : null}
               {review.title ? <p>{review.title}</p> : null}
             </li>
           ))}
@@ -538,16 +536,22 @@ export async function ProductDetail({
               <img src="/placeholders/product.svg" alt={title} />
             </div>
           )}
-          </div>
+        </div>
         <div className="product-summary">
           <p className="eyebrow dark">{labels.productOverviewEyebrow}</p>
           {lead ? <p className="product-summary__lead">{lead}</p> : null}
           {content.rating ? (
-            <div className="product-summary__rating" aria-label={`${content.rating} out of 5 stars`}>
+            <div
+              className="product-summary__rating"
+              aria-label={`${content.rating} out of 5 stars`}
+            >
               <span>Rating:</span>
               <span aria-hidden="true">
                 {Array.from({ length: content.rating }, (_, index) => (
-                  <Star key={index} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <Star
+                    key={index}
+                    className="h-4 w-4 fill-amber-400 text-amber-400"
+                  />
                 ))}
               </span>
               <strong>{content.rating} of 5</strong>
@@ -570,7 +574,10 @@ export async function ProductDetail({
               ))}
             </ul>
           ) : null}
-          <nav className="product-summary__resource-strip" aria-label="Product resources">
+          <nav
+            className="product-summary__resource-strip"
+            aria-label="Product resources"
+          >
             {youtubeHref ? (
               <a
                 className="resource-icon resource-icon--youtube"
@@ -788,7 +795,9 @@ export async function ProductDetail({
             <ul className="testimonials-grid">
               {home.testimonials.slice(0, 3).map((item, index) => (
                 <li key={`${item.author}-${index}`}>
-                  <span className="quote-mark" aria-hidden>“</span>
+                  <span className="quote-mark" aria-hidden>
+                    “
+                  </span>
                   <blockquote>{item.quote}</blockquote>
                   <p>{item.author}</p>
                 </li>

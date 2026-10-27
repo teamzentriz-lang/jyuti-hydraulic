@@ -47,10 +47,8 @@ function removeLeadingOverviewTitle(html: string, title: string) {
       .replace(/[^a-z0-9]+/g, "")
       .trim();
   const normalizedTitle = normalize(title);
-  return html.replace(
-    /^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i,
-    (match, heading) =>
-      normalize(heading) === normalizedTitle ? "" : match,
+  return html.replace(/^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i, (match, heading) =>
+    normalize(heading) === normalizedTitle ? "" : match,
   );
 }
 
@@ -64,7 +62,10 @@ export const productScalarsSchema = z.object({
   productCode: optionalText(120),
   brand: optionalText(160),
   modelNumber: optionalText(160),
-  summary: z.string().trim().max(2000),
+  // WordPress imports sometimes placed the complete legacy article in this
+  // column. PostgreSQL stores it as text, so rejecting it at 2,000 characters
+  // made otherwise valid product edits impossible.
+  summary: z.string().trim().max(100_000),
   body: richText,
   richContent: richText,
   overview: richText,
@@ -167,7 +168,19 @@ export function readProductScalars(formData: FormData) {
   };
   const parsed = productScalarsSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new CmsError(parsed.error.issues[0]?.message ?? "Check the product form.");
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0] ? String(issue.path[0]) : "Product";
+    const labels: Record<string, string> = {
+      title: "Name",
+      slug: "Slug",
+      path: "URL path",
+      summary: "Short summary",
+      overview: "Overview content",
+      enquiryEmail: "Enquiry email",
+    };
+    throw new CmsError(
+      `${labels[field] ?? field}: ${issue?.message ?? "check this field."}`,
+    );
   }
   const data = parsed.data;
   return {

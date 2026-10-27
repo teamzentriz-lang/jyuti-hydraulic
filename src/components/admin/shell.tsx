@@ -23,8 +23,13 @@ const groups: AdminGroup[] = [
     label: "Site",
     items: [
       {
+        href: "/admin/home",
+        label: "Home page",
+        permission: "cms.settings.manage",
+      },
+      {
         href: "/admin/settings",
-        label: "Site settings",
+        label: "Business profile",
         permission: "cms.settings.manage",
       },
       {
@@ -39,33 +44,8 @@ const groups: AdminGroup[] = [
       },
       {
         href: "/admin/contact-settings",
-        label: "Contact settings",
+        label: "Contact page",
         permission: "cms.settings.manage",
-      },
-      {
-        href: "/admin/common-html",
-        label: "Common HTML",
-        permission: "cms.settings.manage",
-      },
-      {
-        href: "/admin/page-html",
-        label: "Page HTML",
-        permission: "cms.settings.manage",
-      },
-      {
-        href: "/admin/site-labels",
-        label: "Site labels",
-        permission: "cms.settings.manage",
-      },
-      {
-        href: "/admin/home",
-        label: "Home page",
-        permission: "cms.settings.manage",
-      },
-      {
-        href: "/admin/products-menu",
-        label: "Products menu",
-        permission: "cms.navigation.manage",
       },
       {
         href: "/admin/nav-links",
@@ -200,6 +180,26 @@ const groups: AdminGroup[] = [
     label: "System",
     items: [
       {
+        href: "/admin/site-labels",
+        label: "Site labels",
+        permission: "cms.settings.manage",
+      },
+      {
+        href: "/admin/products-menu",
+        label: "Products menu",
+        permission: "cms.navigation.manage",
+      },
+      {
+        href: "/admin/common-html",
+        label: "Global custom HTML",
+        permission: "cms.settings.manage",
+      },
+      {
+        href: "/admin/page-html",
+        label: "Page custom HTML",
+        permission: "cms.settings.manage",
+      },
+      {
         href: "/admin/redirects",
         label: "Redirects",
         permission: "cms.navigation.manage",
@@ -265,6 +265,15 @@ export function AdminShell({
   const pathname = normalize(usePathname());
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const active = groups.find((group) =>
+      group.items.some(
+        (item) =>
+          pathname === item.href || pathname.startsWith(`${item.href}/`),
+      ),
+    );
+    return new Set([active?.label ?? "Site"]);
+  });
   const [now, setNow] = useState(() => new Date());
   const open = openPath === pathname;
   const roleLabel = user.systemRole.replace("_", " ");
@@ -340,21 +349,35 @@ export function AdminShell({
           <Link href="/admin" className={linkClass(pathname === "/admin")}>
             Dashboard
           </Link>
-          {groups.map((group) => (
-            <div key={group.label}>
-              <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
-                {group.items
-                  .filter(
-                    (item) =>
-                      (!item.permission ||
-                        hasPermission(user, item.permission as Permission)) &&
-                      (!item.superAdminOnly ||
-                        user.systemRole === "super_admin"),
-                  )
-                  .map((item) => (
+          {groups.map((group) => {
+            const expanded = openGroups.has(group.label);
+            const accessibleItems = group.items.filter(
+              (item) =>
+                (!item.permission ||
+                  hasPermission(user, item.permission as Permission)) &&
+                (!item.superAdminOnly || user.systemRole === "super_admin"),
+            );
+            if (!accessibleItems.length) return null;
+            return (
+            <div key={group.label} className="rounded-md border border-white/5 bg-white/[0.02]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60 hover:text-white"
+                aria-expanded={expanded}
+                onClick={() =>
+                  setOpenGroups((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.label)) next.delete(group.label);
+                    else next.add(group.label);
+                    return next;
+                  })
+                }
+              >
+                <span>{group.label}</span>
+                <span className={`text-sm transition ${expanded ? "rotate-180" : ""}`} aria-hidden>⌄</span>
+              </button>
+              {expanded ? <div className="space-y-0.5 px-1 pb-1">
+                {accessibleItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -366,9 +389,10 @@ export function AdminShell({
                       {item.label}
                     </Link>
                   ))}
-              </div>
+              </div> : null}
             </div>
-          ))}
+            );
+          })}
         </nav>
       </aside>
       <div className="min-w-0">

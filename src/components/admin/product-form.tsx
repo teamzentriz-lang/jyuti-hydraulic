@@ -15,12 +15,18 @@ import {
 import { MediaPicker } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { TabShell } from "@/components/admin/tab-shell";
-import { helpClass, inputClass, labelClass, primaryButtonClass } from "@/components/admin/styles";
+import {
+  helpClass,
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+} from "@/components/admin/styles";
 import { deleteResourceAction, saveResourceAction } from "@/lib/cms/actions";
 import type { ProductPayload } from "@/lib/cms/entity-data";
 import type { MediaItem } from "@/lib/cms/queries";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { ProductSpecRow } from "@/db/schema";
+import { FormDraftGuard } from "@/components/admin/form-draft-guard";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -35,9 +41,14 @@ function normalizeSpecRows(rows: ProductSpecRow[]) {
   }));
 }
 
-function specificationsForForm(initial: Record<string, unknown>, payload: ProductPayload) {
-  if (payload.specifications.length) return normalizeSpecRows(payload.specifications);
-  if (Array.isArray(initial.specs)) return normalizeSpecRows(initial.specs as ProductSpecRow[]);
+function specificationsForForm(
+  initial: Record<string, unknown>,
+  payload: ProductPayload,
+) {
+  if (payload.specifications.length)
+    return normalizeSpecRows(payload.specifications);
+  if (Array.isArray(initial.specs))
+    return normalizeSpecRows(initial.specs as ProductSpecRow[]);
   return [];
 }
 
@@ -59,10 +70,15 @@ export function ProductForm({
   categoryOptions: { value: string; label: string }[];
   categoryIds: string[];
   productOptions: { value: string; label: string }[];
-  pageHtml: { headerHtml: string; footerHtml: string; isActive: boolean } | null;
+  pageHtml: {
+    headerHtml: string;
+    footerHtml: string;
+    isActive: boolean;
+  } | null;
   canDelete: boolean;
 }) {
   const [state, action, pending] = useActionState(saveResourceAction, null);
+  const formRef = useRef<HTMLFormElement>(null);
   const slugEdited = useRef(Boolean(asText(initial.slug)));
   const pathEdited = useRef(Boolean(asText(initial.path)));
   const [title, setTitle] = useState(() => asText(initial.title));
@@ -71,7 +87,9 @@ export function ProductForm({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState(() =>
     categoryIds.length
       ? categoryIds
-      : [asText(initial.categoryId), asText(initial.subCategoryId)].filter(Boolean),
+      : [asText(initial.categoryId), asText(initial.subCategoryId)].filter(
+          Boolean,
+        ),
   );
   const specificationRows = specificationsForForm(initial, payload);
 
@@ -79,12 +97,11 @@ export function ProductForm({
   const updateTitle = (nextTitle: string) => {
     setTitle(nextTitle);
     if (!slugEdited.current) setSlug(normalizeSlug(nextTitle));
-    if (!pathEdited.current)
-      setPath(`products/${normalizeSlug(nextTitle)}`);
+    if (!pathEdited.current) setPath(`products/${normalizeSlug(nextTitle)}`);
   };
 
   return (
-    <form action={action} className="space-y-6">
+    <form ref={formRef} action={action} className="space-y-6">
       <input type="hidden" name="resource" value="products" />
       <input type="hidden" name="id" value={id ?? ""} />
       {[
@@ -108,12 +125,37 @@ export function ProductForm({
         "dimensionDrawingId",
         "installationImageId",
       ].map((name) => (
-        <input key={name} type="hidden" name={name} value={asText(initial[name])} />
+        <input
+          key={name}
+          type="hidden"
+          name={name}
+          value={asText(initial[name])}
+        />
       ))}
-      {state?.error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
+      <FormDraftGuard
+        formRef={formRef}
+        storageKey={`cms:product-draft:${id ?? "new"}`}
+        serverUpdatedAt={asText(initial.updatedAt) || null}
+        pending={pending}
+        onRestore={(values) => {
+          if (values.title?.[0] !== undefined) setTitle(values.title[0]);
+          if (values.slug?.[0] !== undefined) setSlug(values.slug[0]);
+          if (values.path?.[0] !== undefined) setPath(values.path[0]);
+          if (values.categoryIds) setSelectedCategoryIds(values.categoryIds);
+        }}
+      />
+      {state?.error ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {state.error}
+        </p>
+      ) : null}
       {preview ? (
         <p className="rounded-md bg-paper px-3 py-2 text-sm text-navy">
-          Public URL <span className="font-semibold">{siteOrigin()}{preview}</span>
+          Public URL{" "}
+          <span className="font-semibold">
+            {siteOrigin()}
+            {preview}
+          </span>
         </p>
       ) : null}
       <TabShell
@@ -162,51 +204,100 @@ export function ProductForm({
                 </label>
                 <label>
                   <span className={labelClass}>SKU</span>
-                  <input className={inputClass} name="sku" defaultValue={asText(initial.sku)} />
+                  <input
+                    className={inputClass}
+                    name="sku"
+                    defaultValue={asText(initial.sku)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Product code</span>
-                  <input className={inputClass} name="productCode" defaultValue={asText(initial.productCode)} />
+                  <input
+                    className={inputClass}
+                    name="productCode"
+                    defaultValue={asText(initial.productCode)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Brand</span>
-                  <input className={inputClass} name="brand" defaultValue={asText(initial.brand)} />
+                  <input
+                    className={inputClass}
+                    name="brand"
+                    defaultValue={asText(initial.brand)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Model number</span>
-                  <input className={inputClass} name="modelNumber" defaultValue={asText(initial.modelNumber)} />
+                  <input
+                    className={inputClass}
+                    name="modelNumber"
+                    defaultValue={asText(initial.modelNumber)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Category display order</span>
-                  <input className={inputClass} name="sortOrder" type="number" defaultValue={asText(initial.sortOrder ?? 0)} />
-                  <span className={helpClass}>Lower number appears first inside the selected category.</span>
+                  <input
+                    className={inputClass}
+                    name="sortOrder"
+                    type="number"
+                    defaultValue={asText(initial.sortOrder ?? 0)}
+                  />
+                  <span className={helpClass}>
+                    Lower number appears first inside the selected category.
+                  </span>
                 </label>
                 <label>
                   <span className={labelClass}>Status</span>
-                  <select className={inputClass} name="status" defaultValue={asText(initial.status ?? "draft")}>
+                  <select
+                    className={inputClass}
+                    name="status"
+                    defaultValue={asText(initial.status ?? "draft")}
+                  >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input name="isFeatured" type="checkbox" defaultChecked={Boolean(initial.isFeatured)} className="h-4 w-4 accent-navy" />
+                  <input
+                    name="isFeatured"
+                    type="checkbox"
+                    defaultChecked={Boolean(initial.isFeatured)}
+                    className="h-4 w-4 accent-navy"
+                  />
                   <span className="text-sm">Featured</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input name="isActive" type="checkbox" defaultChecked={initial.isActive !== false} className="h-4 w-4 accent-navy" />
+                  <input
+                    name="isActive"
+                    type="checkbox"
+                    defaultChecked={initial.isActive !== false}
+                    className="h-4 w-4 accent-navy"
+                  />
                   <span className="text-sm">Active</span>
                 </label>
                 <label>
                   <span className={labelClass}>Price (optional)</span>
-                  <input className={inputClass} name="price" defaultValue={asText(initial.price)} />
+                  <input
+                    className={inputClass}
+                    name="price"
+                    defaultValue={asText(initial.price)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Stock (optional)</span>
-                  <input className={inputClass} name="stock" defaultValue={asText(initial.stock)} />
+                  <input
+                    className={inputClass}
+                    name="stock"
+                    defaultValue={asText(initial.stock)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Product rating</span>
-                  <select className={inputClass} name="rating" defaultValue={asText(initial.rating)}>
+                  <select
+                    className={inputClass}
+                    name="rating"
+                    defaultValue={asText(initial.rating)}
+                  >
                     <option value="">Not shown</option>
                     {[1, 2, 3, 4, 5].map((rating) => (
                       <option key={rating} value={rating}>
@@ -217,7 +308,12 @@ export function ProductForm({
                 </label>
                 <label>
                   <span className={labelClass}>Shipping area</span>
-                  <input className={inputClass} name="shippingArea" defaultValue={asText(initial.shippingArea)} placeholder="All over India" />
+                  <input
+                    className={inputClass}
+                    name="shippingArea"
+                    defaultValue={asText(initial.shippingArea)}
+                    placeholder="All over India"
+                  />
                 </label>
               </section>
             ),
@@ -229,87 +325,206 @@ export function ProductForm({
               <section className="space-y-4 rounded-lg border border-line bg-white p-4">
                 <label>
                   <span className={labelClass}>Short summary</span>
-                  <textarea className={inputClass} name="summary" rows={3} defaultValue={asText(initial.summary)} />
+                  <textarea
+                    className={inputClass}
+                    name="summary"
+                    rows={3}
+                    defaultValue={asText(initial.summary)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Overview content</span>
                   <RichTextEditor
                     name="overview"
-                    defaultValue={asText(initial.overview) || asText(initial.body) || asText(initial.richContent)}
+                    defaultValue={
+                      asText(initial.overview) ||
+                      asText(initial.body) ||
+                      asText(initial.richContent)
+                    }
                   />
                   <span className={helpClass}>
-                    Use this single editor for the primary product story. Product name stays in General.
+                    Use this single editor for the primary product story.
+                    Product name stays in General.
                   </span>
                 </label>
                 <div className="rounded-md border border-line p-4">
-                  <span className={labelClass}>Show this product in categories</span>
-                  <p className={`${helpClass} mb-3`}>Tick every category where this product should appear. The first two selections remain the primary and secondary categories for older navigation.</p>
-                  <input type="hidden" name="categoryId" value={selectedCategoryIds[0] ?? ""} />
-                  <input type="hidden" name="subCategoryId" value={selectedCategoryIds[1] ?? ""} />
+                  <span className={labelClass}>
+                    Show this product in categories
+                  </span>
+                  <p className={`${helpClass} mb-3`}>
+                    Tick every category where this product should appear. The
+                    first two selections remain the primary and secondary
+                    categories for older navigation.
+                  </p>
+                  <input
+                    type="hidden"
+                    name="categoryId"
+                    value={selectedCategoryIds[0] ?? ""}
+                  />
+                  <input
+                    type="hidden"
+                    name="subCategoryId"
+                    value={selectedCategoryIds[1] ?? ""}
+                  />
                   <div className="grid gap-2 md:grid-cols-2">
                     {categoryOptions.map((option) => {
-                      const checked = selectedCategoryIds.includes(option.value);
-                      return <label key={option.value} className="flex items-start gap-2 rounded border border-line px-3 py-2 text-sm text-navy">
-                        <input
-                          name="categoryIds"
-                          type="checkbox"
-                          value={option.value}
-                          checked={checked}
-                          onChange={() => setSelectedCategoryIds((current) => checked ? current.filter((id) => id !== option.value) : [...current, option.value])}
-                          className="mt-0.5 h-4 w-4 accent-navy"
-                        />
-                        <span>{option.label}</span>
-                      </label>;
+                      const checked = selectedCategoryIds.includes(
+                        option.value,
+                      );
+                      return (
+                        <label
+                          key={option.value}
+                          className="flex items-start gap-2 rounded border border-line px-3 py-2 text-sm text-navy"
+                        >
+                          <input
+                            name="categoryIds"
+                            type="checkbox"
+                            value={option.value}
+                            checked={checked}
+                            onChange={() =>
+                              setSelectedCategoryIds((current) =>
+                                checked
+                                  ? current.filter((id) => id !== option.value)
+                                  : [...current, option.value],
+                              )
+                            }
+                            className="mt-0.5 h-4 w-4 accent-navy"
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      );
                     })}
                   </div>
                 </div>
                 <details open className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Images</summary>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Images
+                  </summary>
                   <div className="mt-4 space-y-4">
-                    <div><span className={labelClass}>Main product image</span><MediaPicker name="featuredImageId" initialIds={asText(initial.featuredImageId) ? [asText(initial.featuredImageId)] : []} known={media} /></div>
-                    <div><span className={labelClass}>Product gallery (optional)</span><MediaPicker name="galleryMediaIds" multiple initialIds={payload.galleryMediaIds ?? []} known={media} /></div>
+                    <div>
+                      <span className={labelClass}>Main product image</span>
+                      <MediaPicker
+                        name="featuredImageId"
+                        initialIds={
+                          asText(initial.featuredImageId)
+                            ? [asText(initial.featuredImageId)]
+                            : []
+                        }
+                        known={media}
+                      />
+                    </div>
+                    <div>
+                      <span className={labelClass}>
+                        Product gallery (optional)
+                      </span>
+                      <MediaPicker
+                        name="galleryMediaIds"
+                        multiple
+                        initialIds={payload.galleryMediaIds ?? []}
+                        known={media}
+                      />
+                    </div>
                   </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Specifications</summary>
-                  <div className="mt-4"><FullSpecsEditor name="_specs" initial={specificationRows} /></div>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Specifications
+                  </summary>
+                  <div className="mt-4">
+                    <FullSpecsEditor
+                      name="_specs"
+                      initial={specificationRows}
+                    />
+                  </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Related products</summary>
-                  <div className="mt-4"><RelatedProductsEditor name="_related" initial={payload.relatedProducts} options={productOptions} /></div>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Related products
+                  </summary>
+                  <div className="mt-4">
+                    <RelatedProductsEditor
+                      name="_related"
+                      initial={payload.relatedProducts}
+                      options={productOptions}
+                    />
+                  </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Features and applications</summary>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Features and applications
+                  </summary>
                   <div className="mt-4 space-y-6">
-                    <FeaturesEditor name="_features" initial={payload.features} media={media} />
-                    <ApplicationsEditor name="_applications" initial={payload.applications} media={media} />
+                    <FeaturesEditor
+                      name="_features"
+                      initial={payload.features}
+                      media={media}
+                    />
+                    <ApplicationsEditor
+                      name="_applications"
+                      initial={payload.applications}
+                      media={media}
+                    />
                   </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Technical data and options</summary>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Technical data and options
+                  </summary>
                   <div className="mt-4 space-y-6">
-                    <TechnicalTablesEditor name="_technicalTables" initial={payload.technicalTables} />
-                    <OptionsEditor name="_options" initial={payload.options} media={media} />
+                    <TechnicalTablesEditor
+                      name="_technicalTables"
+                      initial={payload.technicalTables}
+                    />
+                    <OptionsEditor
+                      name="_options"
+                      initial={payload.options}
+                      media={media}
+                    />
                   </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Documents</summary>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Documents
+                  </summary>
                   <div className="mt-4 space-y-5">
                     <div>
                       <span className={labelClass}>Product PDF brochure</span>
-                      <MediaPicker name="brochureMediaId" initialIds={asText(initial.brochureMediaId) ? [asText(initial.brochureMediaId)] : []} known={media} />
-                      <span className={helpClass}>This file powers the public “View PDF” button.</span>
+                      <MediaPicker
+                        name="brochureMediaId"
+                        initialIds={
+                          asText(initial.brochureMediaId)
+                            ? [asText(initial.brochureMediaId)]
+                            : []
+                        }
+                        known={media}
+                      />
+                      <span className={helpClass}>
+                        This file powers the public “View PDF” button.
+                      </span>
                     </div>
                     <div>
-                      <span className={helpClass}>Add a document with type “Certificate” to enable the public View Certificates button and certificate icons.</span>
-                      <DocumentsEditor name="_documents" initial={payload.documents} media={media} />
+                      <span className={helpClass}>
+                        Add a document with type “Certificate” to enable the
+                        public View Certificates button and certificate icons.
+                      </span>
+                      <DocumentsEditor
+                        name="_documents"
+                        initial={payload.documents}
+                        media={media}
+                      />
                     </div>
                   </div>
                 </details>
                 <details className="rounded-md border border-line p-4">
-                  <summary className="cursor-pointer font-semibold text-navy">Video, reviews and FAQs</summary>
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Video, reviews and FAQs
+                  </summary>
                   <div className="mt-4 space-y-6">
-                    <PageSectionsEditor name="_sections" initial={payload.sections} media={media} />
+                    <PageSectionsEditor
+                      name="_sections"
+                      initial={payload.sections}
+                      media={media}
+                    />
                     <FaqsEditor name="_faqs" initial={payload.faqs} />
                   </div>
                 </details>
@@ -333,13 +548,26 @@ export function ProductForm({
                 ].map(([name, label]) => (
                   <div key={name}>
                     <span className={labelClass}>{label}</span>
-                    <MediaPicker name={name} initialIds={asText(initial[name]) ? [asText(initial[name])] : []} known={media} />
+                    <MediaPicker
+                      name={name}
+                      initialIds={
+                        asText(initial[name]) ? [asText(initial[name])] : []
+                      }
+                      known={media}
+                    />
                   </div>
                 ))}
                 <div className="md:col-span-2">
                   <span className={labelClass}>Gallery</span>
-                  <MediaPicker name="galleryMediaIds" multiple initialIds={payload.galleryMediaIds ?? []} known={media} />
-                  <span className={helpClass}>Drag order with Up/Down in the picker.</span>
+                  <MediaPicker
+                    name="galleryMediaIds"
+                    multiple
+                    initialIds={payload.galleryMediaIds ?? []}
+                    known={media}
+                  />
+                  <span className={helpClass}>
+                    Drag order with Up/Down in the picker.
+                  </span>
                 </div>
               </section>
             ),
@@ -350,7 +578,11 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <FeaturesEditor name="_features" initial={payload.features} media={media} />
+                <FeaturesEditor
+                  name="_features"
+                  initial={payload.features}
+                  media={media}
+                />
               </section>
             ),
           },
@@ -360,7 +592,11 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <ApplicationsEditor name="_applications" initial={payload.applications} media={media} />
+                <ApplicationsEditor
+                  name="_applications"
+                  initial={payload.applications}
+                  media={media}
+                />
               </section>
             ),
           },
@@ -380,7 +616,10 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <TechnicalTablesEditor name="_technicalTables" initial={payload.technicalTables} />
+                <TechnicalTablesEditor
+                  name="_technicalTables"
+                  initial={payload.technicalTables}
+                />
               </section>
             ),
           },
@@ -390,7 +629,11 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <OptionsEditor name="_options" initial={payload.options} media={media} />
+                <OptionsEditor
+                  name="_options"
+                  initial={payload.options}
+                  media={media}
+                />
               </section>
             ),
           },
@@ -400,7 +643,11 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <DocumentsEditor name="_documents" initial={payload.documents} media={media} />
+                <DocumentsEditor
+                  name="_documents"
+                  initial={payload.documents}
+                  media={media}
+                />
               </section>
             ),
           },
@@ -410,7 +657,11 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="rounded-lg border border-line bg-white p-4">
-                <RelatedProductsEditor name="_related" initial={payload.relatedProducts} options={productOptions} />
+                <RelatedProductsEditor
+                  name="_related"
+                  initial={payload.relatedProducts}
+                  options={productOptions}
+                />
               </section>
             ),
           },
@@ -421,9 +672,15 @@ export function ProductForm({
             content: (
               <section className="space-y-3 rounded-lg border border-line bg-white p-4">
                 <p className={helpClass}>
-                  Add a <strong>video</strong> section for the Video tab, or a <strong>review</strong> section for the Reviews tab. Tabs only appear on the product page when active content is added here.
+                  Add a <strong>video</strong> section for the Video tab, or a{" "}
+                  <strong>review</strong> section for the Reviews tab. Tabs only
+                  appear on the product page when active content is added here.
                 </p>
-                <PageSectionsEditor name="_sections" initial={payload.sections} media={media} />
+                <PageSectionsEditor
+                  name="_sections"
+                  initial={payload.sections}
+                  media={media}
+                />
               </section>
             ),
           },
@@ -433,16 +690,22 @@ export function ProductForm({
             hidden: true,
             content: (
               <section className="space-y-3 rounded-lg border border-line bg-white p-4">
-                <p className={helpClass}>Only active FAQs appear in the product page FAQ tab.</p>
+                <p className={helpClass}>
+                  Only active FAQs appear in the product page FAQ tab.
+                </p>
                 <FaqsEditor name="_faqs" initial={payload.faqs} />
               </section>
             ),
           },
           {
             id: "page-html",
-            label: "Page HTML",
+            label: "Advanced page HTML",
             content: (
-              <section className="space-y-4 rounded-lg border border-line bg-white p-4">
+              <details className="rounded-lg border border-line bg-white p-4">
+                <summary className="cursor-pointer font-semibold text-navy">
+                  Custom header and footer HTML (optional)
+                </summary>
+                <div className="mt-4 space-y-4">
                 <label className="flex items-center gap-2 text-sm text-navy">
                   <input
                     name="_pageHtmlEnabled"
@@ -453,17 +716,26 @@ export function ProductForm({
                   Enable this product&apos;s custom header and footer HTML
                 </label>
                 <p className={helpClass}>
-                  This applies only to this product URL. Common HTML remains available under Site → Common HTML and appears across all public pages.
+                  This applies only to this product URL. Common HTML remains
+                  available under Site → Common HTML and appears across all
+                  public pages.
                 </p>
                 <div>
                   <span className={labelClass}>Custom header HTML</span>
-                  <RichTextEditor name="_pageHeaderHtml" defaultValue={pageHtml?.headerHtml ?? ""} />
+                  <RichTextEditor
+                    name="_pageHeaderHtml"
+                    defaultValue={pageHtml?.headerHtml ?? ""}
+                  />
                 </div>
                 <div>
                   <span className={labelClass}>Custom footer HTML</span>
-                  <RichTextEditor name="_pageFooterHtml" defaultValue={pageHtml?.footerHtml ?? ""} />
+                  <RichTextEditor
+                    name="_pageFooterHtml"
+                    defaultValue={pageHtml?.footerHtml ?? ""}
+                  />
                 </div>
-              </section>
+                </div>
+              </details>
             ),
           },
           {
@@ -472,47 +744,102 @@ export function ProductForm({
             content: (
               <section className="grid gap-4 rounded-lg border border-line bg-white p-4 md:grid-cols-2">
                 <label className="flex items-center gap-2 md:col-span-2">
-                  <input name="enquiryEnabled" type="checkbox" defaultChecked={initial.enquiryEnabled !== false} className="h-4 w-4 accent-navy" />
+                  <input
+                    name="enquiryEnabled"
+                    type="checkbox"
+                    defaultChecked={initial.enquiryEnabled !== false}
+                    className="h-4 w-4 accent-navy"
+                  />
                   <span className="text-sm">Enable product enquiry</span>
                 </label>
                 <label>
                   <span className={labelClass}>Button text</span>
-                  <input className={inputClass} name="enquiryButtonText" defaultValue={asText(initial.enquiryButtonText)} />
+                  <input
+                    className={inputClass}
+                    name="enquiryButtonText"
+                    defaultValue={asText(initial.enquiryButtonText)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Enquiry email</span>
-                  <input className={inputClass} name="enquiryEmail" type="email" defaultValue={asText(initial.enquiryEmail)} />
+                  <input
+                    className={inputClass}
+                    name="enquiryEmail"
+                    type="email"
+                    defaultValue={asText(initial.enquiryEmail)}
+                  />
                 </label>
               </section>
             ),
           },
           {
             id: "seo",
-            label: "SEO",
+            label: "SEO and social sharing",
             content: (
-              <section className="grid gap-4 rounded-lg border border-line bg-white p-4 md:grid-cols-2">
+              <details className="rounded-lg border border-line bg-white p-4">
+                <summary className="cursor-pointer font-semibold text-navy">
+                  Optional SEO overrides
+                </summary>
+                <p className={`${helpClass} mt-2`}>
+                  Leave these empty to automatically use the product name,
+                  short summary, public product URL, and main product image.
+                </p>
+                <section className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="md:col-span-2">
                   <span className={labelClass}>Meta title</span>
-                  <input className={inputClass} name="seoTitle" defaultValue={asText(initial.seoTitle)} />
+                  <input
+                    className={inputClass}
+                    name="seoTitle"
+                    defaultValue={asText(initial.seoTitle)}
+                  />
                 </label>
                 <label className="md:col-span-2">
                   <span className={labelClass}>Meta description</span>
-                  <textarea className={inputClass} name="seoDescription" rows={3} defaultValue={asText(initial.seoDescription)} />
+                  <textarea
+                    className={inputClass}
+                    name="seoDescription"
+                    rows={3}
+                    defaultValue={asText(initial.seoDescription)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Focus keyword</span>
-                  <input className={inputClass} name="focusKeyword" defaultValue={asText(initial.focusKeyword)} />
+                  <input
+                    className={inputClass}
+                    name="focusKeyword"
+                    defaultValue={asText(initial.focusKeyword)}
+                  />
                 </label>
                 <label>
                   <span className={labelClass}>Canonical URL</span>
-                  <input className={inputClass} name="canonicalUrl" defaultValue={asText(initial.canonicalUrl)} />
+                  <input
+                    className={inputClass}
+                    name="canonicalUrl"
+                    defaultValue={asText(initial.canonicalUrl)}
+                    placeholder={`${siteOrigin()}${preview}`}
+                  />
+                  <span className={helpClass}>
+                    This is the product page URL, not an image URL. Leave it
+                    empty unless this product has a deliberate alternate
+                    canonical page.
+                  </span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input name="robotsIndex" type="checkbox" defaultChecked={initial.robotsIndex !== false} className="h-4 w-4 accent-navy" />
+                  <input
+                    name="robotsIndex"
+                    type="checkbox"
+                    defaultChecked={initial.robotsIndex !== false}
+                    className="h-4 w-4 accent-navy"
+                  />
                   <span className="text-sm">Allow indexing</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input name="robotsFollow" type="checkbox" defaultChecked={initial.robotsFollow !== false} className="h-4 w-4 accent-navy" />
+                  <input
+                    name="robotsFollow"
+                    type="checkbox"
+                    defaultChecked={initial.robotsFollow !== false}
+                    className="h-4 w-4 accent-navy"
+                  />
                   <span className="text-sm">Allow following links</span>
                 </label>
                 <div className="md:col-span-2">
@@ -522,22 +849,45 @@ export function ProductForm({
                 </div>
                 <label className="md:col-span-2">
                   <span className={labelClass}>Open Graph title</span>
-                  <input className={inputClass} name="ogTitle" defaultValue={asText(initial.ogTitle)} />
+                  <input
+                    className={inputClass}
+                    name="ogTitle"
+                    defaultValue={asText(initial.ogTitle)}
+                  />
                 </label>
                 <label className="md:col-span-2">
                   <span className={labelClass}>Open Graph description</span>
-                  <textarea className={inputClass} name="ogDescription" rows={3} defaultValue={asText(initial.ogDescription)} />
+                  <textarea
+                    className={inputClass}
+                    name="ogDescription"
+                    rows={3}
+                    defaultValue={asText(initial.ogDescription)}
+                  />
                 </label>
                 <div className="md:col-span-2">
-                  <span className={labelClass}>Open Graph image</span>
-                  <MediaPicker name="ogImageId" initialIds={asText(initial.ogImageId) ? [asText(initial.ogImageId)] : []} known={media} />
+                  <span className={labelClass}>
+                    Social sharing image override
+                  </span>
+                  <MediaPicker
+                    name="ogImageId"
+                    initialIds={
+                      asText(initial.ogImageId)
+                        ? [asText(initial.ogImageId)]
+                        : []
+                    }
+                    known={media}
+                  />
+                  <span className={helpClass}>
+                    Leave empty to use the main product image automatically.
+                  </span>
                 </div>
-              </section>
+                </section>
+              </details>
             ),
           },
         ]}
       />
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-4 rounded-lg border border-line bg-white/95 p-3 shadow-lg backdrop-blur">
         <button className={primaryButtonClass} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save product"}
         </button>
