@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, BadgeCheck, FileText, Mail, Play, Star } from "lucide-react";
+import { Award, FileText, Mail, Star } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { ProductCard } from "@/components/site/product-card";
 import { ProductGallery } from "@/components/site/product-gallery";
@@ -45,6 +45,26 @@ function dedupedHtml(parts: Array<string | undefined>) {
     kept.push(part);
   }
   return cleaned.filter((part) => kept.includes(part)).join("");
+}
+
+function withoutTables(html: string) {
+  return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
+}
+
+function promoteLegacyHeadings(html: string) {
+  return html.replace(
+    /<p\b[^>]*>\s*(?:<strong>)?([^<]{3,110})(?:<\/strong>)?\s*<\/p>/gi,
+    (match, text) => {
+      const candidate = textOf(text).replace(/&amp;/gi, "&").trim();
+      const looksLikeHeading =
+        candidate.length <= 90 &&
+        !/[.!?;:]/.test(candidate) &&
+        /(?:principle|features?|benefits?|specifications?|details?|selection|applications?|maintenance|safety|installation|materials?|construction|configuration|capacity|speed|ratio|selection|holding|load|quote|contact|overview)$/i.test(
+          candidate,
+        );
+      return looksLikeHeading ? `<h2>${text}</h2>` : match;
+    },
+  );
 }
 
 function absoluteUrl(url: string) {
@@ -228,18 +248,30 @@ export async function ProductDetail({
     .filter(Boolean)
     .slice(0, 4);
   const overviewHtml = readableProductArticle(
-    dedupedHtml([
-      content.detailBlocks?.find((block) => block.heading === "Overview")?.html,
-      content.body,
-      ...(content.detailBlocks ?? [])
-        .filter(
-          (block) =>
-            !["Overview", "Applications", "Features"].includes(block.heading),
-        )
-        .map((block) => `<h2>${block.heading}</h2>${block.html}`),
-    ]),
+    promoteLegacyHeadings(
+      withoutTables(
+        dedupedHtml([
+          content.detailBlocks?.find((block) => block.heading === "Overview")
+            ?.html,
+          content.body,
+          ...(content.detailBlocks ?? [])
+            .filter(
+              (block) =>
+                !["Overview", "Applications", "Features"].includes(
+                  block.heading,
+                ),
+            )
+            .map((block) => `<h2>${block.heading}</h2>${block.html}`),
+        ]),
+      ),
+    ),
   );
-  const lead = content.summary ? cleanPublicExcerpt(content.summary, 320) : "";
+  const summaryLead = content.summary
+    ? cleanPublicExcerpt(content.summary, 220)
+    : "";
+  const lead = summaryLead && !coveredBy(overviewHtml, summaryLead)
+    ? summaryLead
+    : "";
   const title = cleanPublicTitle(content.title);
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
   const galleryImages = (content.gallery ?? []).map((item, index) => ({

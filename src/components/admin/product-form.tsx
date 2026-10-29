@@ -332,8 +332,8 @@ export function ProductForm({
                     defaultValue={asText(initial.summary)}
                   />
                 </label>
-                <label>
-                  <span className={labelClass}>Overview content</span>
+                <div>
+                  <span className={labelClass}>Product description (Overview tab)</span>
                   <RichTextEditor
                     name="overview"
                     defaultValue={
@@ -343,10 +343,11 @@ export function ProductForm({
                     }
                   />
                   <span className={helpClass}>
-                    Use this single editor for the primary product story.
-                    Product name stays in General.
+                    Add only the narrative product description here. Use the
+                    separate Specifications section below for tables and
+                    technical values.
                   </span>
-                </label>
+                </div>
                 <div className="rounded-md border border-line p-4">
                   <span className={labelClass}>
                     Show this product in categories
@@ -428,7 +429,7 @@ export function ProductForm({
                 </details>
                 <details className="rounded-md border border-line p-4">
                   <summary className="cursor-pointer font-semibold text-navy">
-                    Specifications
+                    Specifications (shown in the Specifications tab)
                   </summary>
                   <div className="mt-4">
                     <FullSpecsEditor
