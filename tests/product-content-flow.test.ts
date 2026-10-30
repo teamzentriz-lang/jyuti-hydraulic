@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readProductScalars } from "../src/lib/cms/product-save";
-import { readableProductArticle } from "../src/lib/cms/product-article";
-import { linkedArticlePaths } from "../src/lib/cms/product-article";
+import {
+  linkedArticlePaths,
+  readableProductArticle,
+  splitProductIntroduction,
+} from "../src/lib/cms/product-article";
 import { readPageScalars } from "../src/lib/cms/page-save";
 import { parseResource, readFormData } from "../src/lib/cms/resources";
 
@@ -50,6 +53,17 @@ test("legacy related blog links remain available for CMS cards", () => {
     '<a href="https://jyotihydraulic.com/worm-gear-guide/">Guide</a><a href="/worm-gear-guide/">Duplicate</a><a href="https://example.com/nope/">External</a>',
   );
   assert.deepEqual(paths, ["worm-gear-guide"]);
+});
+
+test("product introduction is shown separately from detailed sections", () => {
+  const split = splitProductIntroduction(
+    "<h2>Worm Gear Screw Jack 100 Ton</h2><p>Short introduction.</p><h2>Working Principle</h2><p>Detailed content.</p>",
+    "Worm Gear Screw Jack 100 Ton",
+  );
+  assert.match(split.introductionHtml, /Short introduction/);
+  assert.doesNotMatch(split.introductionHtml, /Detailed content/);
+  assert.match(split.detailHtml, /Working Principle/);
+  assert.match(split.detailHtml, /Detailed content/);
 });
 
 test("page excerpts accept long imported copy", () => {

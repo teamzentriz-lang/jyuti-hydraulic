@@ -36,3 +36,28 @@ export function linkedArticlePaths(html: string) {
   }
   return paths;
 }
+
+function normalizedHeading(value: string) {
+  return value.replace(/<[^>]+>/g, " ").toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+}
+
+/**
+ * Keeps the opening product introduction for the hero overview. Everything
+ * from the first actual section heading onward remains in the Overview tab.
+ * This prevents the short hero copy from being repeated below the gallery.
+ */
+export function splitProductIntroduction(html: string, productTitle: string) {
+  const title = normalizedHeading(productTitle);
+  const headings = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];
+  const boundary = headings.find((heading) => {
+    const candidate = normalizedHeading(heading[1] ?? "");
+    return !candidate || !title || !candidate.startsWith(title.slice(0, 18));
+  });
+  if (!boundary || boundary.index === undefined) {
+    return { introductionHtml: html, detailHtml: "" };
+  }
+  return {
+    introductionHtml: html.slice(0, boundary.index),
+    detailHtml: html.slice(boundary.index),
+  };
+}

@@ -17,7 +17,11 @@ import {
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
-import { linkedArticlePaths, readableProductArticle } from "@/lib/cms/product-article";
+import {
+  linkedArticlePaths,
+  readableProductArticle,
+  splitProductIntroduction,
+} from "@/lib/cms/product-article";
 
 function normalizeCopy(html: string) {
   return textOf(html)
@@ -261,20 +265,27 @@ export async function ProductDetail({
     linkedArticlePaths(combinedArticleHtml),
   );
   const posts = linkedPosts.length ? linkedPosts : await publishedPosts(3);
-  const overviewHtml = readableProductArticle(
+  const cleanedArticleHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(
         combinedArticleHtml,
       ),
     ),
   );
+  const title = cleanPublicTitle(content.title);
+  const { introductionHtml, detailHtml } = splitProductIntroduction(
+    cleanedArticleHtml,
+    title,
+  );
+  const introductionLead = cleanPublicExcerpt(textOf(introductionHtml), 220);
   const summaryLead = content.summary
     ? cleanPublicExcerpt(content.summary, 220)
     : "";
-  const lead = summaryLead && !coveredBy(overviewHtml, summaryLead)
-    ? summaryLead
-    : "";
-  const title = cleanPublicTitle(content.title);
+  // The editor's old Short summary field was often populated with the whole
+  // imported article. Prefer the actual opening paragraphs, then render that
+  // opening once in the hero instead of duplicating it in the Overview tab.
+  const lead = introductionLead || summaryLead;
+  const overviewHtml = detailHtml || (introductionLead ? "" : cleanedArticleHtml);
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
   const galleryImages = (content.gallery ?? []).map((item, index) => ({
     id: item.id,
