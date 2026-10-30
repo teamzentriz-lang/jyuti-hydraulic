@@ -12,11 +12,12 @@ import {
   getSettings,
   getSiteLabels,
   publishedPosts,
+  publishedPostsByPaths,
 } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
-import { readableProductArticle } from "@/lib/cms/product-article";
+import { linkedArticlePaths, readableProductArticle } from "@/lib/cms/product-article";
 
 function normalizeCopy(html: string) {
   return textOf(html)
@@ -236,10 +237,9 @@ export async function ProductDetail({
 }: {
   content: PublishedContent;
 }) {
-  const [settings, home, posts, labels] = await Promise.all([
+  const [settings, home, labels] = await Promise.all([
     getSettings(),
     getHome(),
-    publishedPosts(3),
     getSiteLabels(),
   ]);
   const image = content.gallery?.[0];
@@ -247,22 +247,24 @@ export async function ProductDetail({
     .map((item) => item.title.trim())
     .filter(Boolean)
     .slice(0, 4);
+  const combinedArticleHtml = dedupedHtml([
+    content.detailBlocks?.find((block) => block.heading === "Overview")
+      ?.html,
+    content.body,
+    ...(content.detailBlocks ?? [])
+      .filter(
+        (block) => !["Overview", "Applications", "Features"].includes(block.heading),
+      )
+      .map((block) => `<h2>${block.heading}</h2>${block.html}`),
+  ]);
+  const linkedPosts = await publishedPostsByPaths(
+    linkedArticlePaths(combinedArticleHtml),
+  );
+  const posts = linkedPosts.length ? linkedPosts : await publishedPosts(3);
   const overviewHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(
-        dedupedHtml([
-          content.detailBlocks?.find((block) => block.heading === "Overview")
-            ?.html,
-          content.body,
-          ...(content.detailBlocks ?? [])
-            .filter(
-              (block) =>
-                !["Overview", "Applications", "Features"].includes(
-                  block.heading,
-                ),
-            )
-            .map((block) => `<h2>${block.heading}</h2>${block.html}`),
-        ]),
+        combinedArticleHtml,
       ),
     ),
   );

@@ -665,6 +665,34 @@ export async function publishedPosts(
   }));
 }
 
+/** Fetch selected published posts in the same order as their supplied paths. */
+export async function publishedPostsByPaths(paths: string[], limit = 3) {
+  const unique = [...new Set(paths.map((path) => path.replace(/^\/+|\/+$/g, "")).filter(Boolean))].slice(0, limit);
+  if (!unique.length) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      path: posts.path,
+      excerpt: posts.excerpt,
+      publishedAt: posts.publishedAt,
+      author: posts.author,
+      readingTime: posts.readingTime,
+      featured: posts.featured,
+      coverMediaId: posts.coverMediaId,
+      coverAlt: media.alt,
+    })
+    .from(posts)
+    .leftJoin(media, eq(posts.coverMediaId, media.id))
+    .where(and(eq(posts.status, "published"), inArray(posts.path, unique)));
+  const byPath = new Map(rows.map((row) => [row.path.replace(/^\/+|\/+$/g, ""), row]));
+  return unique.flatMap((path) => {
+    const row = byPath.get(path);
+    return row ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }] : [];
+  });
+}
+
 export async function getHeaderSettings() {
   return withDatabaseRetry(async () => {
     await ensureSingletons();

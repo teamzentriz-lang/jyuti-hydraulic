@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readProductScalars } from "../src/lib/cms/product-save";
 import { readableProductArticle } from "../src/lib/cms/product-article";
+import { linkedArticlePaths } from "../src/lib/cms/product-article";
 import { readPageScalars } from "../src/lib/cms/page-save";
 import { parseResource, readFormData } from "../src/lib/cms/resources";
 
@@ -42,6 +43,13 @@ test("public product article removes an imported inline blog card", () => {
   assert.match(result, /Product conclusion/);
   assert.doesNotMatch(result, /Industrial Baling Solutions/);
   assert.doesNotMatch(result, /Read More/);
+});
+
+test("legacy related blog links remain available for CMS cards", () => {
+  const paths = linkedArticlePaths(
+    '<a href="https://jyotihydraulic.com/worm-gear-guide/">Guide</a><a href="/worm-gear-guide/">Duplicate</a><a href="https://example.com/nope/">External</a>',
+  );
+  assert.deepEqual(paths, ["worm-gear-guide"]);
 });
 
 test("page excerpts accept long imported copy", () => {
