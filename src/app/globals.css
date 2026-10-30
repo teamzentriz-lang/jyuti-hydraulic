@@ -453,6 +453,74 @@ html.is-navigating a[href] {
   color: var(--color-muted);
   pointer-events: none;
 }
+.admin-editor-surface h2,
+.admin-editor-surface h3 {
+  color: var(--color-navy);
+  font-weight: 800;
+  line-height: 1.25;
+}
+.admin-editor-surface h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.35rem;
+}
+.admin-editor-surface h2::before {
+  width: 2.25rem;
+  height: 3px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--color-signal);
+  content: "";
+}
+.admin-editor-surface h3 {
+  margin: 1.2rem 0 0.55rem;
+  font-size: 1.1rem;
+}
+.admin-editor-surface p {
+  margin: 0 0 0.8rem;
+}
+.admin-editor-surface ul,
+.admin-editor-surface ol {
+  margin: 0 0 0.9rem 1.4rem;
+}
+.admin-editor-surface table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+}
+.admin-editor-surface th,
+.admin-editor-surface td {
+  border: 1px solid var(--color-line);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+}
+.admin-editor-surface th {
+  background: var(--color-paper);
+  font-weight: 700;
+}
+.admin-editor-legacy-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #fdba74;
+  border-radius: 0.5rem;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.8rem;
+}
+.admin-editor-legacy-note button {
+  border-radius: 0.35rem;
+  background: var(--color-signal);
+  padding: 0.4rem 0.65rem;
+  color: white;
+  font-weight: 700;
+}
 .admin-editor-source {
   resize: vertical;
   padding: 0.85rem 1rem;

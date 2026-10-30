@@ -336,6 +336,7 @@ export function ProductForm({
                   <span className={labelClass}>Product description (Overview tab)</span>
                   <RichTextEditor
                     name="overview"
+                    media={media}
                     defaultValue={
                       asText(initial.overview) ||
                       asText(initial.body) ||
@@ -343,9 +344,9 @@ export function ProductForm({
                     }
                   />
                   <span className={helpClass}>
-                    Add only the narrative product description here. Use the
-                    separate Specifications section below for tables and
-                    technical values.
+                    Add narrative product content here. Insert images only
+                    from the Media library, and manage blog posts from Blog
+                    posts—not inside this product description.
                   </span>
                 </div>
                 <div className="rounded-md border border-line p-4">
@@ -416,7 +417,7 @@ export function ProductForm({
                     </div>
                     <div>
                       <span className={labelClass}>
-                        Product gallery (optional)
+                        Product gallery and uploaded content images (optional)
                       </span>
                       <MediaPicker
                         name="galleryMediaIds"
@@ -424,6 +425,10 @@ export function ProductForm({
                         initialIds={payload.galleryMediaIds ?? []}
                         known={media}
                       />
+                      <span className={helpClass}>
+                        Upload or select the product’s images here. The Insert
+                        image button above uses this same Media library.
+                      </span>
                     </div>
                   </div>
                 </details>

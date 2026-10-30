@@ -35,6 +35,15 @@ test("public product article keeps content after contact calls to action", () =>
   assert.match(result, /Important technical details/);
 });
 
+test("public product article removes an imported inline blog card", () => {
+  const html =
+    '<p>Product conclusion.</p><p>Blogs</p><figure><img src="/legacy-card.jpg" /></figure><p>Industrial Baling Solutions</p><p>Read More</p>';
+  const result = readableProductArticle(html);
+  assert.match(result, /Product conclusion/);
+  assert.doesNotMatch(result, /Industrial Baling Solutions/);
+  assert.doesNotMatch(result, /Read More/);
+});
+
 test("page excerpts accept long imported copy", () => {
   const data = productForm({
     pageType: "custom",
