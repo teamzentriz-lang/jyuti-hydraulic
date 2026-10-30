@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { classifyDatabaseError } from "@/db/errors";
 import {
@@ -109,22 +109,23 @@ export async function loadProductCategoryIds(productId: string) {
 }
 
 export async function saveProductCategoryAssignments(
-  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert" | "execute">,
   productId: string,
   categoryIds: string[],
 ) {
   const ids = [...new Set(categoryIds.filter(Boolean))];
-  try {
-    await tx
-      .delete(productCategoryAssignments)
-      .where(eq(productCategoryAssignments.productId, productId));
-    if (ids.length) {
-      await tx.insert(productCategoryAssignments).values(
-        ids.map((categoryId, sortOrder) => ({ productId, categoryId, sortOrder })),
-      );
-    }
-  } catch (error) {
-    if (classifyDatabaseError(error).reason !== "schema") throw error;
+  const [table] = await tx.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_category_assignments') as "tableName"`,
+  );
+  if (!table?.tableName) return;
+
+  await tx
+    .delete(productCategoryAssignments)
+    .where(eq(productCategoryAssignments.productId, productId));
+  if (ids.length) {
+    await tx.insert(productCategoryAssignments).values(
+      ids.map((categoryId, sortOrder) => ({ productId, categoryId, sortOrder })),
+    );
   }
 }
 

@@ -38,7 +38,6 @@ import {
   locationPages,
   media,
   navLinks,
-  pageHtmlOverrides,
   pages,
   posts,
   productCategories,
@@ -53,6 +52,7 @@ import {
   siteHtmlSettings,
   siteUiSettings,
 } from "@/db/schema";
+import { pageHtmlOverrides } from "@/db/schema-cms";
 import {
   defaultClients,
   defaultStats,

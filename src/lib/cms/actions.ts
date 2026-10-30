@@ -26,7 +26,6 @@ import {
   productCategories,
   posts,
   products,
-  pageHtmlOverrides,
   routes,
   sessions,
   siteSettings,
@@ -42,6 +41,7 @@ import {
   type TestimonialItem,
   type UspItem,
 } from "@/db/schema";
+import { pageHtmlOverrides } from "@/db/schema-cms";
 import {
   createSession,
   destroySession,
