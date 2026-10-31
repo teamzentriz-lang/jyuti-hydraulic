@@ -442,9 +442,27 @@ const sectionTypes = [
   "custom",
 ];
 
-function blankPageSection(sortOrder: number): PageSectionPayload {
+const sectionTypeLabels: Record<string, string> = {
+  hero: "Hero banner",
+  text: "Text block",
+  rich_text: "Rich text block",
+  features: "Feature list",
+  video: "Video",
+  testimonials: "Customer review",
+  product_grid: "Product grid",
+  cta: "Call to action",
+  faq: "FAQ (pages only)",
+  about: "About section",
+  why_choose_us: "Why choose us",
+  vision: "Vision",
+  mission: "Mission",
+  contact: "Contact section",
+  custom: "Custom section",
+};
+
+function blankPageSection(sortOrder: number, sectionType = "text"): PageSectionPayload {
   return {
-    sectionType: "text",
+    sectionType,
     title: "",
     subtitle: "",
     eyebrow: "",
@@ -488,9 +506,23 @@ function normalizePageSection(section: PageSectionPayload, sortOrder: number): P
   };
 }
 
-export function PageSectionsEditor({ name, initial, media }: { name: string; initial: PageSectionPayload[]; media: MediaItem[] }) {
+export function PageSectionsEditor({
+  name,
+  initial,
+  media,
+  allowedTypes = sectionTypes,
+}: {
+  name: string;
+  initial: PageSectionPayload[];
+  media: MediaItem[];
+  /** Restrict a context such as Product editing to only relevant section types. */
+  allowedTypes?: string[];
+}) {
+  const defaultType = allowedTypes[0] ?? "text";
   const [sections, setSections] = useState<PageSectionPayload[]>(() =>
-    initial.length ? initial.map((section, index) => normalizePageSection(section, index)) : [blankPageSection(0)],
+    initial.length
+      ? initial.map((section, index) => normalizePageSection(section, index))
+      : [blankPageSection(0, defaultType)],
   );
 
   function patch(index: number, patch: Partial<PageSectionPayload>) {
@@ -526,9 +558,12 @@ export function PageSectionsEditor({ name, initial, media }: { name: string; ini
           <div key={index} className="rounded-lg border border-line bg-white p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <select className={inputClass} value={asText(section.sectionType) || "text"} onChange={(e) => patch(index, { sectionType: e.target.value })}>
-                {sectionTypes.map((t) => (
+                {(allowedTypes.includes(section.sectionType)
+                  ? allowedTypes
+                  : [section.sectionType, ...allowedTypes]
+                ).map((t) => (
                   <option key={t} value={t}>
-                    {t === "testimonials" ? "review" : t}
+                    {sectionTypeLabels[t] ?? t}
                   </option>
                 ))}
               </select>
@@ -579,7 +614,7 @@ export function PageSectionsEditor({ name, initial, media }: { name: string; ini
       <button
         type="button"
         className={`${secondaryButtonClass} mt-3`}
-        onClick={() => setSections((c) => [...c, blankPageSection(c.length)])}
+        onClick={() => setSections((c) => [...c, blankPageSection(c.length, defaultType)])}
       >
         Add section
       </button>

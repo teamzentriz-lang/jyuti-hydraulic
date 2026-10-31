@@ -523,14 +523,26 @@ export function ProductForm({
                 </details>
                 <details className="rounded-md border border-line p-4">
                   <summary className="cursor-pointer font-semibold text-navy">
-                    Video, reviews and FAQs
+                    Video and customer reviews
                   </summary>
                   <div className="mt-4 space-y-6">
                     <PageSectionsEditor
                       name="_sections"
                       initial={payload.sections}
                       media={media}
+                      allowedTypes={["video", "testimonials"]}
                     />
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Product FAQs
+                  </summary>
+                  <div className="mt-4 space-y-3">
+                    <p className={helpClass}>
+                      Add product questions and answers here. These appear only
+                      in the public product FAQ tab.
+                    </p>
                     <FaqsEditor name="_faqs" initial={payload.faqs} />
                   </div>
                 </details>
