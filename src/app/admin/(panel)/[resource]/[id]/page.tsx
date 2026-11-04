@@ -43,7 +43,8 @@ export default async function EditResourcePage({
 
   const record = await getRecord(key, id, user);
   if (!record) notFound();
-  const fields = await fieldsFor(key, id, user);
+  const fields =
+    key === "products" ? resources[key].fields : await fieldsFor(key, id, user);
   const media = await mediaItems(mediaIds(record, fields));
   const canEdit = hasPermission(user, permissionForResource(key));
 

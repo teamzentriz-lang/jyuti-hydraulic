@@ -23,7 +23,8 @@ export default async function NewResourcePage({
   const user = await requireUser();
   if (!canAccessResource(user, key) || (key === "users" && user.systemRole !== "super_admin")) redirect("/admin/");
   if (!hasPermission(user, permissionForResource(key))) redirect(`/admin/${key}/`);
-  const fields = await fieldsFor(key, undefined, user);
+  const fields =
+    key === "products" ? resources[key].fields : await fieldsFor(key, undefined, user);
 
   if (key === "products") {
     const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products")]);
