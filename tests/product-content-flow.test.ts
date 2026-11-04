@@ -4,6 +4,7 @@ import { readProductScalars } from "../src/lib/cms/product-save";
 import {
   linkedArticlePaths,
   normalizeProductEditorHtml,
+  normalizeProductSummary,
   readableProductArticle,
   splitProductIntroduction,
 } from "../src/lib/cms/product-article";
@@ -26,10 +27,11 @@ function productForm(overrides: Record<string, string> = {}) {
   return data;
 }
 
-test("product summary accepts imported long-form content", () => {
+test("product summary is reduced to a usable public excerpt", () => {
   const summary = "Long imported content. ".repeat(500);
   const parsed = readProductScalars(productForm({ summary }));
-  assert.equal(parsed.summary, summary.trim());
+  assert.ok(parsed.summary.length <= 320);
+  assert.doesNotMatch(parsed.summary, /Long imported content\.\s+Long imported content\./);
 });
 
 test("public product article keeps content after contact calls to action", () => {
@@ -63,6 +65,22 @@ test("product editor keeps blog cards and images outside the description", () =>
   assert.match(result, /Product copy/);
   assert.match(result, /Technical copy/);
   assert.doesNotMatch(result, /Blogs|Read More|blog\.jpg|product\.jpg/);
+});
+
+test("product content removes imported contact blocks", () => {
+  const result = readableProductArticle(
+    "<p>Useful product copy.</p><p>📞 +91 9541424317<br />✉ jyotihydraulic@gmail.com</p><h2>Working Principle</h2><p>Technical content.</p>",
+  );
+  assert.match(result, /Useful product copy/);
+  assert.match(result, /Technical content/);
+  assert.doesNotMatch(result, /9541424317|jyotihydraulic@gmail.com/);
+});
+
+test("summary cleanup removes imported contact details and CTAs", () => {
+  const result = normalizeProductSummary(
+    "Product copy. Get Your Quote Instantly 📞 +91 9541424317 ✉ jyotihydraulic@gmail.com",
+  );
+  assert.equal(result, "Product copy.");
 });
 
 test("product introduction is shown separately from detailed sections", () => {

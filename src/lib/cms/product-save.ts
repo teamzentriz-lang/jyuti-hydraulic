@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { CmsError } from "@/db/errors";
-import { normalizeProductEditorHtml } from "@/lib/cms/product-article";
+import {
+  normalizeProductEditorHtml,
+  normalizeProductSummary,
+} from "@/lib/cms/product-article";
 
 const slug = z
   .string()
@@ -123,7 +126,7 @@ export function readProductScalars(formData: FormData) {
     productCode: text("productCode") || null,
     brand: text("brand") || null,
     modelNumber: text("modelNumber") || null,
-    summary: text("summary"),
+    summary: normalizeProductSummary(text("summary")),
     body: text("body"),
     richContent: text("richContent"),
     overview: text("overview"),

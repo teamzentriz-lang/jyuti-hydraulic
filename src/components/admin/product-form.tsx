@@ -27,7 +27,10 @@ import type { MediaItem } from "@/lib/cms/queries";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { ProductSpecRow } from "@/db/schema";
 import { FormDraftGuard } from "@/components/admin/form-draft-guard";
-import { normalizeProductEditorHtml } from "@/lib/cms/product-article";
+import {
+  normalizeProductEditorHtml,
+  normalizeProductSummary,
+} from "@/lib/cms/product-article";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -330,7 +333,7 @@ export function ProductForm({
                     className={inputClass}
                     name="summary"
                     rows={3}
-                    defaultValue={asText(initial.summary)}
+                    defaultValue={normalizeProductSummary(asText(initial.summary))}
                   />
                 </label>
                 <div>

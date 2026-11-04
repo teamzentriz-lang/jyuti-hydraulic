@@ -1,5 +1,36 @@
+import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
+
+export function normalizeProductSummary(value: string) {
+  let plain = value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const cut = plain.search(
+    /\b(?:our products|read more|get in touch|get your quote|contact with us|feel free to write|key features)\b/i,
+  );
+  if (cut > 0) plain = plain.slice(0, cut).trim();
+  plain = plain
+    .replace(/\+?\d[\d\s().-]{8,}\d/g, " ")
+    .replace(/[\w.+-]+@[\w.-]+\.\w+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const repeated = plain.match(/^(.{12,100}?[.!?])(?:\s+\1)+/i);
+  if (repeated) plain = repeated[1];
+  return cleanPublicExcerpt(plain, 320);
+}
+
+function removeLegacyContactBlocks(html: string) {
+  return html.replace(/<(p|div|li)\b([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, body) => {
+    const text = body.replace(/<[^>]+>/g, " ");
+    return /(?:\+?\d[\d\s().-]{8,}\d|[\w.+-]+@[\w.-]+\.\w+)/i.test(text)
+      ? ""
+      : `<${tag}${attrs}>${body}</${tag}>`;
+  });
+}
+
 export function readableProductArticle(html: string) {
-  return removeLegacyBlogEmbed(html)
+  return removeLegacyContactBlocks(removeLegacyBlogEmbed(html))
     .replace(/inquiry now/gi, "")
     .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
     .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
@@ -32,7 +63,7 @@ export function normalizeProductEditorHtml(html: string) {
     /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>[\s\S]*?(?=<h[1-6]\b|$)/i,
     "",
   );
-  return withoutBlog
+  return removeLegacyContactBlocks(withoutBlog)
     .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
     .replace(/<img\b[^>]*>/gi, "")
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
