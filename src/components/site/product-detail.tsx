@@ -250,9 +250,9 @@ export async function ProductDetail({
     cleanedArticleHtml,
     title,
   );
-  const introductionLead = cleanPublicExcerpt(textOf(introductionHtml), 220);
+  const introductionLead = cleanPublicExcerpt(textOf(introductionHtml), 360);
   const summaryLead = content.summary
-    ? cleanPublicExcerpt(content.summary, 220)
+    ? cleanPublicExcerpt(content.summary, 360)
     : "";
   // The editor's old Short summary field was often populated with the whole
   // imported article. Prefer the actual opening paragraphs, then render that
