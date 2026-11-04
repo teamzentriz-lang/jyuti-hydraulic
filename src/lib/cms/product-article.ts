@@ -1,5 +1,16 @@
 import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
 
+function plainContent(value: string) {
+  return value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 export function normalizeProductSummary(value: string) {
   let plain = value
     .replace(/<[^>]+>/g, " ")
@@ -20,10 +31,39 @@ export function normalizeProductSummary(value: string) {
   return cleanPublicExcerpt(plain, 320);
 }
 
+export function removeLeadingSummaryHtml(html: string, summary: string) {
+  const target = plainContent(summary);
+  if (target.length < 40) return html;
+  const blocks = [...html.matchAll(/<(h[1-6]|p)\b[^>]*>[\s\S]*?<\/\1>/gi)];
+  if (!blocks.length || blocks[0].index === undefined) return html;
+
+  let end = 0;
+  let consumed = "";
+  let removed = false;
+  for (const block of blocks) {
+    if (block.index !== end) break;
+    const text = plainContent(block[0]);
+    if (!text) {
+      end += block[0].length;
+      continue;
+    }
+    const next = `${consumed} ${text}`.trim();
+    if (!target.startsWith(next) && !next.startsWith(target)) break;
+    consumed = next;
+    end = block.index + block[0].length;
+    removed = true;
+    if (consumed.length >= target.length) break;
+  }
+  return removed ? html.slice(end).trim() : html;
+}
+
 function removeLegacyContactBlocks(html: string) {
   return html.replace(/<(p|div|li)\b([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, body) => {
     const text = body.replace(/<[^>]+>/g, " ");
-    return /(?:\+?\d[\d\s().-]{8,}\d|[\w.+-]+@[\w.-]+\.\w+)/i.test(text)
+    const hasContactValue =
+      /(?:\+?\d[\d\s().-]{8,}\d|[\w.+-]+@[\w.-]+\.\w+)/i.test(text);
+    const isContactIconOnly = /^[\s☎✉📞📧️]+$/u.test(text);
+    return hasContactValue || isContactIconOnly
       ? ""
       : `<${tag}${attrs}>${body}</${tag}>`;
   });

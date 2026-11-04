@@ -19,8 +19,8 @@ import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
 import {
   linkedArticlePaths,
+  removeLeadingSummaryHtml,
   readableProductArticle,
-  splitProductIntroduction,
 } from "@/lib/cms/product-article";
 
 function withoutTables(html: string) {
@@ -246,19 +246,15 @@ export async function ProductDetail({
     ),
   );
   const title = cleanPublicTitle(content.title);
-  const { introductionHtml, detailHtml } = splitProductIntroduction(
-    cleanedArticleHtml,
-    title,
-  );
-  const introductionLead = cleanPublicExcerpt(textOf(introductionHtml), 360);
+  const introductionLead = cleanPublicExcerpt(textOf(cleanedArticleHtml), 360);
   const summaryLead = content.summary
     ? cleanPublicExcerpt(content.summary, 360)
     : "";
-  // The editor's old Short summary field was often populated with the whole
-  // imported article. Prefer the actual opening paragraphs, then render that
-  // opening once in the hero instead of duplicating it in the Overview tab.
-  const lead = introductionLead || summaryLead;
-  const overviewHtml = detailHtml || (introductionLead ? "" : cleanedArticleHtml);
+  const lead = summaryLead || introductionLead;
+  const overviewHtml = removeLeadingSummaryHtml(
+    cleanedArticleHtml,
+    summaryLead,
+  );
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
   const galleryImages = (content.gallery ?? []).map((item, index) => ({
     id: item.id,

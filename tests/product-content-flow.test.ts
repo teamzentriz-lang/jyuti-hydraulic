@@ -5,6 +5,7 @@ import {
   linkedArticlePaths,
   normalizeProductEditorHtml,
   normalizeProductSummary,
+  removeLeadingSummaryHtml,
   readableProductArticle,
   splitProductIntroduction,
 } from "../src/lib/cms/product-article";
@@ -76,11 +77,30 @@ test("product content removes imported contact blocks", () => {
   assert.doesNotMatch(result, /9541424317|jyotihydraulic@gmail.com/);
 });
 
+test("product content removes standalone contact icon blocks", () => {
+  const result = readableProductArticle(
+    "<p>Useful product copy.</p><p>📞</p><p>✉️</p><h2>Details</h2><p>Technical content.</p>",
+  );
+  assert.doesNotMatch(result, /📞|✉/);
+  assert.match(result, /Useful product copy|Technical content/);
+});
+
 test("summary cleanup removes imported contact details and CTAs", () => {
   const result = normalizeProductSummary(
     "Product copy. Get Your Quote Instantly 📞 +91 9541424317 ✉ jyotihydraulic@gmail.com",
   );
   assert.equal(result, "Product copy.");
+});
+
+test("overview does not repeat the summary opening", () => {
+  const html =
+    "<h2>Worm Gear Screw Jack 50 Ton</h2><p>Product introduction for controlled lifting.</p><p>Choose the right capacity for your machine.</p><h2>Working Principle</h2><p>Technical details remain visible.</p>";
+  const result = removeLeadingSummaryHtml(
+    html,
+    "Worm Gear Screw Jack 50 Ton Product introduction for controlled lifting. Choose the right capacity for your machine.",
+  );
+  assert.doesNotMatch(result, /Product introduction/);
+  assert.match(result, /Working Principle|Technical details/);
 });
 
 test("product introduction is shown separately from detailed sections", () => {
