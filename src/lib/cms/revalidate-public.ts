@@ -8,7 +8,7 @@ export function revalidatePublicSite(extraPaths: Iterable<string> = []) {
     for (const path of extraPaths) {
       const clean = path.trim().replace(/^\/+|\/+$/g, "");
       if (!clean) continue;
-      revalidatePath(publicPath(clean));
+      revalidatePath(publicPath(clean), "page");
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

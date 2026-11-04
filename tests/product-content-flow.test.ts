@@ -3,6 +3,7 @@ import test from "node:test";
 import { readProductScalars } from "../src/lib/cms/product-save";
 import {
   linkedArticlePaths,
+  normalizeProductEditorHtml,
   readableProductArticle,
   splitProductIntroduction,
 } from "../src/lib/cms/product-article";
@@ -53,6 +54,15 @@ test("legacy related blog links remain available for CMS cards", () => {
     '<a href="https://jyotihydraulic.com/worm-gear-guide/">Guide</a><a href="/worm-gear-guide/">Duplicate</a><a href="https://example.com/nope/">External</a>',
   );
   assert.deepEqual(paths, ["worm-gear-guide"]);
+});
+
+test("product editor keeps blog cards and images outside the description", () => {
+  const result = normalizeProductEditorHtml(
+    '<p>Product copy</p><p>Blogs</p><figure><img src="/blog.jpg" /></figure><p>Read More</p><h2>Details</h2><p>Technical copy</p><img src="/product.jpg" />',
+  );
+  assert.match(result, /Product copy/);
+  assert.match(result, /Technical copy/);
+  assert.doesNotMatch(result, /Blogs|Read More|blog\.jpg|product\.jpg/);
 });
 
 test("product introduction is shown separately from detailed sections", () => {

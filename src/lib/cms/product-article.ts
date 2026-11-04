@@ -1,15 +1,41 @@
 export function readableProductArticle(html: string) {
-  const withoutLegacyBlogCard = html.replace(
-    /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>[\s\S]*?(?=<h2\b|$)/i,
-    (match) => /(?:<img\b|<figure\b|Read\s*More)/i.test(match) ? "" : match,
-  );
-  return withoutLegacyBlogCard
+  return removeLegacyBlogEmbed(html)
     .replace(/inquiry now/gi, "")
     .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
     .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
     .replace(/<img\b[^>]*>/gi, "")
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
     .replace(/<ul>\s*<\/ul>/gi, "")
+    .trim();
+}
+
+export function removeLegacyBlogEmbed(html: string) {
+  const marker = /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
+    html,
+  );
+  if (!marker || marker.index === undefined) return html;
+  const trailingStart = marker.index + marker[0].length;
+  const trailing = html.slice(trailingStart);
+  if (!/(?:<img\b|<figure\b|Read\s*More)/i.test(trailing)) return html;
+  const nextHeading = trailing.search(/<h[1-6]\b/i);
+  const end = nextHeading >= 0 ? trailingStart + nextHeading : html.length;
+  return html.slice(0, marker.index) + html.slice(end);
+}
+
+/**
+ * Product images and related blog cards have their own CMS blocks. Keep them
+ * out of the product description so editing copy cannot accidentally publish
+ * duplicate media or blog markup.
+ */
+export function normalizeProductEditorHtml(html: string) {
+  const withoutBlog = html.replace(
+    /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>[\s\S]*?(?=<h[1-6]\b|$)/i,
+    "",
+  );
+  return withoutBlog
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
     .trim();
 }
 

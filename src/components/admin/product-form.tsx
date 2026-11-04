@@ -27,6 +27,7 @@ import type { MediaItem } from "@/lib/cms/queries";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { ProductSpecRow } from "@/db/schema";
 import { FormDraftGuard } from "@/components/admin/form-draft-guard";
+import { normalizeProductEditorHtml } from "@/lib/cms/product-article";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -337,11 +338,11 @@ export function ProductForm({
                   <RichTextEditor
                     name="overview"
                     media={media}
-                    defaultValue={
+                    defaultValue={normalizeProductEditorHtml(
                       asText(initial.overview) ||
-                      asText(initial.body) ||
-                      asText(initial.richContent)
-                    }
+                        asText(initial.body) ||
+                        asText(initial.richContent),
+                    )}
                   />
                   <span className={helpClass}>
                     Add narrative product content here. Insert images only

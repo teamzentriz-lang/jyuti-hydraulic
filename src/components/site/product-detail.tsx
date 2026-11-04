@@ -23,35 +23,6 @@ import {
   splitProductIntroduction,
 } from "@/lib/cms/product-article";
 
-function normalizeCopy(html: string) {
-  return textOf(html)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function coveredBy(existing: string, candidate: string) {
-  const haystack = normalizeCopy(existing);
-  const needle = normalizeCopy(candidate);
-  if (!needle || needle.length < 40) return false;
-  if (haystack.includes(needle)) return true;
-  const sample = needle.slice(0, 220);
-  return sample.length > 60 && haystack.includes(sample);
-}
-
-function dedupedHtml(parts: Array<string | undefined>) {
-  const cleaned = parts.map((part) => part?.trim() ?? "").filter(Boolean);
-  const ranked = [...cleaned].sort(
-    (a, b) => textOf(b).length - textOf(a).length,
-  );
-  const kept: string[] = [];
-  for (const part of ranked) {
-    if (kept.some((existing) => coveredBy(existing, part))) continue;
-    kept.push(part);
-  }
-  return cleaned.filter((part) => kept.includes(part)).join("");
-}
-
 function withoutTables(html: string) {
   return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
 }
@@ -251,16 +222,18 @@ export async function ProductDetail({
     .map((item) => item.title.trim())
     .filter(Boolean)
     .slice(0, 4);
-  const combinedArticleHtml = dedupedHtml([
-    content.detailBlocks?.find((block) => block.heading === "Overview")
-      ?.html,
-    content.body,
-    ...(content.detailBlocks ?? [])
-      .filter(
-        (block) => !["Overview", "Applications", "Features"].includes(block.heading),
-      )
-      .map((block) => `<h2>${block.heading}</h2>${block.html}`),
-  ]);
+  const sourceOverviewHtml = content.detailBlocks?.find(
+    (block) => block.heading === "Overview",
+  )?.html;
+  const legacyArticleHtml =
+    content.body ||
+    content.detailBlocks?.find((block) => block.heading === "Details")?.html ||
+    "";
+  // Overview is the editable product description. Do not merge the legacy
+  // body back into it, otherwise an old imported article wins over a saved edit.
+  const combinedArticleHtml = sourceOverviewHtml?.trim()
+    ? sourceOverviewHtml
+    : legacyArticleHtml;
   const linkedPosts = await publishedPostsByPaths(
     linkedArticlePaths(combinedArticleHtml),
   );
