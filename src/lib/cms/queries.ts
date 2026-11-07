@@ -71,6 +71,7 @@ import {
   type ResourceKey,
   resources,
 } from "@/lib/cms/resources";
+import { linkedArticlePaths } from "@/lib/cms/product-article";
 
 export const tables = {
   pages,
@@ -300,6 +301,26 @@ export async function getRecord(
 
   if (resource === "products") {
     record.productPayload = await loadProductPayload(id);
+    const productPayload = record.productPayload as Awaited<
+      ReturnType<typeof loadProductPayload>
+    >;
+    // Legacy imports stored related blog cards as links inside the product
+    // overview. Surface those links in the manager so existing relationships
+    // can be saved or deleted explicitly.
+    if (!productPayload.relatedPosts.length) {
+      const legacyHtml = [record.overview, record.body, record.richContent]
+        .filter((value): value is string => typeof value === "string")
+        .join("\n");
+      const legacyPaths = linkedArticlePaths(legacyHtml);
+      if (legacyPaths.length) {
+        const legacyPosts = await publishedPostsByPaths(legacyPaths, 50);
+        productPayload.relatedPosts = legacyPosts.map((post, sortOrder) => ({
+          postId: post.id,
+          sortOrder,
+        }));
+        record.productPayload = productPayload;
+      }
+    }
     record.galleryMediaIds = (
       record.productPayload as { galleryMediaIds: string[] }
     ).galleryMediaIds;
