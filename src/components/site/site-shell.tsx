@@ -213,19 +213,7 @@ export async function SiteShell({
         />
       </div>
 
-      <PageHtmlBlock
-        position="header"
-        commonHtml={site.html.commonHeaderHtml}
-        overrides={site.html.overrides}
-      />
-
       {children}
-
-      <PageHtmlBlock
-        position="footer"
-        commonHtml={site.html.commonFooterHtml}
-        overrides={site.html.overrides}
-      />
 
       {settings.whatsapp ? (
         <WhatsAppFloat
@@ -234,6 +222,11 @@ export async function SiteShell({
       ) : null}
 
       <footer className="site-footer">
+        <PageHtmlBlock
+          position="footer"
+          commonHtml={site.html.commonFooterHtml}
+          overrides={site.html.overrides}
+        />
         <div className="site-container site-footer__main">
           <div className="site-footer__brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
