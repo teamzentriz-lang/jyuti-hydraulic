@@ -62,6 +62,23 @@ export type ProductPayload = {
   contentTables: ContentTablePayload[];
 };
 
+async function loadProductPostRelations(productId: string) {
+  const db = getDb();
+  try {
+    return await db
+      .select()
+      .from(productPostRelations)
+      .where(eq(productPostRelations.productId, productId))
+      .orderBy(asc(productPostRelations.sortOrder));
+  } catch (error) {
+    // Keep older deployments renderable until the additive relation migration
+    // has been applied. The product page will continue using its legacy/latest
+    // blog fallback in that case.
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
+
 export type PageSectionPayload = {
   id?: string;
   sectionType: string;
@@ -222,7 +239,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
       .where(eq(productTechnicalTables.productId, productId))
       .orderBy(asc(productTechnicalTables.sortOrder)),
     db.select().from(productRelations).where(eq(productRelations.productId, productId)).orderBy(asc(productRelations.sortOrder)),
-    db.select().from(productPostRelations).where(eq(productPostRelations.productId, productId)).orderBy(asc(productPostRelations.sortOrder)),
+    loadProductPostRelations(productId),
     db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.sortOrder)),
     db.select().from(pageSections).where(eq(pageSections.productId, productId)).orderBy(asc(pageSections.sortOrder)),
     db
@@ -329,7 +346,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
 }
 
 export async function saveProductPayload(
-  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert" | "execute">,
   productId: string,
   payload: ProductPayload,
 ) {
@@ -431,12 +448,21 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productPostRelations).where(eq(productPostRelations.productId, productId));
-  const relatedPosts = [...new Set(payload.relatedPosts.map((row) => row.postId).filter(Boolean))];
-  if (relatedPosts.length) {
-    await tx.insert(productPostRelations).values(
-      relatedPosts.map((postId, sortOrder) => ({ productId, postId, sortOrder })),
-    );
+  const [postRelationTable] = await tx.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_post_relations') as "tableName"`,
+  );
+  if (postRelationTable?.tableName) {
+    await tx
+      .delete(productPostRelations)
+      .where(eq(productPostRelations.productId, productId));
+    const relatedPosts = [
+      ...new Set(payload.relatedPosts.map((row) => row.postId).filter(Boolean)),
+    ];
+    if (relatedPosts.length) {
+      await tx.insert(productPostRelations).values(
+        relatedPosts.map((postId, sortOrder) => ({ productId, postId, sortOrder })),
+      );
+    }
   }
 
   const gallery = [...new Set(payload.galleryMediaIds.filter(Boolean))];
