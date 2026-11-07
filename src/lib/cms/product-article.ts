@@ -81,16 +81,30 @@ export function readableProductArticle(html: string) {
 }
 
 export function removeLegacyBlogEmbed(html: string) {
-  const marker = /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
+  const marker = /<(p|h[1-6]|div|section)\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
     html,
   );
   if (!marker || marker.index === undefined) return html;
   const trailingStart = marker.index + marker[0].length;
   const trailing = html.slice(trailingStart);
   if (!/(?:<img\b|<figure\b|Read\s*More)/i.test(trailing)) return html;
-  const nextHeading = trailing.search(/<h[1-6]\b/i);
-  const end = nextHeading >= 0 ? trailingStart + nextHeading : html.length;
-  return html.slice(0, marker.index) + html.slice(end);
+  // Imported blog cards can contain their own headings. Removing only up to
+  // the next heading leaves the remaining cards in the same product article.
+  // Use the final Read More marker as the end of the legacy block, preserving
+  // any genuine product section that follows it.
+  const readMoreMatches = [...trailing.matchAll(/Read\s*More/gi)];
+  const lastReadMore = readMoreMatches.at(-1);
+  if (!lastReadMore || lastReadMore.index === undefined) {
+    return html.slice(0, marker.index).trim();
+  }
+  const afterReadMore = trailing.slice(
+    lastReadMore.index + lastReadMore[0].length,
+  );
+  const closingTag = /<\/(?:p|a|div|li)>/i.exec(afterReadMore);
+  const consumed = closingTag
+    ? lastReadMore.index + lastReadMore[0].length + closingTag.index + closingTag[0].length
+    : trailing.length;
+  return `${html.slice(0, marker.index).trim()}${html.slice(trailingStart + consumed)}`.trim();
 }
 
 /**
@@ -99,11 +113,7 @@ export function removeLegacyBlogEmbed(html: string) {
  * duplicate media or blog markup.
  */
 export function normalizeProductEditorHtml(html: string) {
-  const withoutBlog = html.replace(
-    /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>[\s\S]*?(?=<h[1-6]\b|$)/i,
-    "",
-  );
-  return removeLegacyContactBlocks(withoutBlog)
+  return removeLegacyContactBlocks(removeLegacyBlogEmbed(html))
     .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
     .replace(/<img\b[^>]*>/gi, "")
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")

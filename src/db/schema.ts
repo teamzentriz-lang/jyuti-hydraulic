@@ -863,6 +863,23 @@ export const posts = pgTable(
   ],
 );
 
+export const productPostRelations = pgTable(
+  "product_post_relations",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.productId, t.postId] }),
+    index("product_post_relations_order_idx").on(t.productId, t.sortOrder),
+  ],
+);
+
 export const galleryItems = pgTable(
   "gallery_items",
   {

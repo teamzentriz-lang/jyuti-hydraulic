@@ -9,7 +9,7 @@ import { formatBytes, formatWhen } from "@/components/admin/status-pill";
 import { requireUser } from "@/lib/auth";
 import { canAccessResource } from "@/lib/authorization";
 import { loadProductCategoryIds, type PageSectionPayload, type ProductPayload } from "@/lib/cms/entity-data";
-import { fieldsFor, getPageHtmlOverride, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
+import { blogPostOptions, fieldsFor, getPageHtmlOverride, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
 import { isResourceKey, resources, type FieldDef } from "@/lib/cms/resources";
 import { convertInquiryToLeadAction } from "@/lib/cms/actions";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/admin/styles";
@@ -49,9 +49,10 @@ export default async function EditResourcePage({
   const canEdit = hasPermission(user, permissionForResource(key));
 
   if (key === "products") {
-    const [categories, productOptions, pageHtml, categoryIds] = await Promise.all([
+    const [categories, productOptions, postOptions, pageHtml, categoryIds] = await Promise.all([
       relationOptions("product-categories"),
       relationOptions("products", id),
+      blogPostOptions(),
       getPageHtmlOverride(publicPath(String(record.path ?? ""))),
       loadProductCategoryIds(id),
     ]);
@@ -63,6 +64,7 @@ export default async function EditResourcePage({
       options: [],
       technicalTables: [],
       relatedProducts: [],
+      relatedPosts: [],
       galleryMediaIds: [],
       applicationImageIds: [],
       sections: [],
@@ -74,7 +76,7 @@ export default async function EditResourcePage({
         <PageHeader eyebrow={config.label} title={String(record.title)} />
         {query.saved ? <Notice tone="ok">Saved.</Notice> : null}
         {query.error ? <Notice tone="error">{query.error}</Notice> : null}
-        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} categoryIds={categoryIds} productOptions={productOptions} pageHtml={pageHtml} canDelete />
+        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} categoryIds={categoryIds} productOptions={productOptions} postOptions={postOptions} pageHtml={pageHtml} canDelete />
       </>
     );
   }

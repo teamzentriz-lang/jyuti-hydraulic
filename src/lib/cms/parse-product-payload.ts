@@ -29,6 +29,7 @@ export function readProductPayloadFromForm(formData: FormData): ProductPayload {
     options: parseJson(formData.get("_options"), []),
     technicalTables: parseJson(formData.get("_technicalTables"), []),
     relatedProducts: parseJson(formData.get("_related"), []),
+    relatedPosts: parseJson(formData.get("_relatedPosts"), []),
     galleryMediaIds: parseGallery(formData),
     applicationImageIds: [],
     sections: parseJson(formData.get("_sections"), []),

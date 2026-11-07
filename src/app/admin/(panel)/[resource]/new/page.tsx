@@ -6,7 +6,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { ResourceForm } from "@/components/admin/resource-form";
 import { requireUser } from "@/lib/auth";
 import { canAccessResource, hasPermission, permissionForResource } from "@/lib/authorization";
-import { fieldsFor, relationOptions } from "@/lib/cms/queries";
+import { blogPostOptions, fieldsFor, relationOptions } from "@/lib/cms/queries";
 import { emptyValues, isResourceKey, resources } from "@/lib/cms/resources";
 
 export default async function NewResourcePage({
@@ -27,7 +27,7 @@ export default async function NewResourcePage({
     key === "products" ? resources[key].fields : await fieldsFor(key, undefined, user);
 
   if (key === "products") {
-    const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products")]);
+    const [categories, productOptions, postOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products"), blogPostOptions()]);
     const emptyPayload = {
       specifications: [],
       features: [],
@@ -36,6 +36,7 @@ export default async function NewResourcePage({
       options: [],
       technicalTables: [],
       relatedProducts: [],
+      relatedPosts: [],
       galleryMediaIds: [],
       applicationImageIds: [],
       sections: [],
@@ -52,6 +53,7 @@ export default async function NewResourcePage({
           categoryOptions={categories}
           categoryIds={[]}
           productOptions={productOptions}
+          postOptions={postOptions}
           pageHtml={null}
           canDelete={false}
         />

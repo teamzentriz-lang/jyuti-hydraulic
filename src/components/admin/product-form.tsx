@@ -9,6 +9,7 @@ import {
   FullSpecsEditor,
   OptionsEditor,
   PageSectionsEditor,
+  RelatedPostsEditor,
   RelatedProductsEditor,
   TechnicalTablesEditor,
 } from "@/components/admin/advanced-editors";
@@ -64,6 +65,7 @@ export function ProductForm({
   categoryOptions,
   categoryIds,
   productOptions,
+  postOptions,
   pageHtml,
   canDelete,
 }: {
@@ -74,6 +76,7 @@ export function ProductForm({
   categoryOptions: { value: string; label: string }[];
   categoryIds: string[];
   productOptions: { value: string; label: string }[];
+  postOptions: { value: string; label: string }[];
   pageHtml: {
     headerHtml: string;
     footerHtml: string;
@@ -452,6 +455,18 @@ export function ProductForm({
                     <FullSpecsEditor
                       name="_specs"
                       initial={specificationRows}
+                    />
+                  </div>
+                </details>
+                <details className="rounded-md border border-line p-4">
+                  <summary className="cursor-pointer font-semibold text-navy">
+                    Related blog posts
+                  </summary>
+                  <div className="mt-4">
+                    <RelatedPostsEditor
+                      name="_relatedPosts"
+                      initial={payload.relatedPosts}
+                      options={postOptions}
                     />
                   </div>
                 </details>

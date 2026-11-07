@@ -8,6 +8,7 @@ import type {
   FaqPayload,
   PageSectionPayload,
   ProductRelationRow,
+  ProductPostRelationRow,
   TechnicalTableRow,
 } from "@/lib/cms/entity-data";
 import type { ProductSpecRow, SpecRow } from "@/db/schema";
@@ -420,6 +421,65 @@ export function RelatedProductsEditor({
       <button type="button" className={secondaryButtonClass} onClick={() => setRows((c) => [...c, { relatedProductId: "", relationType: "related", sortOrder: c.length }])}>
         Add relation
       </button>
+    </div>
+  );
+}
+
+export function RelatedPostsEditor({
+  name,
+  initial,
+  options,
+}: {
+  name: string;
+  initial: ProductPostRelationRow[];
+  options: { value: string; label: string }[];
+}) {
+  const [rows, setRows] = useState(() =>
+    initial.map((row) => ({ postId: asText(row.postId) })),
+  );
+  return (
+    <div>
+      <input type="hidden" name={name} value={JSON.stringify(rows)} />
+      {rows.map((row, index) => (
+        <div key={`${row.postId}-${index}`} className="mb-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <select
+            className={inputClass}
+            value={row.postId}
+            onChange={(event) =>
+              setRows((current) =>
+                current.map((item, itemIndex) =>
+                  itemIndex === index ? { postId: event.target.value } : item,
+                ),
+              )
+            }
+          >
+            <option value="">Select blog post</option>
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={() => setRows((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+          >
+            Delete
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className={secondaryButtonClass}
+        onClick={() => setRows((current) => [...current, { postId: "" }])}
+      >
+        Add related blog
+      </button>
+      <p className="mt-2 text-xs text-muted">
+        Selected blogs appear in separate cards below the product content. If
+        none are selected, the latest published blogs are shown.
+      </p>
     </div>
   );
 }

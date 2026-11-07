@@ -45,11 +45,10 @@ test("public product article keeps content after contact calls to action", () =>
 
 test("public product article removes an imported inline blog card", () => {
   const html =
-    '<p>Product conclusion.</p><p>Blogs</p><figure><img src="/legacy-card.jpg" /></figure><p>Industrial Baling Solutions</p><p>Read More</p>';
+    '<p>Product conclusion.</p><p>Blogs</p><h2>Industrial Baling Solutions</h2><p>Summary</p><p>Read More</p><h2>Worm Gear Guide</h2><p>Summary</p><p>Read More</p>';
   const result = readableProductArticle(html);
   assert.match(result, /Product conclusion/);
-  assert.doesNotMatch(result, /Industrial Baling Solutions/);
-  assert.doesNotMatch(result, /Read More/);
+  assert.doesNotMatch(result, /Industrial Baling Solutions|Worm Gear Guide|Read More/);
 });
 
 test("legacy related blog links remain available for CMS cards", () => {
@@ -66,6 +65,13 @@ test("product editor keeps blog cards and images outside the description", () =>
   assert.match(result, /Product copy/);
   assert.match(result, /Technical copy/);
   assert.doesNotMatch(result, /Blogs|Read More|blog\.jpg|product\.jpg/);
+});
+
+test("product editor removes a complete trailing blog section with headings", () => {
+  const result = normalizeProductEditorHtml(
+    '<p>Product copy</p><div>Blogs</div><h2>First blog</h2><p>Read More</p><h2>Second blog</h2><p>Read More</p>',
+  );
+  assert.equal(result, "<p>Product copy</p>");
 });
 
 test("product content removes imported contact blocks", () => {

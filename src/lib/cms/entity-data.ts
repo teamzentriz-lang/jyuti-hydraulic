@@ -13,6 +13,7 @@ import {
   productFeatures,
   productImages,
   productOptions,
+  productPostRelations,
   productRelations,
   productSpecifications,
   productTechnicalTables,
@@ -23,6 +24,7 @@ import {
 export type { ProductSpecRow, TechnicalTableRow };
 
 export type ProductRelationRow = { relatedProductId: string; relationType: string; sortOrder: number };
+export type ProductPostRelationRow = { postId: string; sortOrder: number };
 
 export type ProductPayload = {
   specifications: ProductSpecRow[];
@@ -52,6 +54,7 @@ export type ProductPayload = {
   }[];
   technicalTables: TechnicalTableRow[];
   relatedProducts: ProductRelationRow[];
+  relatedPosts: ProductPostRelationRow[];
   galleryMediaIds: string[];
   applicationImageIds: string[];
   sections: PageSectionPayload[];
@@ -194,6 +197,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
     options,
     technicalTables,
     related,
+    relatedPosts,
     images,
     sections,
     faqs,
@@ -218,6 +222,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
       .where(eq(productTechnicalTables.productId, productId))
       .orderBy(asc(productTechnicalTables.sortOrder)),
     db.select().from(productRelations).where(eq(productRelations.productId, productId)).orderBy(asc(productRelations.sortOrder)),
+    db.select().from(productPostRelations).where(eq(productPostRelations.productId, productId)).orderBy(asc(productPostRelations.sortOrder)),
     db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.sortOrder)),
     db.select().from(pageSections).where(eq(pageSections.productId, productId)).orderBy(asc(pageSections.sortOrder)),
     db
@@ -277,6 +282,10 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
     relatedProducts: related.map((row, sortOrder) => ({
       relatedProductId: row.relatedProductId,
       relationType: row.relationType,
+      sortOrder,
+    })),
+    relatedPosts: relatedPosts.map((row, sortOrder) => ({
+      postId: row.postId,
       sortOrder,
     })),
     galleryMediaIds: images.map((row) => row.mediaId),
@@ -419,6 +428,14 @@ export async function saveProductPayload(
         relationType: row.relationType || "related",
         sortOrder,
       })),
+    );
+  }
+
+  await tx.delete(productPostRelations).where(eq(productPostRelations.productId, productId));
+  const relatedPosts = [...new Set(payload.relatedPosts.map((row) => row.postId).filter(Boolean))];
+  if (relatedPosts.length) {
+    await tx.insert(productPostRelations).values(
+      relatedPosts.map((postId, sortOrder) => ({ productId, postId, sortOrder })),
     );
   }
 

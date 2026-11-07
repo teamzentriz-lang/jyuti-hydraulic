@@ -12,6 +12,7 @@ import {
   getSettings,
   getSiteLabels,
   publishedPosts,
+  publishedPostsByIds,
   publishedPostsByPaths,
 } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
@@ -234,10 +235,15 @@ export async function ProductDetail({
   const combinedArticleHtml = sourceOverviewHtml?.trim()
     ? sourceOverviewHtml
     : legacyArticleHtml;
-  const linkedPosts = await publishedPostsByPaths(
-    linkedArticlePaths(combinedArticleHtml),
-  );
-  const posts = linkedPosts.length ? linkedPosts : await publishedPosts(3);
+  const selectedPosts = await publishedPostsByIds(content.relatedPostIds ?? []);
+  const linkedPosts = selectedPosts.length
+    ? []
+    : await publishedPostsByPaths(linkedArticlePaths(combinedArticleHtml));
+  const posts = selectedPosts.length
+    ? selectedPosts
+    : linkedPosts.length
+      ? linkedPosts
+      : await publishedPosts(3);
   const cleanedArticleHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(

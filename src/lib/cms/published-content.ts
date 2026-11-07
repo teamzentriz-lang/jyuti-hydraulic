@@ -132,6 +132,7 @@ export type PublishedContent = {
   contentTables?: PublishedContentTable[];
   technicalTables?: PublishedTechnicalTable[];
   documents?: PublishedDocument[];
+  relatedPostIds?: string[];
   parent?: { title: string; path: string } | null;
   robotsIndex?: boolean;
   robotsFollow?: boolean;
@@ -405,6 +406,7 @@ async function loadProductExtras(
       })),
     gallery: await mediaItems(payload.galleryMediaIds),
     relatedProductIds: payload.relatedProducts,
+    relatedPostIds: payload.relatedPosts.map((item) => item.postId),
   };
 }
 

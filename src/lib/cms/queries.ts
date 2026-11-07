@@ -473,6 +473,19 @@ export async function relationOptions(
     .map((row) => ({ value: row.id, label: `${row.location}: ${row.label}` }));
 }
 
+export async function blogPostOptions() {
+  const db = getDb();
+  const rows = await db
+    .select({ id: posts.id, title: posts.title, path: posts.path, status: posts.status })
+    .from(posts)
+    .orderBy(asc(posts.title))
+    .limit(2000);
+  return rows.map((row) => ({
+    value: row.id,
+    label: `${row.title}   /${row.path}/${row.status === "published" ? "" : " - draft"}`,
+  }));
+}
+
 export async function fieldsFor(
   resource: ResourceKey,
   currentId?: string,
@@ -690,6 +703,36 @@ export async function publishedPostsByPaths(paths: string[], limit = 3) {
   return unique.flatMap((path) => {
     const row = byPath.get(path);
     return row ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }] : [];
+  });
+}
+
+/** Fetch selected published posts in the order chosen for a product. */
+export async function publishedPostsByIds(ids: string[], limit = 3) {
+  const unique = [...new Set(ids.filter(Boolean))].slice(0, limit);
+  if (!unique.length) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      path: posts.path,
+      excerpt: posts.excerpt,
+      publishedAt: posts.publishedAt,
+      author: posts.author,
+      readingTime: posts.readingTime,
+      featured: posts.featured,
+      coverMediaId: posts.coverMediaId,
+      coverAlt: media.alt,
+    })
+    .from(posts)
+    .leftJoin(media, eq(posts.coverMediaId, media.id))
+    .where(and(eq(posts.status, "published"), inArray(posts.id, unique)));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return unique.flatMap((id) => {
+    const row = byId.get(id);
+    return row
+      ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }]
+      : [];
   });
 }
 
