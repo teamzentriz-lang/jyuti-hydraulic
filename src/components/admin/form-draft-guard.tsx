@@ -122,8 +122,19 @@ export function FormDraftGuard({
     const serverTimestamp = serverUpdatedAt
       ? new Date(serverUpdatedAt).getTime()
       : 0;
-    const existing = readSnapshot(storageKey);
-    if (
+    // A successful server action redirects back with `?saved=1`. The draft
+    // captured immediately before submit is newer than the database
+    // timestamp, so treating it as recoverable here would restore the old
+    // values over the freshly saved record. Only recover drafts on a normal
+    // revisit; a successful save is the source of truth.
+    const saveCompleted = new URLSearchParams(window.location.search).has(
+      "saved",
+    );
+    const existing = saveCompleted ? null : readSnapshot(storageKey);
+    if (saveCompleted) {
+      window.localStorage.removeItem(storageKey);
+      dirtyRef.current = false;
+    } else if (
       existing &&
       (!Number.isFinite(serverTimestamp) ||
         existing.updatedAt > serverTimestamp)

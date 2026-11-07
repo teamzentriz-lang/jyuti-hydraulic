@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { primaryButtonClass } from "@/components/admin/styles";
 import { saveCommonHtmlAction } from "@/lib/cms/actions";
 
@@ -28,10 +27,14 @@ export function CommonHtmlForm({
           Common header HTML
         </h2>
         <p className="mb-3 mt-1 text-sm text-muted">
-          Shown on every public page immediately below the site navigation.
+          HTML source shown on every public page immediately below the site
+          navigation. JSON-LD schema blocks are supported.
         </p>
-        <RichTextEditor
+        <textarea
           name="commonHeaderHtml"
+          className="min-h-64 w-full rounded-md border border-line bg-slate-950 p-4 font-mono text-sm text-slate-100 outline-none focus:border-navy focus:ring-2 focus:ring-navy/20"
+          aria-label="Common header HTML source"
+          spellCheck={false}
           defaultValue={commonHeaderHtml}
         />
       </section>
@@ -40,16 +43,21 @@ export function CommonHtmlForm({
           Common footer HTML
         </h2>
         <p className="mb-3 mt-1 text-sm text-muted">
-          Shown on every public page immediately above the site footer.
+          HTML source shown on every public page immediately above the site
+          footer. JSON-LD schema blocks are supported.
         </p>
-        <RichTextEditor
+        <textarea
           name="commonFooterHtml"
+          className="min-h-64 w-full rounded-md border border-line bg-slate-950 p-4 font-mono text-sm text-slate-100 outline-none focus:border-navy focus:ring-2 focus:ring-navy/20"
+          aria-label="Common footer HTML source"
+          spellCheck={false}
           defaultValue={commonFooterHtml}
         />
       </section>
       <p className="text-xs text-muted">
-        HTML is cleaned before publishing. Scripts, event handlers and unsafe
-        embeds are not allowed.
+        HTML is cleaned before publishing. Only valid JSON-LD scripts are
+        preserved; executable scripts, event handlers and unsafe embeds are
+        removed.
       </p>
       <button className={primaryButtonClass} disabled={pending}>
         {pending ? "Saving…" : "Save common HTML"}

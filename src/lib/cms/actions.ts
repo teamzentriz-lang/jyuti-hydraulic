@@ -82,7 +82,7 @@ import {
   normalizeSlug,
   publicPath,
 } from "@/lib/paths";
-import { sanitizeRichText } from "@/lib/sanitize";
+import { sanitizeHtmlBlock, sanitizeRichText } from "@/lib/sanitize";
 import { deleteStoredObject } from "@/lib/storage";
 
 export type ActionState = { error: string } | null;
@@ -395,10 +395,10 @@ export async function saveResourceAction(
         );
 
         const overridePath = publicPath(String(row.path ?? ""));
-        const headerHtml = sanitizeRichText(
+        const headerHtml = sanitizeHtmlBlock(
           String(formData.get("_pageHeaderHtml") ?? ""),
         );
-        const footerHtml = sanitizeRichText(
+        const footerHtml = sanitizeHtmlBlock(
           String(formData.get("_pageFooterHtml") ?? ""),
         );
         const isActive = formData.get("_pageHtmlEnabled") === "on";
@@ -1209,10 +1209,10 @@ export async function saveCommonHtmlAction(
     await getDb()
       .update(siteHtmlSettings)
       .set({
-        commonHeaderHtml: sanitizeRichText(
+        commonHeaderHtml: sanitizeHtmlBlock(
           String(formData.get("commonHeaderHtml") ?? ""),
         ),
-        commonFooterHtml: sanitizeRichText(
+        commonFooterHtml: sanitizeHtmlBlock(
           String(formData.get("commonFooterHtml") ?? ""),
         ),
         updatedAt: new Date(),

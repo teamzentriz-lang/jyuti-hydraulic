@@ -98,6 +98,14 @@ export function ProductForm({
   const specificationRows = specificationsForForm(initial, payload);
 
   const preview = publicPath(path);
+  const defaultMetaTitle =
+    asText(initial.seoTitle).trim() || title || asText(initial.title);
+  const defaultMetaDescription =
+    asText(initial.seoDescription).trim() ||
+    normalizeProductSummary(asText(initial.summary));
+  const defaultCanonicalUrl =
+    asText(initial.canonicalUrl).trim() ||
+    (preview ? `${siteOrigin()}${preview}` : "");
   const updateTitle = (nextTitle: string) => {
     setTitle(nextTitle);
     if (!slugEdited.current) setSlug(normalizeSlug(nextTitle));
@@ -740,19 +748,26 @@ export function ProductForm({
                 <p className={helpClass}>
                   This applies only to this product URL. Common HTML remains
                   available under Site → Common HTML and appears across all
-                  public pages.
+                  public pages. Use the HTML source fields below; valid JSON-LD
+                  schema blocks are supported.
                 </p>
                 <div>
                   <span className={labelClass}>Custom header HTML</span>
-                  <RichTextEditor
+                  <textarea
                     name="_pageHeaderHtml"
+                    className="min-h-52 w-full rounded-md border border-line bg-slate-950 p-4 font-mono text-sm text-slate-100 outline-none focus:border-navy focus:ring-2 focus:ring-navy/20"
+                    aria-label="Custom header HTML source"
+                    spellCheck={false}
                     defaultValue={pageHtml?.headerHtml ?? ""}
                   />
                 </div>
                 <div>
                   <span className={labelClass}>Custom footer HTML</span>
-                  <RichTextEditor
+                  <textarea
                     name="_pageFooterHtml"
+                    className="min-h-52 w-full rounded-md border border-line bg-slate-950 p-4 font-mono text-sm text-slate-100 outline-none focus:border-navy focus:ring-2 focus:ring-navy/20"
+                    aria-label="Custom footer HTML source"
+                    spellCheck={false}
                     defaultValue={pageHtml?.footerHtml ?? ""}
                   />
                 </div>
@@ -837,13 +852,12 @@ export function ProductForm({
                   <input
                     className={inputClass}
                     name="canonicalUrl"
-                    defaultValue={asText(initial.canonicalUrl)}
-                    placeholder={`${siteOrigin()}${preview}`}
+                    defaultValue={defaultCanonicalUrl}
                   />
                   <span className={helpClass}>
-                    This is the product page URL, not an image URL. Leave it
-                    empty unless this product has a deliberate alternate
-                    canonical page.
+                    This is also used as the Open Graph URL. It defaults to
+                    this product page URL; change it only for a deliberate
+                    alternate canonical page.
                   </span>
                 </label>
                 <label className="flex items-center gap-2">
@@ -874,7 +888,7 @@ export function ProductForm({
                   <input
                     className={inputClass}
                     name="ogTitle"
-                    defaultValue={asText(initial.ogTitle)}
+                    defaultValue={asText(initial.ogTitle) || defaultMetaTitle}
                   />
                 </label>
                 <label className="md:col-span-2">
@@ -883,7 +897,9 @@ export function ProductForm({
                     className={inputClass}
                     name="ogDescription"
                     rows={3}
-                    defaultValue={asText(initial.ogDescription)}
+                    defaultValue={
+                      asText(initial.ogDescription) || defaultMetaDescription
+                    }
                   />
                 </label>
                 <div className="md:col-span-2">
@@ -900,7 +916,8 @@ export function ProductForm({
                     known={media}
                   />
                   <span className={helpClass}>
-                    Leave empty to use the main product image automatically.
+                    If no override is selected, the main product image URL is
+                    used automatically for Open Graph and Twitter sharing.
                   </span>
                 </div>
                 </section>
