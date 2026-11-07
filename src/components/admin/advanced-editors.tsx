@@ -17,6 +17,58 @@ function asText(value: unknown) {
   return value == null ? "" : String(value);
 }
 
+function SearchableOptionSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  emptyLabel,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  emptyLabel: string;
+}) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = options.filter((option) =>
+    `${option.label} ${option.value}`.toLowerCase().includes(normalizedQuery),
+  );
+  const selected = options.find((option) => option.value === value);
+  const visibleOptions =
+    selected && !filtered.some((option) => option.value === selected.value)
+      ? [selected, ...filtered]
+      : filtered;
+
+  return (
+    <div className="min-w-0">
+      <input
+        className={inputClass}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
+      <select
+        className={`${inputClass} mt-2`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value="">{emptyLabel}</option>
+        {visibleOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {normalizedQuery && !visibleOptions.length ? (
+        <p className="mt-1 text-xs text-muted">No matching results.</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function FaqsEditor({
   name,
   initial,
@@ -398,14 +450,13 @@ export function RelatedProductsEditor({
       <input type="hidden" name={name} value={JSON.stringify(rows)} />
       {rows.map((row, index) => (
         <div key={index} className="mb-2 grid gap-2 sm:grid-cols-[2fr_1fr_auto]">
-          <select className={inputClass} value={asText(row.relatedProductId)} onChange={(e) => setRows((c) => c.map((r, i) => (i === index ? { ...r, relatedProductId: e.target.value } : r)))}>
-            <option value="">Select product</option>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <SearchableOptionSelect
+            value={asText(row.relatedProductId)}
+            onChange={(value) => setRows((c) => c.map((r, i) => (i === index ? { ...r, relatedProductId: value } : r)))}
+            options={options}
+            placeholder="Search products by name or URL…"
+            emptyLabel="Select product"
+          />
           <select className={inputClass} value={asText(row.relationType) || "related"} onChange={(e) => setRows((c) => c.map((r, i) => (i === index ? { ...r, relationType: e.target.value } : r)))}>
             {["related", "alternative", "accessory", "compatible", "upsell"].map((t) => (
               <option key={t} value={t}>
@@ -442,24 +493,19 @@ export function RelatedPostsEditor({
       <input type="hidden" name={name} value={JSON.stringify(rows)} />
       {rows.map((row, index) => (
         <div key={`${row.postId}-${index}`} className="mb-2 grid gap-2 sm:grid-cols-[1fr_auto]">
-          <select
-            className={inputClass}
+          <SearchableOptionSelect
             value={row.postId}
-            onChange={(event) =>
+            onChange={(value) =>
               setRows((current) =>
                 current.map((item, itemIndex) =>
-                  itemIndex === index ? { postId: event.target.value } : item,
+                  itemIndex === index ? { postId: value } : item,
                 ),
               )
             }
-          >
-            <option value="">Select blog post</option>
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={options}
+            placeholder="Search blogs by title or URL…"
+            emptyLabel="Select blog post"
+          />
           <button
             type="button"
             className={secondaryButtonClass}
