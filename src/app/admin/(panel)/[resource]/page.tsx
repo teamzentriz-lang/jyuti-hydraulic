@@ -13,7 +13,7 @@ import { currentStorageDriver } from "@/lib/storage";
 import { ResourceListActions } from "@/components/admin/resource-list-actions";
 import { ProductListActions } from "@/components/admin/product-list-actions";
 
-const actionsResources = new Set(["products", "posts", "pages", "product-categories"]);
+const actionsResources = new Set(["products", "posts", "pages", "product-categories", "locations", "exports", "page-html"]);
 
 const dateKeys = new Set(["updatedAt", "createdAt", "publishedAt", "occurredAt", "dueAt", "nextFollowUpAt"]);
 const pillKeys = new Set(["status", "active", "stage", "priority", "isActive"]);
@@ -128,7 +128,7 @@ export default async function ResourceListPage({
                         resource={key}
                         id={String(row.id)}
                         path={String(row.path ?? "")}
-                        published={row.status === "published"}
+                        published={key === "page-html" ? row.isActive === true : row.status === "published"}
                       />
                     )}
                   </td>
