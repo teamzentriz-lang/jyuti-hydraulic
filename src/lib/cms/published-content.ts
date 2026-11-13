@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   exportPages,
@@ -260,31 +260,49 @@ async function categoryProductCards(
   db: Db,
   categoryId: string,
 ) {
-  const productRows = await db
-    .selectDistinct({
-      id: products.id,
-      title: products.title,
-      path: products.path,
-      summary: products.summary,
-      featuredImageId: products.featuredImageId,
-      thumbnailId: products.thumbnailId,
-    })
-    .from(products)
-    .leftJoin(
-      productCategoryAssignments,
-      eq(productCategoryAssignments.productId, products.id),
-    )
-    .where(
-      and(
-        or(
-          eq(products.categoryId, categoryId),
-          eq(products.subCategoryId, categoryId),
-          eq(productCategoryAssignments.categoryId, categoryId),
-        ),
-        eq(products.status, "published"),
-      ),
-    )
-    .orderBy(asc(products.sortOrder), asc(products.title));
+  const [assignmentTable] = await db.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_category_assignments') as "tableName"`,
+  );
+  const fields = {
+    id: products.id,
+    title: products.title,
+    path: products.path,
+    summary: products.summary,
+    featuredImageId: products.featuredImageId,
+    thumbnailId: products.thumbnailId,
+  };
+  const productRows = assignmentTable?.tableName
+    ? await db
+        .selectDistinct(fields)
+        .from(products)
+        .leftJoin(
+          productCategoryAssignments,
+          eq(productCategoryAssignments.productId, products.id),
+        )
+        .where(
+          and(
+            or(
+              eq(products.categoryId, categoryId),
+              eq(products.subCategoryId, categoryId),
+              eq(productCategoryAssignments.categoryId, categoryId),
+            ),
+            eq(products.status, "published"),
+          ),
+        )
+        .orderBy(asc(products.sortOrder), asc(products.title))
+    : await db
+        .select(fields)
+        .from(products)
+        .where(
+          and(
+            or(
+              eq(products.categoryId, categoryId),
+              eq(products.subCategoryId, categoryId),
+            ),
+            eq(products.status, "published"),
+          ),
+        )
+        .orderBy(asc(products.sortOrder), asc(products.title));
 
   if (!productRows.length) return [];
 
