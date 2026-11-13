@@ -21,6 +21,7 @@ import {
 } from "@/lib/cms/entity-data";
 import { mediaItems, type MediaItem } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
+import { normalizeLocationBody } from "@/lib/cms/product-article";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -757,7 +758,7 @@ export async function buildPublishedContent(
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
-      body: row.body,
+      body: normalizeLocationBody(row.body, row.locationName),
       meta: { locationName: row.locationName, region: row.region },
     };
   }

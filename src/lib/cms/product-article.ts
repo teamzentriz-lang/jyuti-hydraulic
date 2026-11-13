@@ -81,7 +81,7 @@ export function readableProductArticle(html: string) {
 }
 
 export function removeLegacyBlogEmbed(html: string) {
-  const marker = /<(p|h[1-6]|div|section)\b[^>]*>\s*(?:<strong>)?\s*Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
+  const marker = /<(p|h[1-6]|div|section)\b[^>]*>\s*(?:<strong>)?\s*(?:Our\s+)?Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
     html,
   );
   if (!marker || marker.index === undefined) return html;
@@ -105,6 +105,20 @@ export function removeLegacyBlogEmbed(html: string) {
     ? lastReadMore.index + lastReadMore[0].length + closingTag.index + closingTag[0].length
     : trailing.length;
   return `${html.slice(0, marker.index).trim()}${html.slice(trailingStart + consumed)}`.trim();
+}
+
+/**
+ * Imported location pages occasionally contain copy from the Bihar template.
+ * Keep the public page aligned with its saved location until the CMS record is
+ * manually corrected, and remove imported blog-card markup from the article.
+ */
+export function normalizeLocationBody(html: string, locationName: string) {
+  const location = locationName.trim();
+  if (!location) return removeLegacyBlogEmbed(html);
+  return removeLegacyBlogEmbed(html).replace(
+    /\bBihar(?:\s+Sharif)?\b/gi,
+    location,
+  );
 }
 
 /**
