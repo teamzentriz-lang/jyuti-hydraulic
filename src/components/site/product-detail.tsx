@@ -21,6 +21,15 @@ function withoutTables(html: string) {
   return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
 }
 
+type ProductInsight = {
+  id: string;
+  path: string;
+  title: string;
+  coverUrl: string | null;
+  publishedAt: Date | null;
+  excerpt: string;
+};
+
 function promoteLegacyHeadings(html: string) {
   return html.replace(
     /<p\b[^>]*>\s*(?:<strong>)?([^<]{3,110})(?:<\/strong>)?\s*<\/p>/gi,
@@ -231,7 +240,7 @@ export async function ProductDetail({
   // Blog posts are managed separately from product content and are not shown
   // inside product pages. This also prevents legacy imported blog cards from
   // reappearing when an old product record has no explicit relations.
-  const posts: never[] = [];
+  const posts: ProductInsight[] = [];
   const cleanedArticleHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(
