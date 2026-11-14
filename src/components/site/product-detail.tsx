@@ -11,18 +11,11 @@ import {
   getHome,
   getSettings,
   getSiteLabels,
-  publishedPosts,
-  publishedPostsByIds,
-  publishedPostsByPaths,
 } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
-import {
-  linkedArticlePaths,
-  removeLeadingSummaryHtml,
-  readableProductArticle,
-} from "@/lib/cms/product-article";
+import { removeLeadingSummaryHtml, readableProductArticle } from "@/lib/cms/product-article";
 
 function withoutTables(html: string) {
   return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
@@ -235,15 +228,10 @@ export async function ProductDetail({
   const combinedArticleHtml = sourceOverviewHtml?.trim()
     ? sourceOverviewHtml
     : legacyArticleHtml;
-  const selectedPosts = await publishedPostsByIds(content.relatedPostIds ?? []);
-  const linkedPosts = selectedPosts.length
-    ? []
-    : await publishedPostsByPaths(linkedArticlePaths(combinedArticleHtml));
-  const posts = selectedPosts.length
-    ? selectedPosts
-    : linkedPosts.length
-      ? linkedPosts
-      : await publishedPosts(3);
+  // Blog posts are managed separately from product content and are not shown
+  // inside product pages. This also prevents legacy imported blog cards from
+  // reappearing when an old product record has no explicit relations.
+  const posts: never[] = [];
   const cleanedArticleHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(

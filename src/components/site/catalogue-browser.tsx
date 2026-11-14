@@ -39,6 +39,7 @@ export function CatalogueBrowser({
   bannerImageUrl,
   clientLogos = [],
   faqs = [],
+  contentBeforeCards = false,
 }: {
   title: string;
   subtitle?: string;
@@ -53,6 +54,7 @@ export function CatalogueBrowser({
   bannerImageUrl?: string;
   clientLogos?: { name: string; logo: string }[];
   faqs?: { question: string; answer: string }[];
+  contentBeforeCards?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState(initialChip);
@@ -85,6 +87,24 @@ export function CatalogueBrowser({
       ? bodyCopy
       : "";
   const hasBottomContent = Boolean(summaryCopy || distinctBody);
+  const contentSection = hasBottomContent ? (
+    <section className="catalogue-bottom-content" aria-labelledby="cat-desc-title">
+      <div className="catalogue-bottom-content__card">
+        <div className="catalogue-bottom-content__header">
+          <p className="eyebrow dark">Category Overview</p>
+          <h2 id="cat-desc-title">About {cleanPublicTitle(title)}</h2>
+        </div>
+        {summaryCopy ? (
+          <div className="catalogue-bottom-content__summary">
+            <p>{summaryCopy}</p>
+          </div>
+        ) : null}
+        {distinctBody ? (
+          <p className="catalogue-bottom-content__body">{distinctBody}</p>
+        ) : null}
+      </div>
+    </section>
+  ) : null;
 
   return (
     <div className="catalogue-browser-root">
@@ -114,6 +134,7 @@ export function CatalogueBrowser({
       {/* 2. Main product listing & filtering section */}
       <main className="catalogue-page">
         <div className="site-container catalogue-page__inner">
+          {contentBeforeCards ? contentSection : null}
           <div className="catalogue-controls">
             {chips.length ? (
               <div className="catalogue-chips" role="tablist" aria-label="Product groups">
@@ -195,24 +216,7 @@ export function CatalogueBrowser({
           )}
 
           {/* 3. Bottom content description card (moved below products as requested) */}
-          {hasBottomContent ? (
-            <section className="catalogue-bottom-content" aria-labelledby="cat-desc-title">
-              <div className="catalogue-bottom-content__card">
-                <div className="catalogue-bottom-content__header">
-                  <p className="eyebrow dark">Category Overview</p>
-                  <h2 id="cat-desc-title">About {cleanPublicTitle(title)}</h2>
-                </div>
-                {summaryCopy ? (
-                  <div className="catalogue-bottom-content__summary">
-                    <p>{summaryCopy}</p>
-                  </div>
-                ) : null}
-                {distinctBody ? (
-                  <p className="catalogue-bottom-content__body">{distinctBody}</p>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
+          {!contentBeforeCards ? contentSection : null}
         </div>
       </main>
       {clientLogos.length ? (
