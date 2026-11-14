@@ -321,6 +321,7 @@ async function categoryProductCards(
       productId: productImages.productId,
       mediaId: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       alt: media.alt,
     })
     .from(productImages)
@@ -337,7 +338,7 @@ async function categoryProductCards(
   for (const row of galleryImages) {
     if (!imageByProduct.has(row.productId)) {
       imageByProduct.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
         alt: row.alt ?? "",
       });
     }
@@ -652,6 +653,7 @@ export async function buildPublishedContent(
             productId: productImages.productId,
             mediaId: media.id,
             url: media.url,
+            legacyUrl: media.legacyUrl,
             alt: media.alt,
           })
           .from(productImages)
@@ -671,7 +673,7 @@ export async function buildPublishedContent(
     for (const image of relatedImages) {
       if (!relatedImageByProduct.has(image.productId)) {
         relatedImageByProduct.set(image.productId, {
-          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url }),
+          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url, legacyUrl: image.legacyUrl }),
           alt: image.alt ?? "",
         });
       }

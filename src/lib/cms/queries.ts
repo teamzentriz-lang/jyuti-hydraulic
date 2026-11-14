@@ -547,6 +547,7 @@ export type MediaItem = {
   filename: string;
   alt: string;
   mimeType: string;
+  legacyUrl?: string | null;
 };
 
 export async function mediaItems(ids: string[]) {
@@ -557,6 +558,7 @@ export async function mediaItems(ids: string[]) {
     .select({
       id: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       filename: media.filename,
       alt: media.alt,
       mimeType: media.mimeType,
@@ -980,6 +982,7 @@ export async function homeCategoryShowcases(
       .select({
         productId: productImages.productId,
         url: media.url,
+        legacyUrl: media.legacyUrl,
         alt: media.alt,
       })
       .from(productImages)
@@ -1083,6 +1086,7 @@ export async function migratedCategoryShowcases(
         productId: productImages.productId,
         mediaId: media.id,
         url: media.url,
+        legacyUrl: media.legacyUrl,
         alt: media.alt,
       })
       .from(productImages)
@@ -1139,6 +1143,7 @@ export async function featuredProductsForHome(productIds: string[]) {
       productId: productImages.productId,
       mediaId: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       alt: media.alt,
     })
     .from(productImages)
@@ -1260,6 +1265,7 @@ export async function catalogueListing() {
           productId: productImages.productId,
           mediaId: media.id,
           url: media.url,
+          legacyUrl: media.legacyUrl,
           alt: media.alt,
         })
         .from(productImages)
@@ -1276,7 +1282,7 @@ export async function catalogueListing() {
   for (const row of productImageRows) {
     if (!productImageById.has(row.productId)) {
       productImageById.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
         alt: row.alt ?? "",
       });
     }
