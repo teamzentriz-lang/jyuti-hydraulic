@@ -754,26 +754,12 @@ export async function buildPublishedContent(
       .where(eq(locationPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const [ogImage, twitterImage] = await Promise.all([
-      optionalMedia(row.ogImageId),
-      optionalMedia(row.twitterImageId),
-    ]);
     return {
       kind,
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: normalizeSeoDescription(row.seoDescription),
-      focusKeyword: row.focusKeyword,
-      canonicalUrl: row.canonicalUrl,
-      ogTitle: row.ogTitle,
-      ogDescription: row.ogDescription,
-      ogImage,
-      twitterTitle: row.twitterTitle,
-      twitterDescription: row.twitterDescription,
-      twitterImage,
-      robotsIndex: row.robotsIndex,
-      robotsFollow: row.robotsFollow,
       body: normalizeLocationBody(row.body, row.locationName),
       meta: { locationName: row.locationName, region: row.region },
     };
@@ -786,26 +772,12 @@ export async function buildPublishedContent(
       .where(eq(exportPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const [ogImage, twitterImage] = await Promise.all([
-      optionalMedia(row.ogImageId),
-      optionalMedia(row.twitterImageId),
-    ]);
     return {
       kind,
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: normalizeSeoDescription(row.seoDescription),
-      focusKeyword: row.focusKeyword,
-      canonicalUrl: row.canonicalUrl,
-      ogTitle: row.ogTitle,
-      ogDescription: row.ogDescription,
-      ogImage,
-      twitterTitle: row.twitterTitle,
-      twitterDescription: row.twitterDescription,
-      twitterImage,
-      robotsIndex: row.robotsIndex,
-      robotsFollow: row.robotsFollow,
       body: normalizeLocationBody(row.body, row.country),
       meta: { country: row.country, productLine: row.productLine },
     };
