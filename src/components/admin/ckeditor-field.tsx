@@ -13,7 +13,10 @@ function headingTag(value: string) {
 }
 
 function removeLegacyBlogEmbed(html: string) {
-  const match = /<(p|h[1-6])\b[^>]*>\s*(?:<strong>)?\s*(?:Our\s+)?Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(html);
+  const match = [...html.matchAll(/<(p|h[1-6]|div|section)\b[^>]*>([\s\S]*?)<\/\1>/gi)].find((item) => {
+    const text = (item[2] ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    return text === "blogs" || text === "our blogs";
+  });
   if (!match || match.index === undefined) return html;
   const trailing = html.slice(match.index);
   // Only trim an imported blog card, never normal product copy that happens

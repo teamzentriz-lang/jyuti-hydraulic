@@ -81,9 +81,10 @@ export function readableProductArticle(html: string) {
 }
 
 export function removeLegacyBlogEmbed(html: string) {
-  const marker = /<(p|h[1-6]|div|section)\b[^>]*>\s*(?:<strong>)?\s*(?:Our\s+)?Blogs\s*(?:<\/strong>)?\s*<\/\1>/i.exec(
-    html,
-  );
+  const marker = [...html.matchAll(/<(p|h[1-6]|div|section)\b[^>]*>([\s\S]*?)<\/\1>/gi)].find((match) => {
+    const text = (match[2] ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    return text === "blogs" || text === "our blogs";
+  });
   if (!marker || marker.index === undefined) return html;
   const trailingStart = marker.index + marker[0].length;
   const trailing = html.slice(trailingStart);
