@@ -13,6 +13,7 @@ import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { SpecRow } from "@/db/schema";
 import type { FaqPayload } from "@/lib/cms/entity-data";
 import { FormDraftGuard } from "@/components/admin/form-draft-guard";
+import { normalizeLocationBody, normalizeSeoDescription, removeLegacyBlogEmbed } from "@/lib/cms/product-article";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -243,10 +244,13 @@ function renderField(
     );
   }
   if (field.type === "textarea") {
-    return <textarea className={inputClass} name={field.name} rows={4} defaultValue={asText(state.initial[field.name])} required={field.required} />;
+    const value = field.name === "seoDescription" ? normalizeSeoDescription(asText(state.initial[field.name])) : asText(state.initial[field.name]);
+    return <textarea className={inputClass} name={field.name} rows={4} defaultValue={value} required={field.required} />;
   }
   if (field.type === "richtext") {
-    return <RichTextEditor name={field.name} defaultValue={asText(state.initial[field.name])} />;
+    const raw = asText(state.initial[field.name]);
+    const value = field.name === "body" && state.initial.locationName ? normalizeLocationBody(raw, asText(state.initial.locationName)) : removeLegacyBlogEmbed(raw);
+    return <RichTextEditor name={field.name} defaultValue={value} />;
   }
   if (field.type === "select") {
     return (

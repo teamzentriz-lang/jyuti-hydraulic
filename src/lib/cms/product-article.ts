@@ -121,6 +121,18 @@ export function normalizeLocationBody(html: string, locationName: string) {
   );
 }
 
+export function normalizeSeoDescription(value: string | null | undefined) {
+  const clean = (value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  const words = clean.split(" ");
+  for (let size = Math.min(18, Math.floor(words.length / 2)); size >= 4; size -= 1) {
+    const first = words.slice(0, size).join(" ").toLowerCase();
+    const second = words.slice(size, size * 2).join(" ").toLowerCase();
+    if (first === second) return words.slice(size).join(" ");
+  }
+  return clean;
+}
+
 /**
  * Product images and related blog cards have their own CMS blocks. Keep them
  * out of the product description so editing copy cannot accidentally publish

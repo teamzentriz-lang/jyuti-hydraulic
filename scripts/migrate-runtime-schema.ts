@@ -19,7 +19,26 @@ async function main() {
       ADD COLUMN IF NOT EXISTS custom_band_body text NOT NULL DEFAULT 'From standard power packs to fully customized systems, our team designs and manufactures equipment that meets your exact requirements.',
       ADD COLUMN IF NOT EXISTS custom_band_button_text text NOT NULL DEFAULT 'Get a custom solution',
       ADD COLUMN IF NOT EXISTS custom_band_button_href text NOT NULL DEFAULT '/contact/'`);
-    await tx.unsafe(`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company'`);
+    await tx.unsafe(`ALTER TABLE product_categories
+      ADD COLUMN IF NOT EXISTS subtitle text NOT NULL DEFAULT 'ISO-9001:2015 Certified Company',
+      ADD COLUMN IF NOT EXISTS og_title text,
+      ADD COLUMN IF NOT EXISTS og_description text,
+      ADD COLUMN IF NOT EXISTS twitter_title text,
+      ADD COLUMN IF NOT EXISTS twitter_description text,
+      ADD COLUMN IF NOT EXISTS twitter_image_id uuid`);
+    for (const table of ["location_pages", "export_pages"]) {
+      await tx.unsafe(`ALTER TABLE ${table}
+        ADD COLUMN IF NOT EXISTS focus_keyword text,
+        ADD COLUMN IF NOT EXISTS canonical_url text,
+        ADD COLUMN IF NOT EXISTS og_title text,
+        ADD COLUMN IF NOT EXISTS og_description text,
+        ADD COLUMN IF NOT EXISTS og_image_id uuid,
+        ADD COLUMN IF NOT EXISTS twitter_title text,
+        ADD COLUMN IF NOT EXISTS twitter_description text,
+        ADD COLUMN IF NOT EXISTS twitter_image_id uuid,
+        ADD COLUMN IF NOT EXISTS robots_index boolean NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS robots_follow boolean NOT NULL DEFAULT true`);
+    }
     await tx.unsafe(`CREATE TABLE IF NOT EXISTS media_blobs (
       media_id uuid PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
       data_base64 text NOT NULL,

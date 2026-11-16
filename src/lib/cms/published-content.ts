@@ -21,7 +21,7 @@ import {
 } from "@/lib/cms/entity-data";
 import { mediaItems, type MediaItem } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
-import { normalizeLocationBody } from "@/lib/cms/product-article";
+import { normalizeLocationBody, normalizeSeoDescription, removeLegacyBlogEmbed } from "@/lib/cms/product-article";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -465,7 +465,7 @@ export async function buildPublishedContent(
       twitterTitle: row.twitterTitle,
       twitterDescription: row.twitterDescription,
       twitterImage,
-      body: row.body,
+      body: removeLegacyBlogEmbed(row.body),
       summary: row.excerpt || row.shortDescription || undefined,
       hero,
       sections,
@@ -593,7 +593,7 @@ export async function buildPublishedContent(
       focusKeyword: row.focusKeyword,
       canonicalUrl: row.canonicalUrl,
       ogImage,
-      body: row.body,
+      body: removeLegacyBlogEmbed(row.body),
       summary: row.summary,
       image,
       childCategories,
@@ -754,12 +754,26 @@ export async function buildPublishedContent(
       .where(eq(locationPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
+    const [ogImage, twitterImage] = await Promise.all([
+      optionalMedia(row.ogImageId),
+      optionalMedia(row.twitterImageId),
+    ]);
     return {
       kind,
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
-      seoDescription: row.seoDescription,
+      seoDescription: normalizeSeoDescription(row.seoDescription),
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage,
+      twitterTitle: row.twitterTitle,
+      twitterDescription: row.twitterDescription,
+      twitterImage,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
       body: normalizeLocationBody(row.body, row.locationName),
       meta: { locationName: row.locationName, region: row.region },
     };
@@ -772,13 +786,27 @@ export async function buildPublishedContent(
       .where(eq(exportPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
+    const [ogImage, twitterImage] = await Promise.all([
+      optionalMedia(row.ogImageId),
+      optionalMedia(row.twitterImageId),
+    ]);
     return {
       kind,
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
-      seoDescription: row.seoDescription,
-      body: row.body,
+      seoDescription: normalizeSeoDescription(row.seoDescription),
+      focusKeyword: row.focusKeyword,
+      canonicalUrl: row.canonicalUrl,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage,
+      twitterTitle: row.twitterTitle,
+      twitterDescription: row.twitterDescription,
+      twitterImage,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
+      body: normalizeLocationBody(row.body, row.country),
       meta: { country: row.country, productLine: row.productLine },
     };
   }

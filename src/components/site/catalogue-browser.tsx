@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { AboutFaq } from "@/components/site/about-faq";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
 import { publicPath } from "@/lib/paths";
+import { RichTextHtml } from "@/components/site/rich-text-html";
 
 export type CatalogueCard = {
   id: string;
@@ -81,12 +82,8 @@ export function CatalogueBrowser({
       : visible;
 
   const summaryCopy = cleanPublicExcerpt(summary ?? "", 420);
-  const bodyCopy = cleanPublicExcerpt(body ?? "", 760);
-  const distinctBody =
-    bodyCopy && bodyCopy.toLowerCase() !== summaryCopy.toLowerCase()
-      ? bodyCopy
-      : "";
-  const hasBottomContent = Boolean(summaryCopy || distinctBody);
+  const bodyMarkup = body?.trim() ?? "";
+  const hasBottomContent = Boolean(bodyMarkup || summaryCopy);
   const contentSection = hasBottomContent ? (
     <section className="catalogue-bottom-content" aria-labelledby="cat-desc-title">
       <div className="catalogue-bottom-content__card">
@@ -94,14 +91,12 @@ export function CatalogueBrowser({
           <p className="eyebrow dark">Category Overview</p>
           <h2 id="cat-desc-title">About {cleanPublicTitle(title)}</h2>
         </div>
-        {summaryCopy ? (
+        {!bodyMarkup && summaryCopy ? (
           <div className="catalogue-bottom-content__summary">
             <p>{summaryCopy}</p>
           </div>
         ) : null}
-        {distinctBody ? (
-          <p className="catalogue-bottom-content__body">{distinctBody}</p>
-        ) : null}
+        {bodyMarkup ? <RichTextHtml html={bodyMarkup} className="catalogue-bottom-content__body rich-text" /> : null}
       </div>
     </section>
   ) : null;
