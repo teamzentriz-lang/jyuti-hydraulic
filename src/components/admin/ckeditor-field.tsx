@@ -38,6 +38,7 @@ export function CKEditorField({
   const visualRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<EditorMode>("visual");
+  const [blockStyle, setBlockStyle] = useState("p");
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [pickerMedia, setPickerMedia] = useState<MediaItem[]>(media);
   const [pickerError, setPickerError] = useState("");
@@ -65,10 +66,26 @@ export function CKEditorField({
     return () => window.removeEventListener("cms:draft-restored", restore);
   }, [name, setValue]);
 
+  useEffect(() => {
+    const updateBlockStyle = () => {
+      const root = visualRef.current;
+      const selection = window.getSelection();
+      if (!root || !selection?.anchorNode || !root.contains(selection.anchorNode)) return;
+      const element = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+        ? (selection.anchorNode as Element)
+        : selection.anchorNode.parentElement;
+      const block = element?.closest("h2,h3,p,blockquote");
+      setBlockStyle(block?.tagName.toLowerCase() === "h2" ? "h2" : block?.tagName.toLowerCase() === "h3" ? "h3" : "p");
+    };
+    document.addEventListener("selectionchange", updateBlockStyle);
+    return () => document.removeEventListener("selectionchange", updateBlockStyle);
+  }, []);
+
   const runCommand = (command: string, value?: string) => {
     if (mode !== "visual") return;
     visualRef.current?.focus();
     document.execCommand(command, false, value);
+    if (command === "formatBlock") setBlockStyle(value === "h2" || value === "h3" ? value : "p");
     sync();
   };
 
@@ -124,7 +141,7 @@ export function CKEditorField({
       <div className="admin-editor-toolbar" role="toolbar" aria-label="Content formatting">
         <select
           aria-label="Text style"
-          defaultValue="p"
+          value={blockStyle}
           disabled={mode !== "visual"}
           onChange={(event) => runCommand("formatBlock", headingTag(event.target.value))}
         >
