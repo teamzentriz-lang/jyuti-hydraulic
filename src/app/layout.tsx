@@ -146,9 +146,11 @@ export default function RootLayout({
 async function RootHead({ htmlPromise }: { htmlPromise: Promise<string> }) {
   const html = await htmlPromise;
   return (
-    <head
+    <head suppressHydrationWarning
       dangerouslySetInnerHTML={{
-        __html: `<meta http-equiv="X-UA-Compatible" content="IE=edge" />${html}`,
+        // HTML parser normalizes void tags in <head>; omit XHTML-style
+        // self-closing syntax so the server string matches the hydrated DOM.
+        __html: `<meta http-equiv="X-UA-Compatible" content="IE=edge">${html}`,
       }}
     />
   );
