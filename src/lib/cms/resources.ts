@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CmsError } from "@/db/errors";
+import { removeLegacyBlogEmbed } from "@/lib/cms/legacy-blog-embed";
 
 const slug = z
   .string()
@@ -2505,5 +2506,11 @@ export function parseResource(
         : (issue?.message ?? "Check the form."),
     );
   }
-  return parsed.data;
+  const data = parsed.data as Record<string, unknown>;
+  // City pages imported related-blog cards into the body. Strip them on save
+  // so the CMS never reintroduces legacy embeds.
+  if (resource === "locations" && typeof data.body === "string") {
+    data.body = removeLegacyBlogEmbed(data.body);
+  }
+  return data;
 }
