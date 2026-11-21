@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { FaqsEditor } from "@/components/admin/advanced-editors";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { RelationManyField, SpecsEditor } from "@/components/admin/editors";
 import { MediaPicker } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
@@ -11,7 +10,8 @@ import type { MediaItem } from "@/lib/cms/queries";
 import type { FieldDef, ResourceKey } from "@/lib/cms/resources";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
 import type { SpecRow } from "@/db/schema";
-import type { FaqPayload } from "@/lib/cms/entity-data";
+import { FormDraftGuard } from "@/components/admin/form-draft-guard";
+import { normalizeLocationBody, normalizeSeoDescription, removeLegacyBlogEmbed } from "@/lib/cms/product-article";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -31,6 +31,14 @@ function toLocalInput(value: unknown) {
 
 function DateTimeField({ name, defaultIso }: { name: string; defaultIso: string }) {
   const [iso, setIso] = useState(defaultIso);
+  useEffect(() => {
+    const restore = (event: Event) => {
+      const values = (event as CustomEvent<Record<string, string[]>>).detail;
+      if (values?.[name]?.[0] !== undefined) setIso(values[name][0]);
+    };
+    window.addEventListener("cms:draft-restored", restore);
+    return () => window.removeEventListener("cms:draft-restored", restore);
+  }, [name]);
   return (
     <>
       <input
@@ -64,11 +72,19 @@ export function ResourceForm({
   canEdit?: boolean;
 }) {
   const [state, action, pending] = useActionState(saveResourceAction, null);
+  const formRef = useRef<HTMLFormElement>(null);
   const slugEdited = useRef(Boolean(initial.slug));
   const pathEdited = useRef(Boolean(initial.path));
   const [title, setTitle] = useState(asText(initial.title));
   const [slug, setSlug] = useState(asText(initial.slug));
   const [path, setPath] = useState(asText(initial.path));
+  const protectDraft = new Set<ResourceKey>([
+    "posts",
+    "product-categories",
+    "locations",
+    "exports",
+    "catalogues",
+  ]).has(resource);
 
   function onTitle(value: string) {
     setTitle(value);
@@ -98,9 +114,22 @@ export function ResourceForm({
   }
 
   return (
-    <form action={action} className="space-y-6">
+    <form ref={formRef} action={action} className="space-y-6">
       <input type="hidden" name="resource" value={resource} />
       <input type="hidden" name="id" value={id ?? ""} />
+      {protectDraft ? (
+        <FormDraftGuard
+          formRef={formRef}
+          storageKey={`cms:${resource}-draft:${id ?? "new"}`}
+          serverUpdatedAt={asText(initial.updatedAt) || null}
+          pending={pending}
+          onRestore={(draft) => {
+            if (draft.title?.[0] !== undefined) setTitle(draft.title[0]);
+            if (draft.slug?.[0] !== undefined) setSlug(draft.slug[0]);
+            if (draft.path?.[0] !== undefined) setPath(draft.path[0]);
+          }}
+        />
+      ) : null}
       {state?.error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
       {preview ? (
         <p className="rounded-md bg-paper px-3 py-2 text-sm text-navy">
@@ -125,20 +154,6 @@ export function ResourceForm({
           </div>
         </section>
       ))}
-      {resource === "product-categories" ? (
-        <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-muted">Frequently Asked Questions</h2>
-          <p className="mb-4 text-sm text-muted">These FAQs appear at the bottom of this category page. Reorder them with Up and Down.</p>
-          <FaqsEditor
-            name="_faqs"
-            initial={
-              Array.isArray(initial.categoryFaqs)
-                ? (initial.categoryFaqs as FaqPayload[])
-                : []
-            }
-          />
-        </section>
-      ) : null}
       {canEdit ? <div className="flex flex-wrap items-center gap-4">
         <button className={primaryButtonClass} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save"}
@@ -213,10 +228,13 @@ function renderField(
     );
   }
   if (field.type === "textarea") {
-    return <textarea className={inputClass} name={field.name} rows={4} defaultValue={asText(state.initial[field.name])} required={field.required} />;
+    const value = field.name === "seoDescription" ? normalizeSeoDescription(asText(state.initial[field.name])) : asText(state.initial[field.name]);
+    return <textarea className={inputClass} name={field.name} rows={4} defaultValue={value} required={field.required} />;
   }
   if (field.type === "richtext") {
-    return <RichTextEditor name={field.name} defaultValue={asText(state.initial[field.name])} />;
+    const raw = asText(state.initial[field.name]);
+    const value = field.name === "body" && state.initial.locationName ? normalizeLocationBody(raw, asText(state.initial.locationName)) : removeLegacyBlogEmbed(raw);
+    return <RichTextEditor name={field.name} defaultValue={value} media={state.media} />;
   }
   if (field.type === "select") {
     return (

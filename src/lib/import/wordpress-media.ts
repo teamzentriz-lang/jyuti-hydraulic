@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import type { getDb } from "@/db";
-import { media } from "@/db/schema";
+import { media, mediaBlobs } from "@/db/schema";
 import {
   automationBlockMessage,
   canonicalLegacyUrl,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/import/wordpress-html";
 import { fetchWpAttachmentSourceUrl, wpAuthHeaders, wpOrigin } from "@/lib/import/wordpress-client";
 import { storageService } from "@/lib/storage";
+import { currentStorageDriver } from "@/lib/storage/factory";
 
 type Db = ReturnType<typeof getDb>;
 
@@ -73,6 +74,41 @@ export async function resolveOrImportMediaFromUrl(
   if (!bytes.length) return { mediaId: null, imported: false };
 
   const id = randomUUID();
+  // A Vercel function has no durable local filesystem.  Match the admin upload
+  // endpoint and persist imported bytes in Postgres when R2 is not configured,
+  // rather than creating /public/uploads files that disappear after deployment.
+  if (process.env.VERCEL && currentStorageDriver() === "local") {
+    const storageKey = `database/${id}/${filename}`;
+    await db.transaction(async (tx) => {
+      await tx.insert(media).values({
+        id,
+        filename,
+        originalName: filename,
+        alt: (meta.alt ?? "").trim().slice(0, 300),
+        title: (meta.title ?? meta.alt ?? filename).trim().slice(0, 300),
+        caption: "",
+        description: "",
+        mimeType,
+        size: bytes.length,
+        width: null,
+        height: null,
+        storageDriver: "local",
+        storageKey,
+        url: `/api/media/${id}`,
+        legacyUrl,
+        folder: wordpressStoragePrefix(legacyUrl),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      await tx.insert(mediaBlobs).values({
+        mediaId: id,
+        dataBase64: bytes.toString("base64"),
+      });
+    });
+    registerMediaLookupRow(lookup, legacyUrl, id);
+    return { mediaId: id, imported: true };
+  }
+
   const stored = await storageService.upload({
     id,
     body: bytes,

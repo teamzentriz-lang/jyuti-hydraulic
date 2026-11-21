@@ -113,7 +113,7 @@ async function upsertStaticPage(
     if (seo.seoDescription) seoDescription = seo.seoDescription;
   }
 
-  const heroMediaId = options.dryRun ? null : await mediaIdFromFeatured(page.featured_media, lookup);
+  const heroMediaId = options.dryRun || options.skipMedia ? null : await mediaIdFromFeatured(page.featured_media, lookup);
 
   const [existing] = await db.select({ id: pages.id }).from(pages).where(eq(pages.legacyId, page.id)).limit(1);
 
@@ -189,7 +189,7 @@ async function upsertPost(
     if (seo.seoDescription) seoDescription = seo.seoDescription;
   }
 
-  const coverMediaId = options.dryRun ? null : await mediaIdFromFeatured(post.featured_media, lookup);
+  const coverMediaId = options.dryRun || options.skipMedia ? null : await mediaIdFromFeatured(post.featured_media, lookup);
 
   const [existing] = await db.select({ id: posts.id }).from(posts).where(eq(posts.legacyId, post.id)).limit(1);
 
@@ -248,8 +248,11 @@ export async function runWordPressPhaseC(db: Db, options: ImportCliOptions): Pro
 
   console.log(`Fetching published content from ${wpOrigin()}…`);
   const [allPages, allPosts] = await Promise.all([
-    listAllPublishedPages(null),
-    listAllPublishedPosts(options.limit),
+    // Pass the requested limit to WordPress as well.  Before this, a quick
+    // limited/dry run still downloaded every page (over a thousand on this
+    // site), which made recovery checks look stalled.
+    listAllPublishedPages(options.limit, options.pageStart),
+    listAllPublishedPosts(options.limit, options.pageStart),
   ]);
 
   let staticPages = filterStaticPages(allPages);

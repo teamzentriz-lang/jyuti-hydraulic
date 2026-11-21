@@ -24,6 +24,9 @@ import {
   media,
   navLinks,
   productCategories,
+  posts,
+  products,
+  routes,
   sessions,
   siteSettings,
   siteHtmlSettings,
@@ -38,6 +41,7 @@ import {
   type TestimonialItem,
   type UspItem,
 } from "@/db/schema";
+import { pageHtmlOverrides } from "@/db/schema-cms";
 import {
   createSession,
   destroySession,
@@ -54,10 +58,10 @@ import {
 } from "@/lib/authorization";
 import { getRecord, tables } from "@/lib/cms/queries";
 import {
-  saveContentFaqs,
+  saveProductCategoryAssignments,
   saveProductPayload,
   savePageSections,
-  type FaqPayload,
+  loadProductPayload,
   type PageSectionPayload,
 } from "@/lib/cms/entity-data";
 import { readProductPayloadFromForm } from "@/lib/cms/parse-product-payload";
@@ -74,8 +78,9 @@ import {
   normalizePath,
   normalizeRedirectPath,
   normalizeSlug,
+  publicPath,
 } from "@/lib/paths";
-import { sanitizeRichText } from "@/lib/sanitize";
+import { sanitizeHtmlBlock, sanitizeRichText } from "@/lib/sanitize";
 import { deleteStoredObject } from "@/lib/storage";
 
 export type ActionState = { error: string } | null;
@@ -106,6 +111,9 @@ const virtualFields = new Set([
   "_sections",
   "_faqs",
   "_contentTables",
+  "_pageHeaderHtml",
+  "_pageFooterHtml",
+  "_pageHtmlEnabled",
   "entityPayload",
 ]);
 
@@ -376,18 +384,45 @@ export async function saveResourceAction(
       if (resource === "products") {
         const payload = readProductPayloadFromForm(formData);
         await saveProductPayload(tx, id, payload);
+        await saveProductCategoryAssignments(
+          tx,
+          id,
+          formData
+            .getAll("categoryIds")
+            .filter((value): value is string => typeof value === "string"),
+        );
+
+        const overridePath = publicPath(String(row.path ?? ""));
+        const headerHtml = sanitizeHtmlBlock(
+          String(formData.get("_pageHeaderHtml") ?? ""),
+        );
+        const footerHtml = sanitizeHtmlBlock(
+          String(formData.get("_pageFooterHtml") ?? ""),
+        );
+        const isActive = formData.get("_pageHtmlEnabled") === "on";
+        const [existingOverride] = await tx
+          .select({ id: pageHtmlOverrides.id })
+          .from(pageHtmlOverrides)
+          .where(eq(pageHtmlOverrides.path, overridePath))
+          .limit(1);
+
+        if (existingOverride) {
+          await tx
+            .update(pageHtmlOverrides)
+            .set({ headerHtml, footerHtml, isActive, updatedAt: new Date() })
+            .where(eq(pageHtmlOverrides.id, existingOverride.id));
+        } else if (headerHtml || footerHtml || isActive) {
+          await tx.insert(pageHtmlOverrides).values({
+            path: overridePath,
+            headerHtml,
+            footerHtml,
+            isActive,
+          });
+        }
       }
 
-      if (resource === "product-categories") {
-        const faqsRaw = String(formData.get("_faqs") ?? "");
-        let faqs: FaqPayload[] = [];
-        try {
-          faqs = faqsRaw ? (JSON.parse(faqsRaw) as FaqPayload[]) : [];
-        } catch {
-          throw new CmsError("Could not read category FAQs.");
-        }
-        await saveContentFaqs(tx, "category", id, faqs);
-      }
+      // Category FAQs are hidden for now. Skip save so existing DB rows are
+      // not wiped when a category is edited without the FAQ editor.
 
       if (resource === "pages") {
         const sectionsRaw = String(formData.get("_sections") ?? "");
@@ -474,6 +509,179 @@ export async function saveResourceAction(
     redirect(`${adminHref(resource, id)}?saved=1`);
   } catch (error) {
     return { error: toCmsMessage(error) };
+  }
+}
+
+export async function cloneProductAction(formData: FormData) {
+  const sourceId = String(formData.get("id") ?? "");
+  if (!sourceId) redirect("/admin/products/");
+
+  try {
+    const actor = await requireUser();
+    requirePermission(actor, "cms.catalogue.manage");
+    const db = getDb();
+    const [source] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, sourceId))
+      .limit(1);
+    if (!source) throw new CmsError("That product no longer exists.");
+
+    const payload = await loadProductPayload(sourceId);
+    const basePath = normalizePath(source.path);
+    const baseSlug = normalizeSlug(source.slug);
+    let duplicatePath = "";
+    let duplicateSlug = "";
+    for (let copyNumber = 1; copyNumber <= 999; copyNumber += 1) {
+      const suffix = copyNumber === 1 ? "-copy" : `-copy-${copyNumber}`;
+      const pathCandidate = `${basePath.slice(0, 400 - suffix.length)}${suffix}`;
+      const slugCandidate = `${baseSlug.slice(0, 180 - suffix.length)}${suffix}`;
+      const [taken] = await db
+        .select({ path: routes.path })
+        .from(routes)
+        .where(eq(routes.path, pathCandidate))
+        .limit(1);
+      if (!taken) {
+        duplicatePath = pathCandidate;
+        duplicateSlug = slugCandidate;
+        break;
+      }
+    }
+    if (!duplicatePath) {
+      throw new CmsError("Could not create an unused copy URL.");
+    }
+
+    const id = randomUUID();
+    const {
+      id: _sourceId,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      legacyId: _legacyId,
+      legacySlug: _legacySlug,
+      legacyUrl: _legacyUrl,
+      legacyType: _legacyType,
+      ...sourceValues
+    } = source;
+    const title = `${source.title} (Copy)`.slice(0, 300);
+
+    await db.transaction(async (tx) => {
+      await tx.insert(products).values({
+        ...sourceValues,
+        id,
+        title,
+        slug: duplicateSlug,
+        path: duplicatePath,
+        canonicalUrl: null,
+        status: "draft",
+        updatedAt: new Date(),
+      });
+      await saveProductPayload(tx, id, payload);
+      await reserveRoute(tx, {
+        path: duplicatePath,
+        kind: "product",
+        entityId: id,
+        status: "draft",
+      });
+    });
+
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "cloned",
+      entityType: "products",
+      entityId: id,
+      metadata: { sourceId },
+    });
+    revalidatePath("/admin/products");
+    redirect(`${adminHref("products", id)}?cloned=1`);
+  } catch (error) {
+    const message = toCmsMessage(error);
+    redirect(`/admin/products/?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function clonePostAction(formData: FormData) {
+  const sourceId = String(formData.get("id") ?? "");
+  if (!sourceId) redirect("/admin/posts/");
+
+  try {
+    const actor = await requireUser();
+    requirePermission(actor, "cms.content.manage");
+    const db = getDb();
+    const [source] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, sourceId))
+      .limit(1);
+    if (!source) throw new CmsError("That post no longer exists.");
+
+    const basePath = normalizePath(source.path);
+    const baseSlug = normalizeSlug(source.slug);
+    let duplicatePath = "";
+    let duplicateSlug = "";
+    for (let copyNumber = 1; copyNumber <= 999; copyNumber += 1) {
+      const suffix = copyNumber === 1 ? "-copy" : `-copy-${copyNumber}`;
+      const pathCandidate = `${basePath.slice(0, 400 - suffix.length)}${suffix}`;
+      const slugCandidate = `${baseSlug.slice(0, 180 - suffix.length)}${suffix}`;
+      const [taken] = await db
+        .select({ path: routes.path })
+        .from(routes)
+        .where(eq(routes.path, pathCandidate))
+        .limit(1);
+      if (!taken) {
+        duplicatePath = pathCandidate;
+        duplicateSlug = slugCandidate;
+        break;
+      }
+    }
+    if (!duplicatePath) {
+      throw new CmsError("Could not create an unused copy URL.");
+    }
+
+    const id = randomUUID();
+    const {
+      id: _sourceId,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      legacyId: _legacyId,
+      legacySlug: _legacySlug,
+      legacyUrl: _legacyUrl,
+      legacyType: _legacyType,
+      ...sourceValues
+    } = source;
+    const title = `${source.title} (Copy)`.slice(0, 300);
+
+    await db.transaction(async (tx) => {
+      await tx.insert(posts).values({
+        ...sourceValues,
+        id,
+        title,
+        slug: duplicateSlug,
+        path: duplicatePath,
+        canonicalUrl: null,
+        status: "draft",
+        publishedAt: null,
+        updatedAt: new Date(),
+      });
+      await reserveRoute(tx, {
+        path: duplicatePath,
+        kind: "post",
+        entityId: id,
+        status: "draft",
+      });
+    });
+
+    await writeAuditLog({
+      actorId: actor.id,
+      action: "cloned",
+      entityType: "posts",
+      entityId: id,
+      metadata: { sourceId },
+    });
+    revalidatePath("/admin/posts");
+    redirect(`${adminHref("posts", id)}?cloned=1`);
+  } catch (error) {
+    const message = toCmsMessage(error);
+    redirect(`/admin/posts/?error=${encodeURIComponent(message)}`);
   }
 }
 
@@ -893,12 +1101,32 @@ export async function saveFooterAction(
     const actor = await requireUser();
     requirePermission(actor, "cms.settings.manage");
     const logoId = textOrNull(formData, "logoId");
+    const contactInformationJson = {
+      address: String(formData.get("contactAddress") ?? "").trim(),
+      email: String(formData.get("contactEmail") ?? "").trim(),
+      emailSecondary: String(
+        formData.get("contactEmailSecondary") ?? "",
+      ).trim(),
+      phone: String(formData.get("contactPhone") ?? "").trim(),
+    };
+    const socialLinksJson = String(formData.get("socialLinks") ?? "")
+      .split(/\r?\n/)
+      .map((line) => {
+        const [network, ...urlParts] = line.split("|");
+        return {
+          network: network?.trim() ?? "",
+          url: urlParts.join("|").trim(),
+        };
+      })
+      .filter((link) => link.network && /^https?:\/\//i.test(link.url));
     await getDb()
       .update(footerSettings)
       .set({
         logoId,
         description: String(formData.get("description") ?? ""),
         copyrightText: String(formData.get("copyrightText") ?? ""),
+        contactInformationJson,
+        socialLinksJson,
         newsletterEnabled: formData.get("newsletterEnabled") === "on",
         newsletterTitle: String(formData.get("newsletterTitle") ?? ""),
         newsletterDescription: String(
@@ -971,10 +1199,10 @@ export async function saveCommonHtmlAction(
     await getDb()
       .update(siteHtmlSettings)
       .set({
-        commonHeaderHtml: sanitizeRichText(
+        commonHeaderHtml: sanitizeHtmlBlock(
           String(formData.get("commonHeaderHtml") ?? ""),
         ),
-        commonFooterHtml: sanitizeRichText(
+        commonFooterHtml: sanitizeHtmlBlock(
           String(formData.get("commonFooterHtml") ?? ""),
         ),
         updatedAt: new Date(),

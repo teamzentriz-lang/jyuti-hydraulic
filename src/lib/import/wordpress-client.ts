@@ -33,7 +33,9 @@ export type WpMediaRef = {
 export type ImportCliOptions = {
   dryRun: boolean;
   limit: number | null;
+  pageStart: number;
   skipSeo: boolean;
+  skipMedia: boolean;
   purgeDummy: boolean;
 };
 
@@ -73,14 +75,19 @@ export async function readWordPress(url: string) {
 export function parseImportCliOptions(argv: string[]): ImportCliOptions {
   const dryRun = argv.includes("--dry-run");
   const skipSeo = argv.includes("--skip-seo");
+  const skipMedia = argv.includes("--skip-media");
   const purgeDummy = !argv.includes("--keep-seed");
   const limitArg = argv.find((arg) => arg.startsWith("--limit="));
   const limitValue = limitArg ? Number(limitArg.slice("--limit=".length)) : null;
+  const pageStartArg = argv.find((arg) => arg.startsWith("--page-start="));
+  const pageStartValue = pageStartArg ? Number(pageStartArg.slice("--page-start=".length)) : 1;
   return {
     dryRun,
     skipSeo,
+    skipMedia,
     purgeDummy,
     limit: limitValue && Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null,
+    pageStart: Number.isInteger(pageStartValue) && pageStartValue > 0 ? pageStartValue : 1,
   };
 }
 
@@ -107,11 +114,11 @@ export function wpPostExcerptHtml(post: WpPostItem) {
 const PAGE_FIELDS =
   "id,slug,link,parent,featured_media,title,content";
 
-export async function listAllPublishedPages(limit: number | null) {
+export async function listAllPublishedPages(limit: number | null, pageStart = 1) {
   const base = wpOrigin();
   const items: WpPageItem[] = [];
-  let page = 1;
-  let totalPages = 1;
+  let page = pageStart;
+  let totalPages = pageStart;
 
   while (page <= totalPages) {
     const url = `${base}/wp-json/wp/v2/pages?per_page=100&page=${page}&status=publish&orderby=id&order=asc&_fields=${PAGE_FIELDS}`;
@@ -129,11 +136,11 @@ export async function listAllPublishedPages(limit: number | null) {
 
 const POST_FIELDS = "id,slug,link,date_gmt,featured_media,title,content,excerpt";
 
-export async function listAllPublishedPosts(limit: number | null) {
+export async function listAllPublishedPosts(limit: number | null, pageStart = 1) {
   const base = wpOrigin();
   const items: WpPostItem[] = [];
-  let page = 1;
-  let totalPages = 1;
+  let page = pageStart;
+  let totalPages = pageStart;
 
   while (page <= totalPages) {
     const url = `${base}/wp-json/wp/v2/posts?per_page=100&page=${page}&status=publish&orderby=id&order=asc&_fields=${POST_FIELDS}`;

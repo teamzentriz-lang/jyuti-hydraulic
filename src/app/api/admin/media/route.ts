@@ -4,8 +4,6 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { CmsError } from "@/db/errors";
 import { media, mediaBlobs } from "@/db/schema";
-import { ensureSingletons } from "@/lib/cms/queries";
-import { revalidatePublicSite } from "@/lib/cms/revalidate-public";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/authorization";
 import { deleteStoredObject, saveUpload } from "@/lib/storage";
@@ -20,7 +18,6 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Sign in again." }, { status: 401 });
   if (!hasPermission(user, "media.manage")) return NextResponse.json({ error: "You do not have access to media." }, { status: 403 });
 
-  await ensureSingletons();
   const q = new URL(request.url).searchParams.get("q")?.trim().replace(/[%_]/g, "") ?? "";
   const db = getDb();
   const rows = await db
@@ -45,7 +42,6 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Sign in again." }, { status: 401 });
     if (!hasPermission(user, "media.manage")) return NextResponse.json({ error: "You do not have access to media." }, { status: 403 });
 
-    await ensureSingletons();
     const form = await request.formData();
     const files = form.getAll("files").filter((file): file is File => file instanceof File);
     if (!files.length) return NextResponse.json({ error: "Choose a file to upload." }, { status: 400 });
@@ -128,8 +124,6 @@ export async function POST(request: Request) {
         throw error;
       }
     }
-
-    revalidatePublicSite();
 
     return NextResponse.json({ items });
   } catch (error) {

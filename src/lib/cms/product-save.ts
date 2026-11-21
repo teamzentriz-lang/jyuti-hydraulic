@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { CmsError } from "@/db/errors";
+import {
+  normalizeProductEditorHtml,
+  normalizeProductSummary,
+  removeLegacyBlogEmbed,
+} from "@/lib/cms/product-article";
 
 const slug = z
   .string()
@@ -38,6 +43,20 @@ const optionalText = (max: number) =>
 
 const richText = z.string().max(500_000);
 
+function removeLeadingOverviewTitle(html: string, title: string) {
+  const normalize = (value: string) =>
+    value
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .trim();
+  const normalizedTitle = normalize(title);
+  return html.replace(/^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i, (match, heading) =>
+    normalize(heading) === normalizedTitle ? "" : match,
+  );
+}
+
 export const productScalarsSchema = z.object({
   title: z.string().trim().min(1).max(300),
   slug,
@@ -48,7 +67,10 @@ export const productScalarsSchema = z.object({
   productCode: optionalText(120),
   brand: optionalText(160),
   modelNumber: optionalText(160),
-  summary: z.string().trim().max(2000),
+  // WordPress imports sometimes placed the complete legacy article in this
+  // column. PostgreSQL stores it as text, so rejecting it at 2,000 characters
+  // made otherwise valid product edits impossible.
+  summary: z.string().trim().max(100_000),
   body: richText,
   richContent: richText,
   overview: richText,
@@ -73,6 +95,8 @@ export const productScalarsSchema = z.object({
   brochureMediaId: optionalUuid,
   price: optionalText(80),
   stock: optionalText(80),
+  rating: z.number().int().min(1).max(5).nullable(),
+  shippingArea: optionalText(240),
   sortOrder: z.coerce.number().int().min(0).max(100000),
   isFeatured: z.boolean(),
   isActive: z.boolean(),
@@ -85,6 +109,8 @@ export const productScalarsSchema = z.object({
   canonicalUrl: optionalText(500),
   robotsIndex: z.boolean(),
   robotsFollow: z.boolean(),
+  ogTitle: optionalText(300),
+  ogDescription: optionalText(500),
   ogImageId: optionalUuid,
   status: z.enum(["draft", "published"]),
 });
@@ -101,7 +127,7 @@ export function readProductScalars(formData: FormData) {
     productCode: text("productCode") || null,
     brand: text("brand") || null,
     modelNumber: text("modelNumber") || null,
-    summary: text("summary"),
+    summary: normalizeProductSummary(text("summary")),
     body: text("body"),
     richContent: text("richContent"),
     overview: text("overview"),
@@ -126,6 +152,8 @@ export function readProductScalars(formData: FormData) {
     brochureMediaId: text("brochureMediaId") || null,
     price: text("price") || null,
     stock: text("stock") || null,
+    rating: text("rating") ? Number(text("rating")) : null,
+    shippingArea: text("shippingArea") || null,
     sortOrder: text("sortOrder") || "0",
     isFeatured: formData.get("isFeatured") === "on",
     isActive: formData.get("isActive") === "on",
@@ -138,16 +166,36 @@ export function readProductScalars(formData: FormData) {
     canonicalUrl: text("canonicalUrl") || null,
     robotsIndex: formData.get("robotsIndex") === "on",
     robotsFollow: formData.get("robotsFollow") === "on",
+    ogTitle: text("ogTitle") || null,
+    ogDescription: text("ogDescription") || null,
     ogImageId: text("ogImageId") || null,
     status: text("status") || "draft",
   };
   const parsed = productScalarsSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new CmsError(parsed.error.issues[0]?.message ?? "Check the product form.");
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0] ? String(issue.path[0]) : "Product";
+    const labels: Record<string, string> = {
+      title: "Name",
+      slug: "Slug",
+      path: "URL path",
+      summary: "Short summary",
+      overview: "Overview content",
+      enquiryEmail: "Enquiry email",
+    };
+    throw new CmsError(
+      `${labels[field] ?? field}: ${issue?.message ?? "check this field."}`,
+    );
   }
   const data = parsed.data;
   return {
     ...data,
+    // Keep legacy WordPress blog-card HTML out of every product copy field.
+    body: removeLegacyBlogEmbed(data.body),
+    richContent: removeLegacyBlogEmbed(data.richContent),
+    overview: normalizeProductEditorHtml(
+      removeLeadingOverviewTitle(data.overview, data.title),
+    ),
     enquiryEmail: data.enquiryEmail || null,
   };
 }

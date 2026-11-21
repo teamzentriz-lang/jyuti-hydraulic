@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { MediaItem } from "@/lib/cms/queries";
 
 const CKEditorField = dynamic(
   () => import("@/components/admin/ckeditor-field").then((module) => module.CKEditorField),
@@ -14,6 +15,6 @@ const CKEditorField = dynamic(
   },
 );
 
-export function RichTextEditor({ name, defaultValue }: { name: string; defaultValue: string }) {
-  return <CKEditorField name={name} defaultValue={defaultValue} />;
+export function RichTextEditor({ name, defaultValue, media }: { name: string; defaultValue: string; media?: MediaItem[] }) {
+  return <CKEditorField name={name} defaultValue={defaultValue} media={media} />;
 }

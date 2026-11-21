@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
+import { classifyDatabaseError } from "@/db/errors";
 import { media, mediaBlobs } from "@/db/schema";
 import { ensureSingletons } from "@/lib/cms/queries";
 import { storageService } from "@/lib/storage";
@@ -19,11 +20,19 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return NextResponse.redirect(file.url);
   }
 
-  const [blob] = await db
-    .select({ dataBase64: mediaBlobs.dataBase64 })
-    .from(mediaBlobs)
-    .where(eq(mediaBlobs.mediaId, id))
-    .limit(1);
+  let blob: { dataBase64: string } | undefined;
+  try {
+    [blob] = await db
+      .select({ dataBase64: mediaBlobs.dataBase64 })
+      .from(mediaBlobs)
+      .where(eq(mediaBlobs.mediaId, id))
+      .limit(1);
+  } catch (error) {
+    // media_blobs was added after the initial CMS schema. Older production
+    // databases must still be able to serve files from their configured
+    // storage provider or the imported legacy URL.
+    if (classifyDatabaseError(error).reason !== "schema") throw error;
+  }
   if (blob) {
     const bytes = Buffer.from(blob.dataBase64, "base64");
     return new NextResponse(new Uint8Array(bytes), {

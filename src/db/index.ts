@@ -1,7 +1,49 @@
+import dns from "node:dns";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import { DatabaseNotConfiguredError } from "@/db/errors";
+
+const globalForDns = globalThis as unknown as { __jhDnsHooked?: boolean };
+
+if (!globalForDns.__jhDnsHooked) {
+  globalForDns.__jhDnsHooked = true;
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch {}
+
+  const originalLookup = dns.lookup;
+  // @ts-expect-error override lookup
+  dns.lookup = function (hostname: any, options: any, callback: any) {
+    const cb = typeof options === "function" ? options : callback;
+    const opts = typeof options === "function" ? {} : options;
+
+    originalLookup(hostname, opts, (err: any, address: any, family: any) => {
+      if (!err && address) {
+        return cb(null, address, family);
+      }
+      if (
+        typeof hostname === "string" &&
+        (err?.code === "ENOTFOUND" || err?.code === "EAI_AGAIN")
+      ) {
+        dns.resolve4(hostname, (resErr, addrs) => {
+          if (!resErr && addrs && addrs.length > 0) {
+            if (opts && opts.all) {
+              return cb(
+                null,
+                addrs.map((a) => ({ address: a, family: 4 })),
+              );
+            }
+            return cb(null, addrs[0], 4);
+          }
+          cb(err, address, family);
+        });
+        return;
+      }
+      cb(err, address, family);
+    });
+  };
+}
 
 export type AppDatabase = PostgresJsDatabase<typeof schema>;
 

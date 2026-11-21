@@ -10,6 +10,10 @@ import { canAccessResource, hasPermission, permissionForResource } from "@/lib/a
 import { isResourceKey, resources } from "@/lib/cms/resources";
 import { listRecords } from "@/lib/cms/queries";
 import { currentStorageDriver } from "@/lib/storage";
+import { ResourceListActions } from "@/components/admin/resource-list-actions";
+import { ProductListActions } from "@/components/admin/product-list-actions";
+
+const actionsResources = new Set(["products", "posts", "pages", "product-categories", "locations", "exports", "page-html"]);
 
 const dateKeys = new Set(["updatedAt", "createdAt", "publishedAt", "occurredAt", "dueAt", "nextFollowUpAt"]);
 const pillKeys = new Set(["status", "active", "stage", "priority", "isActive"]);
@@ -67,6 +71,9 @@ export default async function ResourceListPage({
                   {column.label}
                 </th>
               ))}
+              {actionsResources.has(key) ? (
+                <th className="px-3 py-2 font-semibold">Actions</th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -108,6 +115,24 @@ export default async function ResourceListPage({
                     </td>
                   );
                 })}
+                {actionsResources.has(key) ? (
+                  <td className="px-3 py-3 align-middle">
+                    {key === "products" ? (
+                      <ProductListActions
+                        id={String(row.id)}
+                        path={String(row.path ?? "")}
+                        published={row.status === "published"}
+                      />
+                    ) : (
+                      <ResourceListActions
+                        resource={key}
+                        id={String(row.id)}
+                        path={String(row.path ?? "")}
+                        published={key === "page-html" ? row.isActive === true : row.status === "published"}
+                      />
+                    )}
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

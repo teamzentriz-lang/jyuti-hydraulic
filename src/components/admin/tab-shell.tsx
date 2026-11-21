@@ -2,14 +2,36 @@
 
 import { useState } from "react";
 
-export function TabShell({ tabs }: { tabs: { id: string; label: string; content: React.ReactNode }[] }) {
+export function TabShell({
+  tabs,
+  stacked = false,
+}: {
+  tabs: { id: string; label: string; content: React.ReactNode; hidden?: boolean }[];
+  stacked?: boolean;
+}) {
   const [active, setActive] = useState(tabs[0]?.id ?? "");
-  const current = tabs.find((tab) => tab.id === active) ?? tabs[0];
+
+  if (stacked) {
+    return (
+      <div className="space-y-6">
+        {tabs
+          .filter((tab) => !tab.hidden)
+          .map((tab) => (
+            <section key={tab.id} className="space-y-3">
+              <div className="border-b border-line pb-2">
+                <h2 className="text-lg font-bold text-navy">{tab.label}</h2>
+              </div>
+              {tab.content}
+            </section>
+          ))}
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-1 border-b border-line">
-        {tabs.map((tab) => (
+        {tabs.filter((tab) => !tab.hidden).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -20,7 +42,13 @@ export function TabShell({ tabs }: { tabs: { id: string; label: string; content:
           </button>
         ))}
       </div>
-      <div>{current?.content}</div>
+      <div>
+        {tabs.map((tab) => (
+          <div key={tab.id} hidden={tab.id !== active}>
+            {!tab.hidden ? tab.content : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

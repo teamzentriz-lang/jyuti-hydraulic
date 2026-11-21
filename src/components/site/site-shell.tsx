@@ -111,13 +111,26 @@ export async function SiteShell({
 
   const topEmail = header.email?.trim() || settings.emailPrimary;
 
-  const topPhone = header.phone?.trim() || settings.phonePrimary;
+  const configuredPhone = header.phone?.trim() || settings.phonePrimary;
+  const secondaryPhone = "8813881451";
+  const topPhone = configuredPhone
+    .split(",")
+    .map((phone) => phone.trim())
+    .some((phone) => phone.replace(/\D/g, "").endsWith(secondaryPhone))
+    ? configuredPhone
+    : `${configuredPhone}, ${secondaryPhone}`;
 
   const quoteLabel = header.ctaText?.trim() || settings.quoteCtaLabel;
 
   const quoteHref = header.ctaUrl?.trim() || settings.quoteCtaHref;
 
   const footerBlurb = footer.description?.trim() || settings.footerText;
+  const footerContact = footer.contactInformationJson ?? {};
+  const footerAddress = footerContact.address?.trim() || settings.address;
+  const footerEmail = footerContact.email?.trim() || settings.emailPrimary;
+  const footerEmailSecondary =
+    footerContact.emailSecondary?.trim() || settings.emailSecondary;
+  const footerPhone = footerContact.phone?.trim() || settings.phonePrimary;
   const footerLogo = site.footerLogo ?? site.logo;
   const footerLogoUrl = footerLogo
     ? mediaDeliveryUrl(footerLogo)
@@ -200,19 +213,7 @@ export async function SiteShell({
         />
       </div>
 
-      <PageHtmlBlock
-        position="header"
-        commonHtml={site.html.commonHeaderHtml}
-        overrides={site.html.overrides}
-      />
-
       {children}
-
-      <PageHtmlBlock
-        position="footer"
-        commonHtml={site.html.commonFooterHtml}
-        overrides={site.html.overrides}
-      />
 
       {settings.whatsapp ? (
         <WhatsAppFloat
@@ -221,6 +222,11 @@ export async function SiteShell({
       ) : null}
 
       <footer className="site-footer">
+        <PageHtmlBlock
+          position="footer"
+          commonHtml={site.html.commonFooterHtml}
+          overrides={site.html.overrides}
+        />
         <div className="site-container site-footer__main">
           <div className="site-footer__brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -248,35 +254,33 @@ export async function SiteShell({
           <div>
             <h2>{labels.footerContactTitle}</h2>
             <ul className="site-footer__contact">
-              {settings.address ? (
+              {footerAddress ? (
                 <li>
                   <span aria-hidden>⌂</span>
-                  <p>{settings.address}</p>
+                  <p>{footerAddress}</p>
                 </li>
               ) : null}
-              {settings.emailSecondary || settings.emailPrimary ? (
+              {footerEmailSecondary || footerEmail ? (
                 <li>
                   <span aria-hidden>✉</span>
                   <p>
-                    {settings.emailSecondary ? (
-                      <a href={`mailto:${settings.emailSecondary}`}>
-                        {settings.emailSecondary}
+                    {footerEmailSecondary ? (
+                      <a href={`mailto:${footerEmailSecondary}`}>
+                        {footerEmailSecondary}
                       </a>
                     ) : null}
-                    {settings.emailPrimary ? (
-                      <a href={`mailto:${settings.emailPrimary}`}>
-                        {settings.emailPrimary}
-                      </a>
+                    {footerEmail ? (
+                      <a href={`mailto:${footerEmail}`}>{footerEmail}</a>
                     ) : null}
                   </p>
                 </li>
               ) : null}
-              {settings.phonePrimary ? (
+              {footerPhone ? (
                 <li>
                   <span aria-hidden>☎</span>
                   <p>
-                    <a href={`tel:${settings.phonePrimary.replace(/\s/g, "")}`}>
-                      {settings.phonePrimary}
+                    <a href={`tel:${footerPhone.replace(/\s/g, "")}`}>
+                      {footerPhone}
                     </a>
                   </p>
                 </li>

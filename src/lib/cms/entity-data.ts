@@ -1,5 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { classifyDatabaseError } from "@/db/errors";
 import {
   categoryRelatedCategories,
   contentFaqs,
@@ -7,10 +8,12 @@ import {
   pageSections,
   postTags,
   productApplications,
+  productCategoryAssignments,
   productDocuments,
   productFeatures,
   productImages,
   productOptions,
+  productPostRelations,
   productRelations,
   productSpecifications,
   productTechnicalTables,
@@ -21,6 +24,7 @@ import {
 export type { ProductSpecRow, TechnicalTableRow };
 
 export type ProductRelationRow = { relatedProductId: string; relationType: string; sortOrder: number };
+export type ProductPostRelationRow = { postId: string; sortOrder: number };
 
 export type ProductPayload = {
   specifications: ProductSpecRow[];
@@ -50,12 +54,30 @@ export type ProductPayload = {
   }[];
   technicalTables: TechnicalTableRow[];
   relatedProducts: ProductRelationRow[];
+  relatedPosts: ProductPostRelationRow[];
   galleryMediaIds: string[];
   applicationImageIds: string[];
   sections: PageSectionPayload[];
   faqs: FaqPayload[];
   contentTables: ContentTablePayload[];
 };
+
+async function loadProductPostRelations(productId: string) {
+  const db = getDb();
+  try {
+    return await db
+      .select()
+      .from(productPostRelations)
+      .where(eq(productPostRelations.productId, productId))
+      .orderBy(asc(productPostRelations.sortOrder));
+  } catch (error) {
+    // Keep older deployments renderable until the additive relation migration
+    // has been applied. The product page will continue using its legacy/latest
+    // blog fallback in that case.
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
 
 export type PageSectionPayload = {
   id?: string;
@@ -88,6 +110,44 @@ export type ContentTablePayload = {
   responsiveMode: string;
   sortOrder: number;
 };
+
+export async function loadProductCategoryIds(productId: string) {
+  const db = getDb();
+  try {
+    const rows = await db
+      .select({ categoryId: productCategoryAssignments.categoryId })
+      .from(productCategoryAssignments)
+      .where(eq(productCategoryAssignments.productId, productId))
+      .orderBy(asc(productCategoryAssignments.sortOrder));
+    return rows.map((row) => row.categoryId);
+  } catch (error) {
+    // Existing deployments can keep editing products before the optional
+    // category-assignment migration has been run.
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
+
+export async function saveProductCategoryAssignments(
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert" | "execute">,
+  productId: string,
+  categoryIds: string[],
+) {
+  const ids = [...new Set(categoryIds.filter(Boolean))];
+  const [table] = await tx.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_category_assignments') as "tableName"`,
+  );
+  if (!table?.tableName) return;
+
+  await tx
+    .delete(productCategoryAssignments)
+    .where(eq(productCategoryAssignments.productId, productId));
+  if (ids.length) {
+    await tx.insert(productCategoryAssignments).values(
+      ids.map((categoryId, sortOrder) => ({ productId, categoryId, sortOrder })),
+    );
+  }
+}
 
 export async function loadContentFaqs(
   entityKind: "product" | "category" | "page" | "post",
@@ -154,6 +214,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
     options,
     technicalTables,
     related,
+    relatedPosts,
     images,
     sections,
     faqs,
@@ -178,6 +239,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
       .where(eq(productTechnicalTables.productId, productId))
       .orderBy(asc(productTechnicalTables.sortOrder)),
     db.select().from(productRelations).where(eq(productRelations.productId, productId)).orderBy(asc(productRelations.sortOrder)),
+    loadProductPostRelations(productId),
     db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.sortOrder)),
     db.select().from(pageSections).where(eq(pageSections.productId, productId)).orderBy(asc(pageSections.sortOrder)),
     db
@@ -239,6 +301,10 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
       relationType: row.relationType,
       sortOrder,
     })),
+    relatedPosts: relatedPosts.map((row, sortOrder) => ({
+      postId: row.postId,
+      sortOrder,
+    })),
     galleryMediaIds: images.map((row) => row.mediaId),
     applicationImageIds: [],
     sections: sections.map((row, sortOrder) => ({
@@ -280,7 +346,7 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
 }
 
 export async function saveProductPayload(
-  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert" | "execute">,
   productId: string,
   payload: ProductPayload,
 ) {
@@ -380,6 +446,23 @@ export async function saveProductPayload(
         sortOrder,
       })),
     );
+  }
+
+  const [postRelationTable] = await tx.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_post_relations') as "tableName"`,
+  );
+  if (postRelationTable?.tableName) {
+    await tx
+      .delete(productPostRelations)
+      .where(eq(productPostRelations.productId, productId));
+    const relatedPosts = [
+      ...new Set(payload.relatedPosts.map((row) => row.postId).filter(Boolean)),
+    ];
+    if (relatedPosts.length) {
+      await tx.insert(productPostRelations).values(
+        relatedPosts.map((postId, sortOrder) => ({ productId, postId, sortOrder })),
+      );
+    }
   }
 
   const gallery = [...new Set(payload.galleryMediaIds.filter(Boolean))];

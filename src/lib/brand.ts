@@ -32,7 +32,7 @@ export function withBrandDefaults<T extends BrandSettings>(settings: T): T {
 export const brand = {
   companyName: "Jyoti Hydraulic",
   siteUrl: "https://jyotihydraulic.com",
-  phonePrimary: "+91 9541424317",
+  phonePrimary: "+91 9541424317, 8813881451",
   emailPrimary: "info@jyotihydraulic.com",
   emailSecondary: "jyotihydraulic@gmail.com",
   address: "Plot No. 01 & 02, Sector-57, Faridabad-121004, Haryana, India",

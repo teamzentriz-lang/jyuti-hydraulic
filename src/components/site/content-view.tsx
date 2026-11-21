@@ -111,7 +111,7 @@ export function ContentView({
           </p>
         ) : null}
 
-        {content.body.trim() && !isCatalogue ? (
+        {content.body.trim() ? (
           <RichTextHtml
             html={content.body}
             className="rich-text mt-8 max-w-3xl"

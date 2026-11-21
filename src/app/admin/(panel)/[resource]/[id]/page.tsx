@@ -8,11 +8,12 @@ import { MediaPreview } from "@/components/admin/media-preview";
 import { formatBytes, formatWhen } from "@/components/admin/status-pill";
 import { requireUser } from "@/lib/auth";
 import { canAccessResource } from "@/lib/authorization";
-import type { PageSectionPayload, ProductPayload } from "@/lib/cms/entity-data";
-import { fieldsFor, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
+import { loadProductCategoryIds, type PageSectionPayload, type ProductPayload } from "@/lib/cms/entity-data";
+import { blogPostOptions, fieldsFor, getPageHtmlOverride, getRecord, mediaItems, relationOptions } from "@/lib/cms/queries";
 import { isResourceKey, resources, type FieldDef } from "@/lib/cms/resources";
 import { convertInquiryToLeadAction } from "@/lib/cms/actions";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/admin/styles";
+import { publicPath } from "@/lib/paths";
 import { hasPermission, permissionForResource } from "@/lib/authorization";
 
 function mediaIds(record: Record<string, unknown>, fields: FieldDef[]) {
@@ -42,12 +43,19 @@ export default async function EditResourcePage({
 
   const record = await getRecord(key, id, user);
   if (!record) notFound();
-  const fields = await fieldsFor(key, id, user);
+  const fields =
+    key === "products" ? resources[key].fields : await fieldsFor(key, id, user);
   const media = await mediaItems(mediaIds(record, fields));
   const canEdit = hasPermission(user, permissionForResource(key));
 
   if (key === "products") {
-    const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products", id)]);
+    const [categories, productOptions, postOptions, pageHtml, categoryIds] = await Promise.all([
+      relationOptions("product-categories"),
+      relationOptions("products", id),
+      blogPostOptions(),
+      getPageHtmlOverride(publicPath(String(record.path ?? ""))),
+      loadProductCategoryIds(id),
+    ]);
     const payload = (record.productPayload ?? {
       specifications: [],
       features: [],
@@ -56,6 +64,7 @@ export default async function EditResourcePage({
       options: [],
       technicalTables: [],
       relatedProducts: [],
+      relatedPosts: [],
       galleryMediaIds: [],
       applicationImageIds: [],
       sections: [],
@@ -67,7 +76,7 @@ export default async function EditResourcePage({
         <PageHeader eyebrow={config.label} title={String(record.title)} />
         {query.saved ? <Notice tone="ok">Saved.</Notice> : null}
         {query.error ? <Notice tone="error">{query.error}</Notice> : null}
-        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} productOptions={productOptions} canDelete />
+        <ProductForm id={id} initial={record} payload={payload} media={media} categoryOptions={categories} categoryIds={categoryIds} productOptions={productOptions} postOptions={postOptions} pageHtml={pageHtml} canDelete />
       </>
     );
   }

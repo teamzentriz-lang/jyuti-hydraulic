@@ -61,7 +61,7 @@ test("logo picker prefers the Jyoti logo over a resized icon", () => {
 test("globals keep the Faridabad contact details and do not include home copy", () => {
   const globals = siteGlobals("https://jyotihydraulic.com");
   assert.equal(globals.city, "Faridabad");
-  assert.equal(globals.phonePrimary, "+91 9541424317");
+  assert.equal(globals.phonePrimary, "+91 9541424317, 8813881451");
   assert.match(globals.catalogueLegacyUrl, /e-catalogue-jyoti-hydraulic-new\.pdf$/);
   assert.equal(contactGlobals().email, "info@jyotihydraulic.com");
   assert.equal("heroHeadline" in globals, false);

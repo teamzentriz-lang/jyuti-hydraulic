@@ -6,10 +6,10 @@ import {
   headerSettings,
   media,
   navLinks,
-  pageHtmlOverrides,
   redirects,
   siteHtmlSettings,
 } from "@/db/schema";
+import { pageHtmlOverrides } from "@/db/schema-cms";
 import { storageService } from "@/lib/storage";
 import {
   getFooterSettings,

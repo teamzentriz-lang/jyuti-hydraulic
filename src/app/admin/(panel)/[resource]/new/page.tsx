@@ -6,7 +6,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { ResourceForm } from "@/components/admin/resource-form";
 import { requireUser } from "@/lib/auth";
 import { canAccessResource, hasPermission, permissionForResource } from "@/lib/authorization";
-import { fieldsFor, relationOptions } from "@/lib/cms/queries";
+import { blogPostOptions, fieldsFor, relationOptions } from "@/lib/cms/queries";
 import { emptyValues, isResourceKey, resources } from "@/lib/cms/resources";
 
 export default async function NewResourcePage({
@@ -23,10 +23,11 @@ export default async function NewResourcePage({
   const user = await requireUser();
   if (!canAccessResource(user, key) || (key === "users" && user.systemRole !== "super_admin")) redirect("/admin/");
   if (!hasPermission(user, permissionForResource(key))) redirect(`/admin/${key}/`);
-  const fields = await fieldsFor(key, undefined, user);
+  const fields =
+    key === "products" ? resources[key].fields : await fieldsFor(key, undefined, user);
 
   if (key === "products") {
-    const [categories, productOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products")]);
+    const [categories, productOptions, postOptions] = await Promise.all([relationOptions("product-categories"), relationOptions("products"), blogPostOptions()]);
     const emptyPayload = {
       specifications: [],
       features: [],
@@ -35,6 +36,7 @@ export default async function NewResourcePage({
       options: [],
       technicalTables: [],
       relatedProducts: [],
+      relatedPosts: [],
       galleryMediaIds: [],
       applicationImageIds: [],
       sections: [],
@@ -44,7 +46,17 @@ export default async function NewResourcePage({
     return (
       <>
         <PageHeader eyebrow={config.label} title="New product" description={config.description} />
-        <ProductForm initial={{ status: "draft", isActive: true, enquiryEnabled: true }} payload={emptyPayload} media={[]} categoryOptions={categories} productOptions={productOptions} canDelete={false} />
+        <ProductForm
+          initial={{ status: "draft", isActive: true, enquiryEnabled: true }}
+          payload={emptyPayload}
+          media={[]}
+          categoryOptions={categories}
+          categoryIds={[]}
+          productOptions={productOptions}
+          postOptions={postOptions}
+          pageHtml={null}
+          canDelete={false}
+        />
       </>
     );
   }

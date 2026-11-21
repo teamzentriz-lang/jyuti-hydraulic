@@ -11,6 +11,7 @@ import type { PageSectionPayload } from "@/lib/cms/entity-data";
 import type { MediaItem } from "@/lib/cms/queries";
 import { mergePageInitial } from "@/lib/cms/page-form-defaults";
 import { normalizeSlug, publicPath, siteOrigin } from "@/lib/paths";
+import { FormDraftGuard } from "@/components/admin/form-draft-guard";
 
 function asText(value: unknown) {
   return value == null ? "" : String(value);
@@ -44,6 +45,7 @@ export function PageForm({
 }) {
   const values = mergePageInitial(initial);
   const [state, action, pending] = useActionState(saveResourceAction, null);
+  const formRef = useRef<HTMLFormElement>(null);
   const slugEdited = useRef(asText(values.slug).length > 0);
   const pathEdited = useRef(asText(values.path).length > 0);
   const [title, setTitle] = useState(asText(values.title));
@@ -52,9 +54,20 @@ export function PageForm({
   const preview = publicPath(path);
 
   return (
-    <form action={action} className="space-y-6">
+    <form ref={formRef} action={action} className="space-y-6">
       <input type="hidden" name="resource" value="pages" />
       <input type="hidden" name="id" value={id ?? ""} />
+      <FormDraftGuard
+        formRef={formRef}
+        storageKey={`cms:page-draft:${id ?? "new"}`}
+        serverUpdatedAt={asText(initial.updatedAt) || null}
+        pending={pending}
+        onRestore={(draft) => {
+          if (draft.title?.[0] !== undefined) setTitle(draft.title[0]);
+          if (draft.slug?.[0] !== undefined) setSlug(draft.slug[0]);
+          if (draft.path?.[0] !== undefined) setPath(draft.path[0]);
+        }}
+      />
       {state?.error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
       {preview ? (
         <p className="rounded-md bg-paper px-3 py-2 text-sm text-navy">
@@ -62,6 +75,7 @@ export function PageForm({
         </p>
       ) : null}
       <TabShell
+        stacked
         tabs={[
           {
             id: "general",
@@ -161,7 +175,7 @@ export function PageForm({
           },
         ]}
       />
-      <div className="flex flex-wrap gap-4">
+      <div className="sticky bottom-4 z-20 flex flex-wrap gap-4 rounded-lg border border-line bg-white/95 p-3 shadow-lg backdrop-blur">
         <button className={primaryButtonClass} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save page"}
         </button>

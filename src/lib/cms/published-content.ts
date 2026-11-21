@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   exportPages,
@@ -7,19 +7,20 @@ import {
   pages,
   posts,
   productCategories,
+  productCategoryAssignments,
   productImages,
   products,
   routes,
   type SpecRow,
 } from "@/db/schema";
 import {
-  loadContentFaqs,
   loadPageSections,
   loadProductPayload,
   type PageSectionPayload,
 } from "@/lib/cms/entity-data";
 import { mediaItems, type MediaItem } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
+import { normalizeLocationBody, normalizeSeoDescription, removeLegacyBlogEmbed } from "@/lib/cms/product-article";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -84,6 +85,11 @@ export type PublishedContent = {
   twitterImage?: MediaItem | null;
   body: string;
   summary?: string;
+  brand?: string | null;
+  modelNumber?: string | null;
+  stock?: string | null;
+  rating?: number | null;
+  shippingArea?: string | null;
   hero?: MediaItem | null;
   cover?: MediaItem | null;
   image?: MediaItem | null;
@@ -126,6 +132,7 @@ export type PublishedContent = {
   contentTables?: PublishedContentTable[];
   technicalTables?: PublishedTechnicalTable[];
   documents?: PublishedDocument[];
+  relatedPostIds?: string[];
   parent?: { title: string; path: string } | null;
   robotsIndex?: boolean;
   robotsFollow?: boolean;
@@ -252,30 +259,50 @@ function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
 async function categoryProductCards(
   db: Db,
   categoryId: string,
-  includeSubcategory = false,
 ) {
-  const productRows = await db
-    .select({
-      id: products.id,
-      title: products.title,
-      path: products.path,
-      summary: products.summary,
-      featuredImageId: products.featuredImageId,
-      thumbnailId: products.thumbnailId,
-    })
-    .from(products)
-    .where(
-      and(
-        includeSubcategory
-          ? or(
+  const [assignmentTable] = await db.execute<{ tableName: string | null }>(
+    sql`select to_regclass('public.product_category_assignments') as "tableName"`,
+  );
+  const fields = {
+    id: products.id,
+    title: products.title,
+    path: products.path,
+    summary: products.summary,
+    featuredImageId: products.featuredImageId,
+    thumbnailId: products.thumbnailId,
+  };
+  const productRows = assignmentTable?.tableName
+    ? await db
+        .selectDistinct(fields)
+        .from(products)
+        .leftJoin(
+          productCategoryAssignments,
+          eq(productCategoryAssignments.productId, products.id),
+        )
+        .where(
+          and(
+            or(
               eq(products.categoryId, categoryId),
               eq(products.subCategoryId, categoryId),
-            )
-          : eq(products.categoryId, categoryId),
-        eq(products.status, "published"),
-      ),
-    )
-    .orderBy(asc(products.sortOrder), asc(products.title));
+              eq(productCategoryAssignments.categoryId, categoryId),
+            ),
+            eq(products.status, "published"),
+          ),
+        )
+        .orderBy(asc(products.sortOrder), asc(products.title))
+    : await db
+        .select(fields)
+        .from(products)
+        .where(
+          and(
+            or(
+              eq(products.categoryId, categoryId),
+              eq(products.subCategoryId, categoryId),
+            ),
+            eq(products.status, "published"),
+          ),
+        )
+        .orderBy(asc(products.sortOrder), asc(products.title));
 
   if (!productRows.length) return [];
 
@@ -293,6 +320,7 @@ async function categoryProductCards(
       productId: productImages.productId,
       mediaId: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       alt: media.alt,
     })
     .from(productImages)
@@ -309,7 +337,7 @@ async function categoryProductCards(
   for (const row of galleryImages) {
     if (!imageByProduct.has(row.productId)) {
       imageByProduct.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
         alt: row.alt ?? "",
       });
     }
@@ -397,6 +425,7 @@ async function loadProductExtras(
       })),
     gallery: await mediaItems(payload.galleryMediaIds),
     relatedProductIds: payload.relatedProducts,
+    relatedPostIds: payload.relatedPosts.map((item) => item.postId),
   };
 }
 
@@ -435,7 +464,7 @@ export async function buildPublishedContent(
       twitterTitle: row.twitterTitle,
       twitterDescription: row.twitterDescription,
       twitterImage,
-      body: row.body,
+      body: removeLegacyBlogEmbed(row.body),
       summary: row.excerpt || row.shortDescription || undefined,
       hero,
       sections,
@@ -469,9 +498,20 @@ export async function buildPublishedContent(
       body: row.body,
       summary: row.excerpt,
       cover,
-      meta: row.publishedAt
-        ? { publishedAt: row.publishedAt.toISOString() }
-        : undefined,
+      meta: {
+        ...(row.publishedAt ? { publishedAt: row.publishedAt.toISOString() } : {}),
+        ...(row.updatedAt ? { updatedAt: row.updatedAt.toISOString() } : {}),
+        ...(row.updatedDateText ? { updatedDateText: row.updatedDateText } : {}),
+        ...(row.author ? { author: row.author } : {}),
+        ...(row.authorRole ? { authorRole: row.authorRole } : {}),
+        ...(row.authorUrl ? { authorUrl: row.authorUrl } : {}),
+        ...(row.reviewedByName ? { reviewedByName: row.reviewedByName } : {}),
+        ...(row.reviewedByRole ? { reviewedByRole: row.reviewedByRole } : {}),
+        ...(row.reviewedByUrl ? { reviewedByUrl: row.reviewedByUrl } : {}),
+        ...(row.verifiedByName ? { verifiedByName: row.verifiedByName } : {}),
+        ...(row.verifiedByRole ? { verifiedByRole: row.verifiedByRole } : {}),
+        ...(row.verifiedByUrl ? { verifiedByUrl: row.verifiedByUrl } : {}),
+      },
     };
   }
 
@@ -517,7 +557,7 @@ export async function buildPublishedContent(
           childMediaById.get(thumbnailId || imageId || "") ?? null;
         if (categoryImage) return { ...item, image: categoryImage };
 
-        const [firstProduct] = await categoryProductCards(db, item.id, true);
+        const [firstProduct] = await categoryProductCards(db, item.id);
         return {
           ...item,
           image: null,
@@ -552,21 +592,15 @@ export async function buildPublishedContent(
       focusKeyword: row.focusKeyword,
       canonicalUrl: row.canonicalUrl,
       ogImage,
-      body: row.body,
+      body: removeLegacyBlogEmbed(row.body),
       summary: row.summary,
       image,
       childCategories,
       categoryProducts: await categoryProductCards(db, row.id),
       filterCategories,
-      faqs: (await loadContentFaqs("category", row.id))
-        .filter(
-          (item) =>
-            item.isActive && (item.question.trim() || item.answer.trim()),
-        )
-        .map((item) => ({
-          question: item.question,
-          answer: item.answer,
-        })),
+      // Category FAQ section is hidden site-wide for now. Existing
+      // content_faqs rows stay in the database for a later restore.
+      faqs: [],
     };
   }
 
@@ -612,6 +646,7 @@ export async function buildPublishedContent(
             productId: productImages.productId,
             mediaId: media.id,
             url: media.url,
+            legacyUrl: media.legacyUrl,
             alt: media.alt,
           })
           .from(productImages)
@@ -631,7 +666,7 @@ export async function buildPublishedContent(
     for (const image of relatedImages) {
       if (!relatedImageByProduct.has(image.productId)) {
         relatedImageByProduct.set(image.productId, {
-          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url }),
+          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url, legacyUrl: image.legacyUrl }),
           alt: image.alt ?? "",
         });
       }
@@ -674,6 +709,11 @@ export async function buildPublishedContent(
       twitterImage: await optionalMedia(row.twitterImageId),
       body: row.body,
       summary: row.summary,
+      brand: row.brand,
+      modelNumber: row.modelNumber,
+      stock: row.stock,
+      rating: row.rating,
+      shippingArea: row.shippingArea,
       specs: extras.specs,
       gallery: productGallery,
       related: relatedSorted.map((item) => {
@@ -712,8 +752,8 @@ export async function buildPublishedContent(
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
-      seoDescription: row.seoDescription,
-      body: row.body,
+      seoDescription: normalizeSeoDescription(row.seoDescription),
+      body: normalizeLocationBody(row.body, row.locationName),
       meta: { locationName: row.locationName, region: row.region },
     };
   }
@@ -730,8 +770,8 @@ export async function buildPublishedContent(
       path: row.path,
       title: row.title,
       seoTitle: row.seoTitle,
-      seoDescription: row.seoDescription,
-      body: row.body,
+      seoDescription: normalizeSeoDescription(row.seoDescription),
+      body: normalizeLocationBody(row.body, row.country),
       meta: { country: row.country, productLine: row.productLine },
     };
   }

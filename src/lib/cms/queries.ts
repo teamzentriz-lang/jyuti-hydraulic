@@ -38,7 +38,6 @@ import {
   locationPages,
   media,
   navLinks,
-  pageHtmlOverrides,
   pages,
   posts,
   productCategories,
@@ -53,6 +52,7 @@ import {
   siteHtmlSettings,
   siteUiSettings,
 } from "@/db/schema";
+import { pageHtmlOverrides } from "@/db/schema-cms";
 import {
   defaultClients,
   defaultStats,
@@ -71,6 +71,7 @@ import {
   type ResourceKey,
   resources,
 } from "@/lib/cms/resources";
+import { linkedArticlePaths } from "@/lib/cms/product-article";
 
 export const tables = {
   pages,
@@ -300,6 +301,26 @@ export async function getRecord(
 
   if (resource === "products") {
     record.productPayload = await loadProductPayload(id);
+    const productPayload = record.productPayload as Awaited<
+      ReturnType<typeof loadProductPayload>
+    >;
+    // Legacy imports stored related blog cards as links inside the product
+    // overview. Surface those links in the manager so existing relationships
+    // can be saved or deleted explicitly.
+    if (!productPayload.relatedPosts.length) {
+      const legacyHtml = [record.overview, record.body, record.richContent]
+        .filter((value): value is string => typeof value === "string")
+        .join("\n");
+      const legacyPaths = linkedArticlePaths(legacyHtml);
+      if (legacyPaths.length) {
+        const legacyPosts = await publishedPostsByPaths(legacyPaths, 50);
+        productPayload.relatedPosts = legacyPosts.map((post, sortOrder) => ({
+          postId: post.id,
+          sortOrder,
+        }));
+        record.productPayload = productPayload;
+      }
+    }
     record.galleryMediaIds = (
       record.productPayload as { galleryMediaIds: string[] }
     ).galleryMediaIds;
@@ -473,6 +494,19 @@ export async function relationOptions(
     .map((row) => ({ value: row.id, label: `${row.location}: ${row.label}` }));
 }
 
+export async function blogPostOptions() {
+  const db = getDb();
+  const rows = await db
+    .select({ id: posts.id, title: posts.title, path: posts.path, status: posts.status })
+    .from(posts)
+    .orderBy(asc(posts.title))
+    .limit(2000);
+  return rows.map((row) => ({
+    value: row.id,
+    label: `${row.title}   /${row.path}/${row.status === "published" ? "" : " - draft"}`,
+  }));
+}
+
 export async function fieldsFor(
   resource: ResourceKey,
   currentId?: string,
@@ -513,6 +547,7 @@ export type MediaItem = {
   filename: string;
   alt: string;
   mimeType: string;
+  legacyUrl?: string | null;
 };
 
 export async function mediaItems(ids: string[]) {
@@ -523,6 +558,7 @@ export async function mediaItems(ids: string[]) {
     .select({
       id: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       filename: media.filename,
       alt: media.alt,
       mimeType: media.mimeType,
@@ -547,6 +583,18 @@ export async function getSettings() {
       .limit(1);
     if (!row) throw new Error("Site settings are missing.");
     return row;
+  });
+}
+
+export async function getPageHtmlOverride(path: string) {
+  return withDatabaseRetry(async () => {
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(pageHtmlOverrides)
+      .where(eq(pageHtmlOverrides.path, path))
+      .limit(1);
+    return row ?? null;
   });
 }
 
@@ -651,6 +699,64 @@ export async function publishedPosts(
     ...row,
     coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null,
   }));
+}
+
+/** Fetch selected published posts in the same order as their supplied paths. */
+export async function publishedPostsByPaths(paths: string[], limit = 3) {
+  const unique = [...new Set(paths.map((path) => path.replace(/^\/+|\/+$/g, "")).filter(Boolean))].slice(0, limit);
+  if (!unique.length) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      path: posts.path,
+      excerpt: posts.excerpt,
+      publishedAt: posts.publishedAt,
+      author: posts.author,
+      readingTime: posts.readingTime,
+      featured: posts.featured,
+      coverMediaId: posts.coverMediaId,
+      coverAlt: media.alt,
+    })
+    .from(posts)
+    .leftJoin(media, eq(posts.coverMediaId, media.id))
+    .where(and(eq(posts.status, "published"), inArray(posts.path, unique)));
+  const byPath = new Map(rows.map((row) => [row.path.replace(/^\/+|\/+$/g, ""), row]));
+  return unique.flatMap((path) => {
+    const row = byPath.get(path);
+    return row ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }] : [];
+  });
+}
+
+/** Fetch selected published posts in the order chosen for a product. */
+export async function publishedPostsByIds(ids: string[], limit = 3) {
+  const unique = [...new Set(ids.filter(Boolean))].slice(0, limit);
+  if (!unique.length) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      path: posts.path,
+      excerpt: posts.excerpt,
+      publishedAt: posts.publishedAt,
+      author: posts.author,
+      readingTime: posts.readingTime,
+      featured: posts.featured,
+      coverMediaId: posts.coverMediaId,
+      coverAlt: media.alt,
+    })
+    .from(posts)
+    .leftJoin(media, eq(posts.coverMediaId, media.id))
+    .where(and(eq(posts.status, "published"), inArray(posts.id, unique)));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return unique.flatMap((id) => {
+    const row = byId.get(id);
+    return row
+      ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }]
+      : [];
+  });
 }
 
 export async function getHeaderSettings() {
@@ -876,6 +982,7 @@ export async function homeCategoryShowcases(
       .select({
         productId: productImages.productId,
         url: media.url,
+        legacyUrl: media.legacyUrl,
         alt: media.alt,
       })
       .from(productImages)
@@ -979,6 +1086,7 @@ export async function migratedCategoryShowcases(
         productId: productImages.productId,
         mediaId: media.id,
         url: media.url,
+        legacyUrl: media.legacyUrl,
         alt: media.alt,
       })
       .from(productImages)
@@ -1035,6 +1143,7 @@ export async function featuredProductsForHome(productIds: string[]) {
       productId: productImages.productId,
       mediaId: media.id,
       url: media.url,
+      legacyUrl: media.legacyUrl,
       alt: media.alt,
     })
     .from(productImages)
@@ -1156,6 +1265,7 @@ export async function catalogueListing() {
           productId: productImages.productId,
           mediaId: media.id,
           url: media.url,
+          legacyUrl: media.legacyUrl,
           alt: media.alt,
         })
         .from(productImages)
@@ -1172,7 +1282,7 @@ export async function catalogueListing() {
   for (const row of productImageRows) {
     if (!productImageById.has(row.productId)) {
       productImageById.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url }),
+        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
         alt: row.alt ?? "",
       });
     }

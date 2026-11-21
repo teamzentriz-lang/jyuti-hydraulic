@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Award, FileText, Mail, Star } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { ProductCard } from "@/components/site/product-card";
 import { ProductGallery } from "@/components/site/product-gallery";
@@ -10,64 +11,44 @@ import {
   getHome,
   getSettings,
   getSiteLabels,
-  publishedPosts,
 } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
+import { removeLeadingSummaryHtml, readableProductArticle } from "@/lib/cms/product-article";
 
-function normalizeCopy(html: string) {
-  return textOf(html)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function withoutTables(html: string) {
+  return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
 }
 
-function coveredBy(existing: string, candidate: string) {
-  const haystack = normalizeCopy(existing);
-  const needle = normalizeCopy(candidate);
-  if (!needle || needle.length < 40) return false;
-  if (haystack.includes(needle)) return true;
-  const sample = needle.slice(0, 220);
-  return sample.length > 60 && haystack.includes(sample);
-}
+type ProductInsight = {
+  id: string;
+  path: string;
+  title: string;
+  coverUrl: string | null;
+  publishedAt: Date | null;
+  excerpt: string;
+};
 
-function dedupedHtml(parts: Array<string | undefined>) {
-  const cleaned = parts.map((part) => part?.trim() ?? "").filter(Boolean);
-  const ranked = [...cleaned].sort(
-    (a, b) => textOf(b).length - textOf(a).length,
+function promoteLegacyHeadings(html: string) {
+  return html.replace(
+    /<p\b[^>]*>\s*(?:<strong>)?([^<]{3,110})(?:<\/strong>)?\s*<\/p>/gi,
+    (match, text) => {
+      const candidate = textOf(text).replace(/&amp;/gi, "&").trim();
+      const looksLikeHeading =
+        candidate.length <= 90 &&
+        !/[.!?;:]/.test(candidate) &&
+        /(?:principle|features?|benefits?|specifications?|details?|selection|applications?|maintenance|safety|installation|materials?|construction|configuration|capacity|speed|ratio|selection|holding|load|quote|contact|overview)$/i.test(
+          candidate,
+        );
+      return looksLikeHeading ? `<h2>${text}</h2>` : match;
+    },
   );
-  const kept: string[] = [];
-  for (const part of ranked) {
-    if (kept.some((existing) => coveredBy(existing, part))) continue;
-    kept.push(part);
-  }
-  return cleaned.filter((part) => kept.includes(part)).join("");
 }
 
 function absoluteUrl(url: string) {
   if (/^https?:\/\//i.test(url)) return url;
   return `${siteOrigin()}${url.startsWith("/") ? url : `/${url}`}`;
-}
-
-function readableArticle(html: string) {
-  let next = html.replace(/inquiry now/gi, "");
-  const cuts = [
-    /<h3[^>]*>\s*Contact With Us/i,
-    /Feel free to write our/i,
-    /Our Blogs/i,
-    /Our Products/i,
-    /Read More/i,
-    /Get in Touch/i,
-    /Get Your Quote/i,
-  ]
-    .map((pattern) => next.search(pattern))
-    .filter((index) => index > 40);
-  if (cuts.length) next = next.slice(0, Math.min(...cuts));
-  return next
-    .replace(/<p>\s*<\/p>/gi, "")
-    .replace(/<ul>\s*<\/ul>/gi, "")
-    .trim();
 }
 
 function textOf(html: string) {
@@ -85,6 +66,14 @@ function sameHeading(title: string, pageTitle: string) {
   const b = norm(pageTitle);
   if (!a || !b) return false;
   return a.includes(b.slice(0, 24)) || b.includes(a.slice(0, 24));
+}
+
+function removeDuplicatePageTitle(html: string, pageTitle: string) {
+  return html.replace(
+    /^\s*<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/i,
+    (match, _level, heading) =>
+      sameHeading(textOf(heading), pageTitle) ? "" : match,
+  );
 }
 
 function youtubeEmbedUrl(raw: unknown) {
@@ -113,12 +102,52 @@ function youtubeEmbedUrl(raw: unknown) {
   }
 }
 
+function YouTubeIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8Z"
+      />
+      <path fill="#fff" d="m9.6 15.8 6.2-3.8-6.2-3.8v7.6Z" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M20.2 11.3A8.2 8.2 0 0 1 8.1 18.5L3.8 20l1.4-4.1A8.2 8.2 0 1 1 20.2 11.3Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.1 7.7c.2-.3.5-.4.8-.2l1 .6c.3.2.4.5.3.8l-.2 1c0 .2-.2.4-.4.5l-.5.2c.5 1.1 1.4 2 2.5 2.5l.2-.5c.1-.2.3-.4.5-.4l1-.2c.3 0 .6.1.8.3l.6 1c.2.3.1.6-.2.8l-.7.7c-.2.2-.5.3-.8.2-3.5-.7-6.3-3.5-7-7-.1-.3 0-.6.2-.8l.7-.7Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function articleSections(html: string) {
   const chunks = html.split(/<h2[^>]*>/i);
   const sections: { title: string; html: string }[] = [];
   const push = (title: string, body: string) => {
-    const cleaned = body.replace(/<p>\s*<\/p>/gi, "").trim();
-    if (!textOf(cleaned) && !/<img\b/i.test(cleaned)) return;
+    const cleaned = body
+      .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+      .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
+      .replace(/<img\b[^>]*>/gi, "")
+      .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
+      .trim();
+    if (!textOf(cleaned)) return;
     sections.push({ title, html: cleaned });
   };
   if (chunks[0]) push("", chunks[0]);
@@ -137,57 +166,39 @@ function ArticleBlocks({
   html: string;
   pageTitle: string;
 }) {
-  const sections = articleSections(html);
+  const sections = articleSections(removeDuplicatePageTitle(html, pageTitle));
   const renderSection = (
     sectionHtml: string,
     index: number,
     heading?: string,
   ) => {
-    const images = [...sectionHtml.matchAll(/<img\b[^>]*>/gi)].map(
-      (match) => match[0],
-    );
     const text = sectionHtml
+      .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+      .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
       .replace(/<img\b[^>]*>/gi, "")
-      .replace(/<p>\s*<\/p>/gi, "")
+      .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
       .trim();
-    const hasText = Boolean(textOf(text));
+    if (!textOf(text)) return null;
     return (
       <section
         key={`${heading ?? "overview"}-${index}`}
         className="product-article__block"
       >
         {heading ? <h2>{heading}</h2> : null}
-        {images.length && hasText ? (
-          <div className="media-split">
-            <RichTextHtml html={text} className="product-prose" />
-            <RichTextHtml
-              html={images.join("")}
-              className="media-split__media"
-            />
-          </div>
-        ) : images.length ? (
-          <RichTextHtml html={images.join("")} className="media-split__media" />
-        ) : text ? (
-          <RichTextHtml
-            html={text}
-            className={
-              (text.match(/<p\b/gi) ?? []).length > 1
-                ? "product-prose product-prose--columns"
-                : "product-prose"
-            }
-          />
-        ) : null}
+        <RichTextHtml html={text} className="product-prose" />
       </section>
     );
   };
   if (!sections.length) {
-    return <div className="product-article">{renderSection(html, 0)}</div>;
+    const fallback = renderSection(html, 0);
+    return fallback ? <div className="product-article">{fallback}</div> : null;
   }
   return (
     <div className="product-article">
       {sections.map((section, index) => {
         const showTitle =
           Boolean(section.title) &&
+          !sameHeading(section.title, "Overview") &&
           !(index === 0 && sameHeading(section.title, pageTitle));
         return renderSection(
           section.html,
@@ -204,10 +215,9 @@ export async function ProductDetail({
 }: {
   content: PublishedContent;
 }) {
-  const [settings, home, posts, labels] = await Promise.all([
+  const [settings, home, labels] = await Promise.all([
     getSettings(),
     getHome(),
-    publishedPosts(3),
     getSiteLabels(),
   ]);
   const image = content.gallery?.[0];
@@ -215,20 +225,39 @@ export async function ProductDetail({
     .map((item) => item.title.trim())
     .filter(Boolean)
     .slice(0, 4);
-  const overviewHtml = readableArticle(
-    dedupedHtml([
-      content.detailBlocks?.find((block) => block.heading === "Overview")?.html,
-      content.body,
-      ...(content.detailBlocks ?? [])
-        .filter(
-          (block) =>
-            !["Overview", "Applications", "Features"].includes(block.heading),
-        )
-        .map((block) => `<h2>${block.heading}</h2>${block.html}`),
-    ]),
+  const sourceOverviewHtml = content.detailBlocks?.find(
+    (block) => block.heading === "Overview",
+  )?.html;
+  const legacyArticleHtml =
+    content.body ||
+    content.detailBlocks?.find((block) => block.heading === "Details")?.html ||
+    "";
+  // Overview is the editable product description. Do not merge the legacy
+  // body back into it, otherwise an old imported article wins over a saved edit.
+  const combinedArticleHtml = sourceOverviewHtml?.trim()
+    ? sourceOverviewHtml
+    : legacyArticleHtml;
+  // Blog posts are managed separately from product content and are not shown
+  // inside product pages. This also prevents legacy imported blog cards from
+  // reappearing when an old product record has no explicit relations.
+  const posts: ProductInsight[] = [];
+  const cleanedArticleHtml = readableProductArticle(
+    promoteLegacyHeadings(
+      withoutTables(
+        combinedArticleHtml,
+      ),
+    ),
   );
-  const lead = content.summary ? cleanPublicExcerpt(content.summary, 320) : "";
   const title = cleanPublicTitle(content.title);
+  const introductionLead = cleanPublicExcerpt(textOf(cleanedArticleHtml), 360);
+  const summaryLead = content.summary
+    ? cleanPublicExcerpt(content.summary, 360)
+    : "";
+  const lead = summaryLead || introductionLead;
+  const overviewHtml = removeLeadingSummaryHtml(
+    cleanedArticleHtml,
+    summaryLead,
+  );
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
   const galleryImages = (content.gallery ?? []).map((item, index) => ({
     id: item.id,
@@ -249,6 +278,43 @@ export async function ProductDetail({
       url: siteOrigin(),
     },
   };
+  const hasSpecifications = Boolean(
+    content.specs?.length ||
+    content.technicalTables?.length ||
+    content.contentTables?.length,
+  );
+  const videoSections = (content.sections ?? []).filter(
+    (section) =>
+      section.sectionType === "video" &&
+      section.isActive &&
+      youtubeEmbedUrl(section.customData.videoUrl),
+  );
+  const reviewSections = (content.sections ?? []).filter(
+    (section) =>
+      section.sectionType === "testimonials" &&
+      section.isActive &&
+      (section.title.trim() || section.description.trim()),
+  );
+  const faqs = (content.faqs ?? []).filter(
+    (item) => item.question.trim() || item.answer.trim(),
+  );
+  const certificate = (content.documents ?? []).find(
+    (document) => document.documentType === "certificate" && document.url,
+  );
+  const certificateHref = certificate?.url || "/certificates/";
+  const youtubeHref =
+    videoSections.length > 0
+      ? "#product-tab-video"
+      : settings.youtubeUrl || null;
+  const whatsappNumber = settings.whatsapp?.replace(/\D/g, "") ?? "";
+  const productInfo = [
+    content.shippingArea
+      ? { label: "Shipping area", value: content.shippingArea }
+      : null,
+    content.modelNumber ? { label: "Model", value: content.modelNumber } : null,
+    content.brand ? { label: "Brand", value: content.brand } : null,
+    content.stock ? { label: "Availability", value: content.stock } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
   const comingSoon = (
     <div className="product-tabs__empty">
       <h3>Coming soon</h3>
@@ -257,6 +323,7 @@ export async function ProductDetail({
   );
   const tabs = [
     {
+      visible: Boolean(overviewHtml),
       id: "overview",
       label: labels.productOverviewLabel,
       icon: "overview",
@@ -267,6 +334,7 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: hasSpecifications,
       id: "specifications",
       label: labels.productSpecificationsLabel,
       icon: "specifications",
@@ -343,6 +411,7 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: Boolean(content.features?.length),
       id: "features",
       label: labels.productFeaturesLabel,
       icon: "features",
@@ -366,56 +435,51 @@ export async function ProductDetail({
       ),
     },
     {
+      visible: videoSections.length > 0,
       id: "video",
       label: labels.productVideoLabel,
       icon: "video",
-      content: content.sections?.some(
-        (section) =>
-          section.sectionType === "video" &&
-          section.isActive &&
-          youtubeEmbedUrl(section.customData.videoUrl),
-      ) ? (
+      content: videoSections.length ? (
         <div className="product-video-list">
-          {content.sections
-            .filter(
-              (section) => section.sectionType === "video" && section.isActive,
-            )
-            .map((section, index) => {
-              const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
-              if (!embedUrl) return null;
-              return (
-                <section key={section.id ?? `video-${index}`}>
-                  {section.title ? <h3>{section.title}</h3> : null}
-                  {section.description ? <p>{section.description}</p> : null}
-                  <div className="product-video-list__frame">
-                    <iframe
-                      src={embedUrl}
-                      title={section.title || `${title} video ${index + 1}`}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      allowFullScreen
-                    />
-                  </div>
-                </section>
-              );
-            })}
+          {videoSections.map((section, index) => {
+            const embedUrl = youtubeEmbedUrl(section.customData.videoUrl);
+            if (!embedUrl) return null;
+            return (
+              <section key={section.id ?? `video-${index}`}>
+                {section.title ? <h3>{section.title}</h3> : null}
+                {section.description ? <p>{section.description}</p> : null}
+                <div className="product-video-list__frame">
+                  <iframe
+                    src={embedUrl}
+                    title={section.title || `${title} video ${index + 1}`}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </section>
+            );
+          })}
         </div>
       ) : (
         comingSoon
       ),
     },
     {
+      visible: reviewSections.length > 0,
       id: "reviews",
       label: labels.productReviewsLabel,
       icon: "reviews",
-      content: home.testimonials.length ? (
+      content: reviewSections.length ? (
         <ul className="product-review-list">
-          {home.testimonials.map((review, index) => (
-            <li key={`${review.author}-${index}`}>
+          {reviewSections.map((review, index) => (
+            <li key={review.id ?? `review-${index}`}>
               <span aria-hidden="true">★★★★★</span>
-              <blockquote>{review.quote}</blockquote>
-              <p>{review.author}</p>
+              {review.description ? (
+                <blockquote>{review.description}</blockquote>
+              ) : null}
+              {review.title ? <p>{review.title}</p> : null}
             </li>
           ))}
         </ul>
@@ -423,7 +487,25 @@ export async function ProductDetail({
         comingSoon
       ),
     },
-  ];
+    {
+      visible: faqs.length > 0,
+      id: "faq",
+      label: "FAQ",
+      icon: "faq",
+      content: (
+        <div className="product-faq-list">
+          {faqs.map((faq, index) => (
+            <details key={`${faq.question}-${index}`}>
+              <summary>{faq.question || `Question ${index + 1}`}</summary>
+              {faq.answer ? <p>{faq.answer}</p> : null}
+            </details>
+          ))}
+        </div>
+      ),
+    },
+  ]
+    .filter((tab) => tab.visible)
+    .map(({ id, label, icon, content }) => ({ id, label, icon, content }));
 
   const enquireHref = `/contact/?product=${encodeURIComponent(title)}`;
 
@@ -462,17 +544,46 @@ export async function ProductDetail({
       </section>
 
       <div className="site-container product-page__hero">
-        {galleryImages.length ? (
-          <ProductGallery images={galleryImages} />
-        ) : (
-          <div className="product-gallery__stage">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/placeholders/product.svg" alt={title} />
-          </div>
-        )}
+        <div className="product-visual">
+          {galleryImages.length ? (
+            <ProductGallery images={galleryImages} />
+          ) : (
+            <div className="product-gallery__stage">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/placeholders/product.svg" alt={title} />
+            </div>
+          )}
+        </div>
         <div className="product-summary">
           <p className="eyebrow dark">{labels.productOverviewEyebrow}</p>
           {lead ? <p className="product-summary__lead">{lead}</p> : null}
+          {content.rating ? (
+            <div
+              className="product-summary__rating"
+              aria-label={`${content.rating} out of 5 stars`}
+            >
+              <span>Rating:</span>
+              <span aria-hidden="true">
+                {Array.from({ length: content.rating }, (_, index) => (
+                  <Star
+                    key={index}
+                    className="h-4 w-4 fill-amber-400 text-amber-400"
+                  />
+                ))}
+              </span>
+              <strong>{content.rating} of 5</strong>
+            </div>
+          ) : null}
+          {productInfo.length ? (
+            <ul className="product-summary__facts">
+              {productInfo.map((item) => (
+                <li key={item.label}>
+                  <span aria-hidden="true">✓</span>
+                  <strong>{item.label}:</strong> {item.value}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {pills.length ? (
             <ul className="feature-pills">
               {pills.map((pill) => (
@@ -480,21 +591,108 @@ export async function ProductDetail({
               ))}
             </ul>
           ) : null}
-          <div className="product-summary__actions">
-            {content.enquiryEnabled !== false ? (
-              <Link href={enquireHref} className="site-btn-primary">
-                Get a Quote
-              </Link>
+          <nav
+            className="product-summary__resource-strip"
+            aria-label="Product resources"
+          >
+            {youtubeHref ? (
+              <a
+                className="resource-icon resource-icon--youtube"
+                href={youtubeHref}
+                {...(youtubeHref.startsWith("http")
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                title="Watch product video"
+                aria-label="Watch product video"
+              >
+                <YouTubeIcon />
+              </a>
             ) : null}
+            <Link
+              className="resource-icon resource-icon--badge resource-icon--iso"
+              href={certificateHref}
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+              title="ISO 9001:2015 Certified Company"
+              aria-label="ISO 9001:2015 Certified Company"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/iso-9001-certified.png"
+                alt="ISO 9001:2015 Certified Company"
+                width={48}
+                height={48}
+                className="resource-badge-img"
+              />
+            </Link>
+            <Link
+              className="resource-icon resource-icon--badge resource-icon--ce"
+              href={certificateHref}
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+              title="Quality CE Certificate"
+              aria-label="Quality CE Certificate"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/quality-ce-certified.svg"
+                alt="Quality CE Certificate"
+                width={48}
+                height={48}
+                className="resource-badge-img"
+              />
+            </Link>
+            <span className="resource-strip__divider" aria-hidden="true" />
+            <a
+              className="resource-icon resource-icon--email"
+              href={`mailto:${settings.emailPrimary}`}
+              title="Email us"
+              aria-label="Email us"
+            >
+              <Mail aria-hidden="true" />
+            </a>
+            {whatsappNumber ? (
+              <a
+                className="resource-icon resource-icon--whatsapp"
+                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I am interested in ${title}.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Enquire on WhatsApp"
+                aria-label="Enquire on WhatsApp"
+              >
+                <WhatsAppIcon />
+              </a>
+            ) : null}
+          </nav>
+          <div className="product-summary__actions product-summary__actions--detailed">
+            <Link
+              href={certificateHref}
+              className="site-btn-outline"
+              {...(certificateHref.startsWith("http")
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+            >
+              <Award className="h-4 w-4" aria-hidden="true" />
+              View Certificates
+            </Link>
             {content.brochureUrl ? (
               <a
                 href={content.brochureUrl}
-                className="site-btn-outline"
+                className="site-btn-outline product-summary__pdf"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Download Brochure
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                <span>View PDF</span>
               </a>
+            ) : null}
+            {content.enquiryEnabled !== false ? (
+              <Link href={enquireHref} className="site-btn-primary">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                Get a Quote
+              </Link>
             ) : null}
           </div>
         </div>
@@ -615,7 +813,7 @@ export async function ProductDetail({
               {home.testimonials.slice(0, 3).map((item, index) => (
                 <li key={`${item.author}-${index}`}>
                   <span className="quote-mark" aria-hidden>
-                    &ldquo;
+                    “
                   </span>
                   <blockquote>{item.quote}</blockquote>
                   <p>{item.author}</p>
@@ -637,9 +835,13 @@ export async function ProductDetail({
                   from our engineering team.
                 </p>
               </div>
-              <Link href="/blogs/" className="site-btn-outline">
-                View all articles
-              </Link>
+              <form className="insights-search" action="/blogs/" method="get">
+                <input
+                  name="q"
+                  placeholder={labels.blogSearchPlaceholder}
+                  aria-label={labels.blogSearchPlaceholder}
+                />
+              </form>
             </div>
             <ul className="insights-grid">
               {posts.map((post) => (

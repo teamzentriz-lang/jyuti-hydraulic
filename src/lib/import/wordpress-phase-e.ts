@@ -50,10 +50,21 @@ export function parsePhaseECliOptions(argv: string[]): PhaseEOptions {
         : "all";
   const dryRun = argv.includes("--dry-run");
   const skipSeo = argv.includes("--skip-seo");
+  const skipMedia = argv.includes("--skip-media");
   const purgeDummy = !argv.includes("--keep-seed");
   const limitArg = argv.find((arg) => arg.startsWith("--limit="));
   const limitValue = limitArg ? Number(limitArg.slice("--limit=".length)) : null;
-  return { scope, dryRun, skipSeo, purgeDummy, limit: limitValue && Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null };
+  const pageStartArg = argv.find((arg) => arg.startsWith("--page-start="));
+  const pageStartValue = pageStartArg ? Number(pageStartArg.slice("--page-start=".length)) : 1;
+  return {
+    scope,
+    dryRun,
+    skipSeo,
+    skipMedia,
+    purgeDummy,
+    limit: limitValue && Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null,
+    pageStart: Number.isInteger(pageStartValue) && pageStartValue > 0 ? pageStartValue : 1,
+  };
 }
 
 async function findWpPageByPath(pages: Awaited<ReturnType<typeof listAllPublishedPages>>, path: string) {
@@ -103,7 +114,7 @@ async function importImagesFromPage(
   let order = 0;
   for (const ref of limited) {
     let mediaId = resolveMediaIdFromUrl(ref.src, lookup);
-    if (!mediaId && !options.dryRun) {
+    if (!mediaId && !options.dryRun && !options.skipMedia) {
       const resolved = await resolveOrImportMediaFromUrl(db, ref.src, lookup, {
         dryRun: false,
         alt: ref.alt,
@@ -296,7 +307,7 @@ export async function runWordPressPhaseE(db: Db, options: PhaseEOptions): Promis
   const lookup = await loadMediaLookup(db);
 
   if (importGallery || importCertificates) {
-    const pages = await listAllPublishedPages(null);
+    const pages = await listAllPublishedPages(options.limit, options.pageStart);
     if (importGallery) {
       const galleryPage = await findWpPageByPath(pages, "gallery");
       if (galleryPage) {

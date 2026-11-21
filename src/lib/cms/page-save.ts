@@ -30,8 +30,8 @@ export function readPageScalars(formData: FormData) {
     slug,
     path: pathValue,
     pageType: z.string().trim().max(80),
-    excerpt: z.string().trim().max(2000),
-    shortDescription: z.string().trim().max(2000),
+    excerpt: z.string().trim().max(100_000),
+    shortDescription: z.string().trim().max(100_000),
     body: z.string().max(500_000),
     heroMediaId: optionalUuid,
     featuredImageId: optionalUuid,
@@ -55,6 +55,20 @@ export function readPageScalars(formData: FormData) {
     breadcrumbsEnabled: formData.get("breadcrumbsEnabled") === "on",
     status: text("status") || "draft",
   });
-  if (!parsed.success) throw new CmsError(parsed.error.issues[0]?.message ?? "Check the page form.");
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0] ? String(issue.path[0]) : "Page";
+    const labels: Record<string, string> = {
+      title: "Title",
+      slug: "Slug",
+      path: "URL path",
+      excerpt: "Excerpt",
+      shortDescription: "Short description",
+      body: "Body",
+    };
+    throw new CmsError(
+      `${labels[field] ?? field}: ${issue?.message ?? "check this field."}`,
+    );
+  }
   return parsed.data;
 }

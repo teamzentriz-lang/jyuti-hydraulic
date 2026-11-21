@@ -35,6 +35,30 @@ import {
 
 type Db = ReturnType<typeof getDb>;
 
+const IMPORT_CONCURRENCY = 6;
+
+async function importInParallel<T>(
+  items: T[],
+  label: string,
+  importOne: (item: T) => Promise<void>,
+) {
+  let next = 0;
+  let completed = 0;
+
+  await Promise.all(
+    Array.from({ length: Math.min(IMPORT_CONCURRENCY, items.length) }, async () => {
+      while (next < items.length) {
+        const item = items[next++];
+        await importOne(item);
+        completed += 1;
+        if (completed % 25 === 0 || completed === items.length) {
+          console.log(`${label}: ${completed}/${items.length}.`);
+        }
+      }
+    }),
+  );
+}
+
 export type PhaseDScope = "all" | "city" | "exports";
 
 export type PhaseDOptions = ImportCliOptions & {
@@ -57,15 +81,20 @@ export function parsePhaseDCliOptions(argv: string[]): PhaseDOptions {
       : "all";
   const dryRun = argv.includes("--dry-run");
   const skipSeo = argv.includes("--skip-seo");
+  const skipMedia = argv.includes("--skip-media");
   const purgeDummy = !argv.includes("--keep-seed");
   const limitArg = argv.find((arg) => arg.startsWith("--limit="));
   const limitValue = limitArg ? Number(limitArg.slice("--limit=".length)) : null;
+  const pageStartArg = argv.find((arg) => arg.startsWith("--page-start="));
+  const pageStartValue = pageStartArg ? Number(pageStartArg.slice("--page-start=".length)) : 1;
   return {
     scope,
     dryRun,
     skipSeo,
+    skipMedia,
     purgeDummy,
     limit: limitValue && Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null,
+    pageStart: Number.isInteger(pageStartValue) && pageStartValue > 0 ? pageStartValue : 1,
   };
 }
 
@@ -280,7 +309,7 @@ export async function runWordPressPhaseD(db: Db, options: PhaseDOptions): Promis
   };
 
   console.log(`Fetching published pages from ${wpOrigin()}…`);
-  const allPages = await listAllPublishedPages(null);
+  const allPages = await listAllPublishedPages(options.limit, options.pageStart);
 
   let cityPages = filterCityPages(allPages);
   let exportPagesList = filterExportPages(allPages);
@@ -312,23 +341,23 @@ export async function runWordPressPhaseD(db: Db, options: PhaseDOptions): Promis
   const lookup = await loadMediaLookup(db);
   const matchers = await loadCatalogMatchers(db);
 
-  for (const page of cityPages) {
+  await importInParallel(cityPages, "Imported city pages", async (page) => {
     try {
       await upsertLocation(db, page, lookup, matchers, options, stats);
     } catch (error) {
       console.warn(`Skipped city page ${page.path}:`, error instanceof Error ? error.message : error);
       stats.skipped += 1;
     }
-  }
+  });
 
-  for (const page of exportPagesList) {
+  await importInParallel(exportPagesList, "Imported export pages", async (page) => {
     try {
       await upsertExport(db, page, lookup, matchers, options, stats);
     } catch (error) {
       console.warn(`Skipped export page ${page.path}:`, error instanceof Error ? error.message : error);
       stats.skipped += 1;
     }
-  }
+  });
 
   if (!options.dryRun) {
     const paths = [...cityPages.map((page) => page.path), ...exportPagesList.map((page) => page.path)];
