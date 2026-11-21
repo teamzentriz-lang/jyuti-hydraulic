@@ -553,7 +553,7 @@ export function contentMetadata(
       follow: content.robotsFollow ?? true,
     },
     openGraph: {
-      type: "website" as const,
+      type: content.kind === "product" ? ("product" as const) : ("website" as const),
       title: content.ogTitle || title,
       description: content.ogDescription || description,
       siteName: companyName,

@@ -60,12 +60,22 @@ async function main() {
 
   try {
     for (const target of targets) {
+      const availableColumns = new Set(
+        (await db.unsafe<{ column_name: string }[]>(
+          `select column_name from information_schema.columns where table_name = $1`,
+          [target.table],
+        )).map((item) => item.column_name),
+      );
+      const syncColumns = target.columns.filter((column) => availableColumns.has(column));
       const rows = await db.unsafe<{ id: string; path: string }[]>(
         `select id, path from ${target.table} where status = 'published' order by path${limit > 0 ? ` limit ${Math.floor(limit)}` : ""}`,
       );
       for (const row of rows) {
         const path = row.path.replace(/^\/+|\/+$/g, "");
-        const url = `${origin}/${target.prefix ? `${target.prefix}/` : ""}${path}/`;
+        const scopedPath = target.prefix && !path.toLowerCase().startsWith(`${target.prefix.toLowerCase()}/`)
+          ? `${target.prefix}/${path}`
+          : path;
+        const url = `${origin}/${scopedPath}/`;
         checked += 1;
         try {
           const response = await fetch(url, { headers: { "user-agent": "JyotiHydraulic-MetadataSync/1.0" } });
@@ -74,7 +84,7 @@ async function main() {
           const values: Record<string, string> = {};
           if (data.seoTitle) values.seo_title = clean(data.seoTitle)!;
           if (data.seoDescription) values.seo_description = clean(data.seoDescription)!;
-          for (const column of target.columns) {
+          for (const column of syncColumns) {
             const key = column.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()) as keyof typeof data;
             const value = clean(data[key]);
             if (value) values[column] = value;
