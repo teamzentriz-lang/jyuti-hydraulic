@@ -72,11 +72,17 @@ export function parsePhaseBCliOptions(argv: string[]): PhaseBOptions {
   const base = {
     dryRun: argv.includes("--dry-run"),
     skipSeo: argv.includes("--skip-seo"),
+    skipMedia: argv.includes("--skip-media"),
     purgeDummy: !argv.includes("--keep-seed"),
     limit: (() => {
       const limitArg = argv.find((arg) => arg.startsWith("--limit="));
       const limitValue = limitArg ? Number(limitArg.slice("--limit=".length)) : null;
       return limitValue && Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null;
+    })(),
+    pageStart: (() => {
+      const pageStartArg = argv.find((arg) => arg.startsWith("--page-start="));
+      const pageStartValue = pageStartArg ? Number(pageStartArg.slice("--page-start=".length)) : 1;
+      return Number.isInteger(pageStartValue) && pageStartValue > 0 ? pageStartValue : 1;
     })(),
   };
   const skipExisting = argv.includes("--skip-existing") || argv.includes("--incremental");
