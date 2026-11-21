@@ -1,4 +1,11 @@
 import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
+import { removeLegacyBlogEmbed } from "@/lib/cms/legacy-blog-embed";
+
+export {
+  hasLegacyBlogEmbed,
+  legacyBlogEmbedSnippet,
+  removeLegacyBlogEmbed,
+} from "@/lib/cms/legacy-blog-embed";
 
 function plainContent(value: string) {
   return value
@@ -78,34 +85,6 @@ export function readableProductArticle(html: string) {
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
     .replace(/<ul>\s*<\/ul>/gi, "")
     .trim();
-}
-
-export function removeLegacyBlogEmbed(html: string) {
-  const marker = [...html.matchAll(/<(p|h[1-6]|div|section)\b[^>]*>([\s\S]*?)<\/\1>/gi)].find((match) => {
-    const text = (match[2] ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
-    return text === "blogs" || text === "our blogs";
-  });
-  if (!marker || marker.index === undefined) return html;
-  const trailingStart = marker.index + marker[0].length;
-  const trailing = html.slice(trailingStart);
-  if (!/(?:<img\b|<figure\b|Read\s*More)/i.test(trailing)) return html;
-  // Imported blog cards can contain their own headings. Removing only up to
-  // the next heading leaves the remaining cards in the same product article.
-  // Use the final Read More marker as the end of the legacy block, preserving
-  // any genuine product section that follows it.
-  const readMoreMatches = [...trailing.matchAll(/Read\s*More/gi)];
-  const lastReadMore = readMoreMatches.at(-1);
-  if (!lastReadMore || lastReadMore.index === undefined) {
-    return html.slice(0, marker.index).trim();
-  }
-  const afterReadMore = trailing.slice(
-    lastReadMore.index + lastReadMore[0].length,
-  );
-  const closingTag = /<\/(?:p|a|div|li)>/i.exec(afterReadMore);
-  const consumed = closingTag
-    ? lastReadMore.index + lastReadMore[0].length + closingTag.index + closingTag[0].length
-    : trailing.length;
-  return `${html.slice(0, marker.index).trim()}${html.slice(trailingStart + consumed)}`.trim();
 }
 
 /**

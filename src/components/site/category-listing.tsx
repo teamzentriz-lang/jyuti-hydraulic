@@ -71,7 +71,8 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       cards={cards}
       activeChip={content.path}
       clientLogos={clientLogos}
-      faqs={content.faqs ?? []}
+      // Category FAQs are hidden for now; keep product FAQs separate.
+      faqs={[]}
       contentBeforeCards
     />
   );

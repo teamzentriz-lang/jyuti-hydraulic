@@ -18,6 +18,8 @@
     "db:migrate-product-category-assignments": "tsx scripts/migrate-product-category-assignments.ts",
     "push:generate-vapid": "web-push generate-vapid-keys",
     "db:migrate-cms-html": "tsx scripts/migrate-cms-html.ts",
+    "db:cleanup-legacy-blog-embeds": "tsx scripts/cleanup-legacy-blog-embeds.ts",
+    "db:cleanup-legacy-blog-embeds:apply": "tsx scripts/cleanup-legacy-blog-embeds.ts --apply",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "db:verify-phase-one": "tsx scripts/verify-phase-one.ts",

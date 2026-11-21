@@ -3,6 +3,7 @@ import { CmsError } from "@/db/errors";
 import {
   normalizeProductEditorHtml,
   normalizeProductSummary,
+  removeLegacyBlogEmbed,
 } from "@/lib/cms/product-article";
 
 const slug = z
@@ -189,6 +190,9 @@ export function readProductScalars(formData: FormData) {
   const data = parsed.data;
   return {
     ...data,
+    // Keep legacy WordPress blog-card HTML out of every product copy field.
+    body: removeLegacyBlogEmbed(data.body),
+    richContent: removeLegacyBlogEmbed(data.richContent),
     overview: normalizeProductEditorHtml(
       removeLeadingOverviewTitle(data.overview, data.title),
     ),

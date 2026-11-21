@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { helpClass } from "@/components/admin/styles";
+import {
+  hasLegacyBlogEmbed,
+  removeLegacyBlogEmbed,
+} from "@/lib/cms/legacy-blog-embed";
 import type { MediaItem } from "@/lib/cms/queries";
 import { isImageMimeType } from "@/lib/media-upload";
 import { mediaDeliveryUrl } from "@/lib/media-url";
@@ -10,19 +14,6 @@ type EditorMode = "visual" | "html";
 
 function headingTag(value: string) {
   return value === "p" ? "p" : value;
-}
-
-function removeLegacyBlogEmbed(html: string) {
-  const match = [...html.matchAll(/<(p|h[1-6]|div|section)\b[^>]*>([\s\S]*?)<\/\1>/gi)].find((item) => {
-    const text = (item[2] ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
-    return text === "blogs" || text === "our blogs";
-  });
-  if (!match || match.index === undefined) return html;
-  const trailing = html.slice(match.index);
-  // Only trim an imported blog card, never normal product copy that happens
-  // to contain the word "Blogs".
-  if (!/(?:<img\b|<figure\b|Read\s*More)/i.test(trailing)) return html;
-  return html.slice(0, match.index).trim();
 }
 
 export function CKEditorField({
@@ -42,12 +33,16 @@ export function CKEditorField({
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [pickerMedia, setPickerMedia] = useState<MediaItem[]>(media);
   const [pickerError, setPickerError] = useState("");
+  const [legacyNoteVisible, setLegacyNoteVisible] = useState(() =>
+    hasLegacyBlogEmbed(defaultValue ?? ""),
+  );
 
   const sync = useCallback((value?: string) => {
     const next = value ?? visualRef.current?.innerHTML ?? "";
     if (!valueRef.current) return;
     valueRef.current.value = next;
     valueRef.current.dispatchEvent(new Event("input", { bubbles: true }));
+    setLegacyNoteVisible(hasLegacyBlogEmbed(next));
   }, []);
 
   const setValue = useCallback((value: string) => {
@@ -193,7 +188,7 @@ export function CKEditorField({
       <p className={helpClass}>
         Click in the white area and type. Use Visual for normal writing; use Insert image to use an uploaded media-library image.
       </p>
-      {/(?:<img\b|<figure\b)[\s\S]*?(?:Blogs|Read\s*More)/i.test(defaultValue) ? (
+      {legacyNoteVisible ? (
         <div className="admin-editor-legacy-note">
           <span>This description contains an old embedded blog card. Blogs are now managed separately.</span>
           <button type="button" onClick={removeBlogEmbed}>Remove old blog card</button>

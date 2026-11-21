@@ -58,12 +58,10 @@ import {
 } from "@/lib/authorization";
 import { getRecord, tables } from "@/lib/cms/queries";
 import {
-  saveContentFaqs,
   saveProductCategoryAssignments,
   saveProductPayload,
   savePageSections,
   loadProductPayload,
-  type FaqPayload,
   type PageSectionPayload,
 } from "@/lib/cms/entity-data";
 import { readProductPayloadFromForm } from "@/lib/cms/parse-product-payload";
@@ -423,16 +421,8 @@ export async function saveResourceAction(
         }
       }
 
-      if (resource === "product-categories") {
-        const faqsRaw = String(formData.get("_faqs") ?? "");
-        let faqs: FaqPayload[] = [];
-        try {
-          faqs = faqsRaw ? (JSON.parse(faqsRaw) as FaqPayload[]) : [];
-        } catch {
-          throw new CmsError("Could not read category FAQs.");
-        }
-        await saveContentFaqs(tx, "category", id, faqs);
-      }
+      // Category FAQs are hidden for now. Skip save so existing DB rows are
+      // not wiped when a category is edited without the FAQ editor.
 
       if (resource === "pages") {
         const sectionsRaw = String(formData.get("_sections") ?? "");
