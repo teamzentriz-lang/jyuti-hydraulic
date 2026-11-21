@@ -204,6 +204,36 @@ export function CKEditorField({
         data-placeholder="Write the product description here…"
         hidden={mode !== "visual"}
         dangerouslySetInnerHTML={{ __html: defaultValue ?? "" }}
+        tabIndex={0}
+        onClick={(event) => {
+          // contentEditable occasionally receives focus without receiving a
+          // caret when a long imported HTML document is clicked. Explicitly
+          // place it at the click point for a normal one-click edit action.
+          if (event.detail !== 1 || mode !== "visual") return;
+          const root = visualRef.current;
+          if (!root) return;
+          window.requestAnimationFrame(() => {
+            const doc = document as Document & {
+              caretPositionFromPoint?: (x: number, y: number) => CaretPosition | null;
+              caretRangeFromPoint?: (x: number, y: number) => Range | null;
+            };
+            const position = doc.caretPositionFromPoint?.(event.clientX, event.clientY);
+            const range = position
+              ? (() => {
+                  const next = document.createRange();
+                  next.setStart(position.offsetNode, position.offset);
+                  next.collapse(true);
+                  return next;
+                })()
+              : doc.caretRangeFromPoint?.(event.clientX, event.clientY);
+            if (!range || !root.contains(range.startContainer)) return;
+            root.focus({ preventScroll: true });
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            selectionRef.current = range.cloneRange();
+          });
+        }}
         onInput={() => sync()}
         onBlur={() => sync()}
       />
