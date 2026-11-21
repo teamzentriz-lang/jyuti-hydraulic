@@ -16,6 +16,7 @@ async function main() {
   const options = parseImportCliOptions(process.argv.slice(2));
   if (options.dryRun) console.log("Dry run — no database writes.");
   if (options.skipSeo) console.log("Skipping public HTML SEO scrape.");
+  if (options.skipMedia) console.log("Skipping featured-media lookups.");
   if (!options.purgeDummy) console.log("Keeping dummy seed pages/posts (--keep-seed).");
 
   const db = getDb();

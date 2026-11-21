@@ -14,6 +14,7 @@ async function main() {
 
   const options = parsePhaseECliOptions(process.argv.slice(2));
   if (options.dryRun) console.log("Dry run — no database writes.");
+  if (options.skipMedia) console.log("Skipping media downloads; only already-imported media will be linked.");
   if (!options.purgeDummy) console.log("Keeping seed gallery/certificates/nav (--keep-seed).");
 
   const db = getDb();
