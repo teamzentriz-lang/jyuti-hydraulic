@@ -28,6 +28,7 @@ export function CKEditorField({
   const valueRef = useRef<HTMLInputElement>(null);
   const visualRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
+  const selectionRef = useRef<Range | null>(null);
   const [mode, setMode] = useState<EditorMode>("visual");
   const [blockStyle, setBlockStyle] = useState("p");
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
@@ -36,6 +37,22 @@ export function CKEditorField({
   const [legacyNoteVisible, setLegacyNoteVisible] = useState(() =>
     hasLegacyBlogEmbed(defaultValue ?? ""),
   );
+
+  const rememberSelection = useCallback(() => {
+    const root = visualRef.current;
+    const selection = window.getSelection();
+    if (!root || !selection?.rangeCount || !selection.anchorNode || !root.contains(selection.anchorNode)) return;
+    selectionRef.current = selection.getRangeAt(0).cloneRange();
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    const range = selectionRef.current;
+    if (!range || !visualRef.current) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, []);
 
   const sync = useCallback((value?: string) => {
     const next = value ?? visualRef.current?.innerHTML ?? "";
@@ -66,6 +83,7 @@ export function CKEditorField({
       const root = visualRef.current;
       const selection = window.getSelection();
       if (!root || !selection?.anchorNode || !root.contains(selection.anchorNode)) return;
+      rememberSelection();
       const element = selection.anchorNode.nodeType === Node.ELEMENT_NODE
         ? (selection.anchorNode as Element)
         : selection.anchorNode.parentElement;
@@ -74,11 +92,12 @@ export function CKEditorField({
     };
     document.addEventListener("selectionchange", updateBlockStyle);
     return () => document.removeEventListener("selectionchange", updateBlockStyle);
-  }, []);
+  }, [rememberSelection]);
 
   const runCommand = (command: string, value?: string) => {
     if (mode !== "visual") return;
-    visualRef.current?.focus();
+    visualRef.current?.focus({ preventScroll: true });
+    restoreSelection();
     document.execCommand(command, false, value);
     if (command === "formatBlock") setBlockStyle(value === "h2" || value === "h3" ? value : "p");
     sync();
@@ -133,7 +152,19 @@ export function CKEditorField({
 
   return (
     <div className="admin-ckeditor">
-      <div className="admin-editor-toolbar" role="toolbar" aria-label="Content formatting">
+      <div
+        className="admin-editor-toolbar"
+        role="toolbar"
+        aria-label="Content formatting"
+        onMouseDownCapture={(event) => {
+          const target = event.target;
+          if (!(target instanceof Element) || !target.closest("button, select")) return;
+          rememberSelection();
+          // Buttons must not take focus: doing so collapses the selected text
+          // before execCommand runs. Selects retain their native interaction.
+          if (target.closest("button")) event.preventDefault();
+        }}
+      >
         <select
           aria-label="Text style"
           value={blockStyle}
