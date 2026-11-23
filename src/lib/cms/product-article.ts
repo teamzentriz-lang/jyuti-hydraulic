@@ -114,12 +114,22 @@ export function normalizeSeoDescription(value: string | null | undefined) {
 }
 
 /**
+ * Spec tables belong in the dedicated Specifications editor. Keep them out of
+ * overview HTML so the same Parameter rows are not edited in two places.
+ */
+export function stripSpecTablesFromHtml(html: string) {
+  return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
+}
+
+/**
  * Product images and related blog cards have their own CMS blocks. Keep them
  * out of the product description so editing copy cannot accidentally publish
  * duplicate media or blog markup.
  */
 export function normalizeProductEditorHtml(html: string) {
-  return removeLegacyContactBlocks(removeLegacyBlogEmbed(html))
+  return stripSpecTablesFromHtml(
+    removeLegacyContactBlocks(removeLegacyBlogEmbed(html)),
+  )
     .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
     .replace(/<img\b[^>]*>/gi, "")
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")

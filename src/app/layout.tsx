@@ -85,10 +85,15 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       metadataBase: new URL(siteOrigin()),
       title: {
-        default: settings.companyName,
-        template: `%s · ${settings.companyName}`,
+        default: settings.companyName || "Jyoti Hydraulic",
+        // Keep page SEO titles exact (match live WordPress). Child routes set
+        // absolute titles; this default is only a fallback.
+        template: "%s",
       },
-      description: settings.footerText,
+      description:
+        settings.shortDescription ||
+        settings.footerText ||
+        "Jyoti Hydraulic is a leading hydraulic machine manufacturer in Faridabad, India.",
       icons: {
         icon: [{ url: faviconUrl, type: favicon?.mimeType || "image/png" }],
         shortcut: faviconUrl,
@@ -107,10 +112,10 @@ export async function generateMetadata(): Promise<Metadata> {
       metadataBase: new URL(siteOrigin()),
       title: {
         default: "Jyoti Hydraulic",
-        template: "%s · Jyoti Hydraulic",
+        template: "%s",
       },
       description:
-        "Hydraulic machines and power packs manufactured in Faridabad, India.",
+        "Jyoti Hydraulic is a leading hydraulic machine manufacturer in Faridabad, India, offering hydraulic cylinders, power packs and industrial solutions.",
       icons: {
         icon: [
           { url: "/brand/favicon.png", type: "image/png", sizes: "1024x1024" },

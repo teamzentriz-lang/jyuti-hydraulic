@@ -11,6 +11,7 @@ import { ProductCard } from "@/components/site/product-card";
 import { RichTextHtml } from "@/components/site/rich-text-html";
 import { cleanPublicTitle } from "@/lib/cms/clean-copy";
 import type { PublishedContent } from "@/lib/cms/published-content";
+import { decodeHtmlEntities, decodeOptionalHtml } from "@/lib/html-entities";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
 import type { MediaItem } from "@/lib/cms/queries";
@@ -523,8 +524,11 @@ export function contentMetadata(
   content: PublishedContent,
   companyName: string,
 ) {
-  const title = content.seoTitle || content.title;
-  const description = content.seoDescription || content.summary || undefined;
+  const title = decodeHtmlEntities(content.seoTitle || content.title);
+  const description =
+    decodeOptionalHtml(content.seoDescription) ||
+    decodeOptionalHtml(content.summary) ||
+    undefined;
   const defaultUrl = `${siteOrigin()}${publicPath(content.path)}`;
   const url = content.canonicalUrl?.trim() || defaultUrl;
   const visual =
@@ -542,8 +546,16 @@ export function contentMetadata(
     ?.split(",")
     .map((keyword) => keyword.trim())
     .filter(Boolean);
+  const ogTitle = decodeOptionalHtml(content.ogTitle) || title;
+  const ogDescription =
+    decodeOptionalHtml(content.ogDescription) || description;
+  const twitterTitle =
+    decodeOptionalHtml(content.twitterTitle) || ogTitle;
+  const twitterDescription =
+    decodeOptionalHtml(content.twitterDescription) || ogDescription;
   return {
-    title,
+    // Absolute titles keep live WordPress SEO strings intact (no " · Brand").
+    title: { absolute: title },
     description,
     keywords: keywords?.length ? keywords : [companyName, content.title],
     alternates: { canonical: url },
@@ -553,18 +565,19 @@ export function contentMetadata(
       follow: content.robotsFollow ?? true,
     },
     openGraph: {
-      type: content.kind === "product" ? ("product" as const) : ("website" as const),
-      title: content.ogTitle || title,
-      description: content.ogDescription || description,
+      // Next.js Metadata only accepts its OG union (website/article/…).
+      // "product" throws at runtime and blanks the whole product page.
+      type: content.kind === "post" ? ("article" as const) : ("website" as const),
+      title: ogTitle,
+      description: ogDescription,
       siteName: companyName,
       url,
       images: image ? [{ url: image }] : undefined,
     },
     twitter: {
       card: twitterImage ? "summary_large_image" : "summary",
-      title: content.twitterTitle || content.ogTitle || title,
-      description:
-        content.twitterDescription || content.ogDescription || description,
+      title: twitterTitle,
+      description: twitterDescription,
       images: twitterImage ? [twitterImage] : undefined,
     },
   };

@@ -665,12 +665,7 @@ export type FeaturedProductCard = {
   imageAlt: string;
 };
 
-export async function publishedPosts(
-  limit = 6,
-  wpImportedOnly = false,
-  query = "",
-) {
-  const db = getDb();
+function publishedPostConditions(wpImportedOnly = false, query = "") {
   const conditions = [eq(posts.status, "published")];
   if (wpImportedOnly) conditions.push(isNotNull(posts.legacyId));
   const search = query.trim();
@@ -682,6 +677,30 @@ export async function publishedPosts(
     );
     if (match) conditions.push(match);
   }
+  return conditions;
+}
+
+export async function countPublishedPosts(
+  wpImportedOnly = false,
+  query = "",
+) {
+  const db = getDb();
+  const conditions = publishedPostConditions(wpImportedOnly, query);
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(posts)
+    .where(and(...conditions));
+  return row?.count ?? 0;
+}
+
+export async function publishedPosts(
+  limit = 6,
+  wpImportedOnly = false,
+  query = "",
+  offset = 0,
+) {
+  const db = getDb();
+  const conditions = publishedPostConditions(wpImportedOnly, query);
   const rows = await db
     .select({
       id: posts.id,
@@ -694,15 +713,25 @@ export async function publishedPosts(
       featured: posts.featured,
       coverMediaId: posts.coverMediaId,
       coverAlt: media.alt,
+      coverMediaUrl: media.url,
+      coverLegacyUrl: media.legacyUrl,
     })
     .from(posts)
     .leftJoin(media, eq(posts.coverMediaId, media.id))
     .where(and(...conditions))
     .orderBy(desc(posts.publishedAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(Math.max(0, offset));
   return rows.map((row) => ({
     ...row,
-    coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null,
+    coverUrl:
+      row.coverMediaId && row.coverMediaUrl
+        ? mediaDeliveryUrl({
+            id: row.coverMediaId,
+            url: row.coverMediaUrl,
+            legacyUrl: row.coverLegacyUrl,
+          })
+        : null,
   }));
 }
 
@@ -727,6 +756,8 @@ export async function publishedPostsByPaths(paths: string[], limit = 3) {
       featured: posts.featured,
       coverMediaId: posts.coverMediaId,
       coverAlt: media.alt,
+      coverMediaUrl: media.url,
+      coverLegacyUrl: media.legacyUrl,
     })
     .from(posts)
     .leftJoin(media, eq(posts.coverMediaId, media.id))
@@ -740,9 +771,14 @@ export async function publishedPostsByPaths(paths: string[], limit = 3) {
       ? [
           {
             ...row,
-            coverUrl: row.coverMediaId
-              ? `/api/media/${row.coverMediaId}`
-              : null,
+            coverUrl:
+              row.coverMediaId && row.coverMediaUrl
+                ? mediaDeliveryUrl({
+                    id: row.coverMediaId,
+                    url: row.coverMediaUrl,
+                    legacyUrl: row.coverLegacyUrl,
+                  })
+                : null,
           },
         ]
       : [];
@@ -766,6 +802,8 @@ export async function publishedPostsByIds(ids: string[], limit = 3) {
       featured: posts.featured,
       coverMediaId: posts.coverMediaId,
       coverAlt: media.alt,
+      coverMediaUrl: media.url,
+      coverLegacyUrl: media.legacyUrl,
     })
     .from(posts)
     .leftJoin(media, eq(posts.coverMediaId, media.id))
@@ -777,9 +815,14 @@ export async function publishedPostsByIds(ids: string[], limit = 3) {
       ? [
           {
             ...row,
-            coverUrl: row.coverMediaId
-              ? `/api/media/${row.coverMediaId}`
-              : null,
+            coverUrl:
+              row.coverMediaId && row.coverMediaUrl
+                ? mediaDeliveryUrl({
+                    id: row.coverMediaId,
+                    url: row.coverMediaUrl,
+                    legacyUrl: row.coverLegacyUrl,
+                  })
+                : null,
           },
         ]
       : [];

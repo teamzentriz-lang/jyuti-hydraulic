@@ -142,10 +142,17 @@ export async function resolveOrImportMediaFromUrl(
   return { mediaId: id, imported: true };
 }
 
-export function createFeaturedMediaResolver() {
+export function createFeaturedMediaResolver(
+  db: Db,
+  options: { dryRun: boolean } = { dryRun: false },
+) {
   const attachmentCache = new Map<number, string | null>();
 
-  return async function mediaIdFromFeatured(wpMediaId: number, lookup: MediaLookup) {
+  return async function mediaIdFromFeatured(
+    wpMediaId: number,
+    lookup: MediaLookup,
+    meta: { alt?: string; title?: string } = {},
+  ) {
     if (!wpMediaId) return null;
     if (attachmentCache.has(wpMediaId)) {
       const cached = attachmentCache.get(wpMediaId);
@@ -156,8 +163,17 @@ export function createFeaturedMediaResolver() {
       attachmentCache.set(wpMediaId, null);
       return null;
     }
-    const id = resolveMediaIdFromUrl(sourceUrl, lookup);
-    attachmentCache.set(wpMediaId, id);
-    return id;
+    const existing = resolveMediaIdFromUrl(sourceUrl, lookup);
+    if (existing) {
+      attachmentCache.set(wpMediaId, existing);
+      return existing;
+    }
+    const imported = await resolveOrImportMediaFromUrl(db, sourceUrl, lookup, {
+      dryRun: options.dryRun,
+      alt: meta.alt,
+      title: meta.title,
+    });
+    attachmentCache.set(wpMediaId, imported.mediaId);
+    return imported.mediaId;
   };
 }

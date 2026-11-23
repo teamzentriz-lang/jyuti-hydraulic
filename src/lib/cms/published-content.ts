@@ -15,6 +15,7 @@ import {
   type SpecRow,
 } from "@/db/schema";
 import {
+  loadContentFaqs,
   loadPageSections,
   loadProductPayload,
   type PageSectionPayload,
@@ -615,9 +616,15 @@ export async function buildPublishedContent(
       childCategories,
       categoryProducts: await categoryProductCards(db, row.id),
       filterCategories,
-      // Category FAQ section is hidden site-wide for now. Existing
-      // content_faqs rows stay in the database for a later restore.
-      faqs: [],
+      faqs: (await loadContentFaqs("category", row.id))
+        .filter(
+          (item) =>
+            item.isActive && (item.question.trim() || item.answer.trim()),
+        )
+        .map((item) => ({
+          question: item.question,
+          answer: item.answer,
+        })),
     };
   }
 

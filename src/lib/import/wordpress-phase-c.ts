@@ -189,7 +189,13 @@ async function upsertPost(
     if (seo.seoDescription) seoDescription = seo.seoDescription;
   }
 
-  const coverMediaId = options.dryRun || options.skipMedia ? null : await mediaIdFromFeatured(post.featured_media, lookup);
+  const coverMediaId =
+    options.dryRun || options.skipMedia
+      ? null
+      : await mediaIdFromFeatured(post.featured_media, lookup, {
+          alt: title,
+          title,
+        });
 
   const [existing] = await db.select({ id: posts.id }).from(posts).where(eq(posts.legacyId, post.id)).limit(1);
 
@@ -270,7 +276,9 @@ export async function runWordPressPhaseC(db: Db, options: ImportCliOptions): Pro
   }
 
   const lookup = await loadMediaLookup(db);
-  const mediaIdFromFeatured = createFeaturedMediaResolver();
+  const mediaIdFromFeatured = createFeaturedMediaResolver(db, {
+    dryRun: options.dryRun,
+  });
 
   for (const page of staticPages) {
     try {
