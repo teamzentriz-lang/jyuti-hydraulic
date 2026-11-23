@@ -166,6 +166,50 @@ export function PageForm({
                   <span className={labelClass}>Meta description</span>
                   <textarea className={inputClass} name="seoDescription" rows={3} defaultValue={asText(values.seoDescription)} />
                 </label>
+                <div className="md:col-span-2">
+                  <p className="mb-2 text-sm font-semibold text-navy">
+                    Open Graph (same tags as live jyotihydraulic.com)
+                  </p>
+                </div>
+                <label className="md:col-span-2">
+                  <span className={labelClass}>Open Graph title</span>
+                  <input
+                    className={inputClass}
+                    name="ogTitle"
+                    defaultValue={asText(values.ogTitle)}
+                  />
+                </label>
+                <label className="md:col-span-2">
+                  <span className={labelClass}>Open Graph description</span>
+                  <textarea
+                    className={inputClass}
+                    name="ogDescription"
+                    rows={3}
+                    defaultValue={asText(values.ogDescription)}
+                  />
+                </label>
+                <div className="md:col-span-2">
+                  <span className={labelClass}>Open Graph image</span>
+                  <MediaPicker
+                    name="ogImageId"
+                    initialIds={
+                      asText(values.ogImageId) ? [asText(values.ogImageId)] : []
+                    }
+                    known={media}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <span className={labelClass}>X / Twitter image</span>
+                  <MediaPicker
+                    name="twitterImageId"
+                    initialIds={
+                      asText(values.twitterImageId)
+                        ? [asText(values.twitterImageId)]
+                        : []
+                    }
+                    known={media}
+                  />
+                </div>
                 <label className="flex items-center gap-2">
                   <input name="breadcrumbsEnabled" type="checkbox" defaultChecked={values.breadcrumbsEnabled !== false} className="h-4 w-4 accent-navy" />
                   <span className="text-sm">Show breadcrumbs</span>

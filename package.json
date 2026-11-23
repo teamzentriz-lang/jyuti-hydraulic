@@ -30,6 +30,8 @@
     "db:seed-category-faqs": "tsx scripts/seed-category-faqs.ts",
     "sync:live-meta": "tsx scripts/sync-live-meta.ts",
     "db:backfill-product-images": "tsx scripts/backfill-product-images.ts",
+    "db:backfill-blog-covers": "tsx scripts/backfill-blog-covers.ts",
+    "db:strip-product-overview-tables": "tsx scripts/strip-product-overview-tables.ts",
     "storage:migrate-to-r2": "tsx scripts/migrate-storage-to-r2.ts",
     "import:wordpress:phase-a": "tsx scripts/import-wordpress-phase-a.ts",
     "import:wordpress:finalize": "tsx scripts/import-wordpress-finalize.ts",

@@ -137,6 +137,14 @@ export function extractSpecsFromHtml(html: string): SpecRow[] {
   return specs;
 }
 
+/** Remove HTML tables after specs were extracted into structured fields. */
+export function stripTablesFromHtml(html: string) {
+  return html
+    .replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "")
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
+    .trim();
+}
+
 export type HtmlImageRef = { src: string; alt: string };
 
 export function collectImageRefs(html: string): HtmlImageRef[] {

@@ -35,6 +35,7 @@ import {
   htmlToPlainSummary,
   processWordPressHtml,
   resolveMediaIdFromUrl,
+  stripTablesFromHtml,
   type MediaLookup,
 } from "@/lib/import/wordpress-html";
 import {
@@ -311,9 +312,13 @@ async function upsertProduct(
   }
 
   const rawHtml = wpPageContentHtml(page);
-  const body = processWordPressHtml(rawHtml, lookup);
-  const summary = htmlToPlainSummary(body, 2000);
   const specs = extractSpecsFromHtml(rawHtml);
+  const body = (() => {
+    const processed = processWordPressHtml(rawHtml, lookup);
+    // Specs move into products.specs / FullSpecsEditor — keep tables out of overview HTML.
+    return specs.length ? stripTablesFromHtml(processed) : processed;
+  })();
+  const summary = htmlToPlainSummary(body, 2000);
   const title = wpPageTitle(page);
   const slug = slugFromPath(page.path);
   const legacyUrl = page.link.startsWith("http") ? page.link : `${wpOrigin()}/${page.link.replace(/^\//, "")}`;
@@ -432,7 +437,9 @@ export async function runWordPressPhaseB(db: Db, options: PhaseBOptions): Promis
   }
 
   const lookup = await loadMediaLookup(db);
-  const mediaIdFromFeatured = createFeaturedMediaResolver();
+  const mediaIdFromFeatured = createFeaturedMediaResolver(db, {
+    dryRun: options.dryRun,
+  });
   const preloaded = await preloadCategoryMaps(db);
   const categoryUuidByWpId = preloaded.categoryUuidByWpId;
   const categoryIdByPath = preloaded.categoryIdByPath;

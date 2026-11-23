@@ -935,6 +935,22 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       },
       contentFields.seoTitle,
       contentFields.seoDescription,
+      {
+        ...contentFields.ogTitle,
+        help: "Same as live.com og:title. Leave blank to reuse the SEO title.",
+      },
+      {
+        ...contentFields.ogDescription,
+        help: "Same as live.com og:description. Leave blank to reuse the meta description.",
+      },
+      {
+        ...contentFields.ogImageId,
+        help: "Same as live.com og:image. Falls back to the cover image when empty.",
+      },
+      {
+        ...contentFields.twitterImageId,
+        help: "Same as live.com twitter:image. Falls back to the Open Graph image.",
+      },
       contentFields.status,
     ],
     schema: recordSchema({
@@ -956,6 +972,10 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
       body: richText,
       seoTitle,
       seoDescription,
+      ogTitle: optionalText(300),
+      ogDescription: optionalText(500),
+      ogImageId: optionalUuid,
+      twitterImageId: optionalUuid,
       status,
     }),
   },

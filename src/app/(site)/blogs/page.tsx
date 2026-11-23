@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { contentMetadata } from "@/components/site/content-view";
-import { getSettings, getSiteLabels, publishedPosts } from "@/lib/cms/queries";
+import {
+  countPublishedPosts,
+  getSettings,
+  getSiteLabels,
+  publishedPosts,
+} from "@/lib/cms/queries";
 import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import { getSite } from "@/lib/cms/site";
 import { publicPath } from "@/lib/paths";
 import { sitePageMetadata } from "@/lib/site-metadata";
+
+const PAGE_SIZE = 24;
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await resolvePublishedContentByPath("blogs");
@@ -83,18 +90,36 @@ function BlogCard({
   );
 }
 
+function blogsHref(page: number, search: string) {
+  const params = new URLSearchParams();
+  if (search) params.set("q", search);
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/blogs/?${query}` : "/blogs/";
+}
+
 export default async function BlogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const query = await searchParams;
   const search = query.q?.trim() ?? "";
-  const [posts, cmsPage, labels] = await Promise.all([
-    publishedPosts(24, false, search),
+  const requestedPage = Number.parseInt(query.page || "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const [total, cmsPage, labels] = await Promise.all([
+    countPublishedPosts(false, search),
     resolvePublishedContentByPath("blogs"),
     getSiteLabels(),
   ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const posts = await publishedPosts(
+    PAGE_SIZE,
+    false,
+    search,
+    (currentPage - 1) * PAGE_SIZE,
+  );
   const rawSummary = cmsPage?.summary?.trim();
   const pageSummary =
     rawSummary && rawSummary.length < 220
@@ -129,19 +154,63 @@ export default async function BlogsPage({
             <p className="section-label">{labels.blogLatestEyebrow}</p>
             <h2>{labels.blogLatestTitle}</h2>
           </div>
-          <p>{labels.blogLatestDescription}</p>
+          <p>
+            {total
+              ? `${total} articles${search ? ` matching “${search}”` : ""}.`
+              : labels.blogLatestDescription}
+          </p>
         </div>
         {posts.length ? (
-          <ul className="blog-grid">
-            {posts.map((post, index) => (
-              <li
-                key={post.id}
-                className={index === 0 ? "blog-grid__featured" : ""}
-              >
-                <BlogCard post={post} featured={index === 0} />
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="blog-grid">
+              {posts.map((post, index) => (
+                <li
+                  key={post.id}
+                  className={
+                    currentPage === 1 && index === 0
+                      ? "blog-grid__featured"
+                      : ""
+                  }
+                >
+                  <BlogCard
+                    post={post}
+                    featured={currentPage === 1 && index === 0}
+                  />
+                </li>
+              ))}
+            </ul>
+            {totalPages > 1 ? (
+              <nav className="blog-pagination" aria-label="Blog pages">
+                {currentPage > 1 ? (
+                  <Link
+                    href={blogsHref(currentPage - 1, search)}
+                    className="blog-pagination__link"
+                  >
+                    ← Previous
+                  </Link>
+                ) : (
+                  <span className="blog-pagination__link is-disabled">
+                    ← Previous
+                  </span>
+                )}
+                <span className="blog-pagination__status">
+                  Page {currentPage} of {totalPages}
+                </span>
+                {currentPage < totalPages ? (
+                  <Link
+                    href={blogsHref(currentPage + 1, search)}
+                    className="blog-pagination__link"
+                  >
+                    Next →
+                  </Link>
+                ) : (
+                  <span className="blog-pagination__link is-disabled">
+                    Next →
+                  </span>
+                )}
+              </nav>
+            ) : null}
+          </>
         ) : (
           <div className="blog-empty">
             <h2>

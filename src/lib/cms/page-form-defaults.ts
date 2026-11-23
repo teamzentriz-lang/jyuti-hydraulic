@@ -12,6 +12,12 @@ export function emptyPageInitial(): Record<string, unknown> {
     featuredImageId: null,
     seoTitle: "",
     seoDescription: "",
+    ogTitle: "",
+    ogDescription: "",
+    ogImageId: null,
+    twitterTitle: "",
+    twitterDescription: "",
+    twitterImageId: null,
     breadcrumbsEnabled: true,
   };
 }

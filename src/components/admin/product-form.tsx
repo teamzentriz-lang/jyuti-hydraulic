@@ -359,9 +359,10 @@ export function ProductForm({
                     )}
                   />
                   <span className={helpClass}>
-                    Add narrative product content here. Insert images only
-                    from the Media library, and manage blog posts from Blog
-                    posts—not inside this product description.
+                    Add narrative product content here. Specification tables
+                    belong in the Specifications editor below—not in this
+                    description. Manage images from Media and blog posts from
+                    Posts.
                   </span>
                 </div>
                 <div className="rounded-md border border-line p-4">
@@ -447,11 +448,19 @@ export function ProductForm({
                     </div>
                   </div>
                 </details>
-                <details className="rounded-md border border-line p-4">
+                <details
+                  open={specificationRows.length > 0}
+                  className="rounded-md border border-line p-4"
+                >
                   <summary className="cursor-pointer font-semibold text-navy">
                     Specifications (shown in the Specifications tab)
                   </summary>
                   <div className="mt-4">
+                    <p className={`${helpClass} mb-3`}>
+                      Edit product parameters here. They appear only in the
+                      Specifications tab on the website—not inside the overview
+                      description.
+                    </p>
                     <FullSpecsEditor
                       name="_specs"
                       initial={specificationRows}
