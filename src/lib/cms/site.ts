@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
+import { classifyDatabaseError } from "@/db/errors";
 import {
   footerSettings,
   headerSettings,
@@ -61,6 +62,15 @@ export type SiteContext = {
     }[];
   };
 };
+
+async function optionalSchemaRows<T>(query: Promise<T[]>): Promise<T[]> {
+  try {
+    return await query;
+  } catch (error) {
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
 
 function buildNavTree(
   rows: {
@@ -140,15 +150,19 @@ export const getSite = cache(async (): Promise<SiteContext> => {
   ]);
   const db = getDb();
   const [htmlSettings, htmlOverrides] = await Promise.all([
-    db
-      .select()
-      .from(siteHtmlSettings)
-      .where(eq(siteHtmlSettings.id, "default"))
-      .limit(1),
-    db
-      .select()
-      .from(pageHtmlOverrides)
-      .where(eq(pageHtmlOverrides.isActive, true)),
+    optionalSchemaRows(
+      db
+        .select()
+        .from(siteHtmlSettings)
+        .where(eq(siteHtmlSettings.id, "default"))
+        .limit(1),
+    ),
+    optionalSchemaRows(
+      db
+        .select()
+        .from(pageHtmlOverrides)
+        .where(eq(pageHtmlOverrides.isActive, true)),
+    ),
   ]);
   const navRows = await db
     .select()
@@ -236,11 +250,15 @@ function fallbackFooterNav(catalog: NavItem[]): NavItem[] {
 export async function findActiveRedirect(requestPath: string) {
   const db = getDb();
   const normalized = publicPath(normalizePath(requestPath));
-  const [row] = await db
-    .select()
-    .from(redirects)
-    .where(and(eq(redirects.fromPath, normalized), eq(redirects.active, true)))
-    .limit(1);
+  const [row] = await optionalSchemaRows(
+    db
+      .select()
+      .from(redirects)
+      .where(
+        and(eq(redirects.fromPath, normalized), eq(redirects.active, true)),
+      )
+      .limit(1),
+  );
   return row ?? null;
 }
 

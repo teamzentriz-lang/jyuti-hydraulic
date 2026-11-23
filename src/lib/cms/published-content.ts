@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { classifyDatabaseError } from "@/db/errors";
 import {
   exportPages,
   locationPages,
@@ -20,7 +21,11 @@ import {
 } from "@/lib/cms/entity-data";
 import { mediaItems, type MediaItem } from "@/lib/cms/queries";
 import { mediaDeliveryUrl } from "@/lib/media-url";
-import { normalizeLocationBody, normalizeSeoDescription, removeLegacyBlogEmbed } from "@/lib/cms/product-article";
+import {
+  normalizeLocationBody,
+  normalizeSeoDescription,
+  removeLegacyBlogEmbed,
+} from "@/lib/cms/product-article";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -148,11 +153,18 @@ export async function findPublishedTarget(
   db: Db,
   path: string,
 ): Promise<PublishedTarget | null> {
-  const [route] = await db
-    .select()
-    .from(routes)
-    .where(eq(routes.path, path))
-    .limit(1);
+  let route: typeof routes.$inferSelect | undefined;
+  try {
+    [route] = await db
+      .select()
+      .from(routes)
+      .where(eq(routes.path, path))
+      .limit(1);
+  } catch (error) {
+    // The routes table is additive; fall back to the source tables on older
+    // production databases instead of turning every public page into a 500.
+    if (classifyDatabaseError(error).reason !== "schema") throw error;
+  }
   if (route?.status === "published") {
     return { kind: route.kind as RouteKind, entityId: route.entityId };
   }
@@ -256,10 +268,7 @@ function productDetailBlocks(row: typeof products.$inferSelect): DetailBlock[] {
   });
 }
 
-async function categoryProductCards(
-  db: Db,
-  categoryId: string,
-) {
+async function categoryProductCards(db: Db, categoryId: string) {
   const [assignmentTable] = await db.execute<{ tableName: string | null }>(
     sql`select to_regclass('public.product_category_assignments') as "tableName"`,
   );
@@ -337,7 +346,11 @@ async function categoryProductCards(
   for (const row of galleryImages) {
     if (!imageByProduct.has(row.productId)) {
       imageByProduct.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
+        url: mediaDeliveryUrl({
+          id: row.mediaId,
+          url: row.url,
+          legacyUrl: row.legacyUrl,
+        }),
         alt: row.alt ?? "",
       });
     }
@@ -499,9 +512,13 @@ export async function buildPublishedContent(
       summary: row.excerpt,
       cover,
       meta: {
-        ...(row.publishedAt ? { publishedAt: row.publishedAt.toISOString() } : {}),
+        ...(row.publishedAt
+          ? { publishedAt: row.publishedAt.toISOString() }
+          : {}),
         ...(row.updatedAt ? { updatedAt: row.updatedAt.toISOString() } : {}),
-        ...(row.updatedDateText ? { updatedDateText: row.updatedDateText } : {}),
+        ...(row.updatedDateText
+          ? { updatedDateText: row.updatedDateText }
+          : {}),
         ...(row.author ? { author: row.author } : {}),
         ...(row.authorRole ? { authorRole: row.authorRole } : {}),
         ...(row.authorUrl ? { authorUrl: row.authorUrl } : {}),
@@ -666,7 +683,11 @@ export async function buildPublishedContent(
     for (const image of relatedImages) {
       if (!relatedImageByProduct.has(image.productId)) {
         relatedImageByProduct.set(image.productId, {
-          url: mediaDeliveryUrl({ id: image.mediaId, url: image.url, legacyUrl: image.legacyUrl }),
+          url: mediaDeliveryUrl({
+            id: image.mediaId,
+            url: image.url,
+            legacyUrl: image.legacyUrl,
+          }),
           alt: image.alt ?? "",
         });
       }
