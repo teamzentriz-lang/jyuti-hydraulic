@@ -23,7 +23,11 @@ import {
 
 export type { ProductSpecRow, TechnicalTableRow };
 
-export type ProductRelationRow = { relatedProductId: string; relationType: string; sortOrder: number };
+export type ProductRelationRow = {
+  relatedProductId: string;
+  relationType: string;
+  sortOrder: number;
+};
 export type ProductPostRelationRow = { postId: string; sortOrder: number };
 
 export type ProductPayload = {
@@ -35,7 +39,12 @@ export type ProductPayload = {
     imageMediaId: string | null;
     sortOrder: number;
   }[];
-  applications: { title: string; description: string; imageMediaId: string | null; sortOrder: number }[];
+  applications: {
+    title: string;
+    description: string;
+    imageMediaId: string | null;
+    sortOrder: number;
+  }[];
   documents: {
     title: string;
     mediaId: string | null;
@@ -61,6 +70,17 @@ export type ProductPayload = {
   faqs: FaqPayload[];
   contentTables: ContentTablePayload[];
 };
+
+async function schemaRows<T>(query: Promise<T[]>): Promise<T[]> {
+  try {
+    return await query;
+  } catch (error) {
+    // Product detail content is additive. Keep the core product page renderable
+    // while an older deployment is still catching up with optional CMS tables.
+    if (classifyDatabaseError(error).reason === "schema") return [];
+    throw error;
+  }
+}
 
 async function loadProductPostRelations(productId: string) {
   const db = getDb();
@@ -101,7 +121,12 @@ export type PageSectionPayload = {
   isActive: boolean;
 };
 
-export type FaqPayload = { question: string; answer: string; sortOrder: number; isActive: boolean };
+export type FaqPayload = {
+  question: string;
+  answer: string;
+  sortOrder: number;
+  isActive: boolean;
+};
 export type ContentTablePayload = {
   title: string;
   headers: string[];
@@ -143,9 +168,15 @@ export async function saveProductCategoryAssignments(
     .delete(productCategoryAssignments)
     .where(eq(productCategoryAssignments.productId, productId));
   if (ids.length) {
-    await tx.insert(productCategoryAssignments).values(
-      ids.map((categoryId, sortOrder) => ({ productId, categoryId, sortOrder })),
-    );
+    await tx
+      .insert(productCategoryAssignments)
+      .values(
+        ids.map((categoryId, sortOrder) => ({
+          productId,
+          categoryId,
+          sortOrder,
+        })),
+      );
   }
 }
 
@@ -187,9 +218,7 @@ export async function saveContentFaqs(
         eq(contentFaqs.entityId, entityId),
       ),
     );
-  const valid = faqs.filter(
-    (row) => row.question.trim() || row.answer.trim(),
-  );
+  const valid = faqs.filter((row) => row.question.trim() || row.answer.trim());
   if (valid.length) {
     await tx.insert(contentFaqs).values(
       valid.map((row, sortOrder) => ({
@@ -204,7 +233,9 @@ export async function saveContentFaqs(
   }
 }
 
-export async function loadProductPayload(productId: string): Promise<ProductPayload> {
+export async function loadProductPayload(
+  productId: string,
+): Promise<ProductPayload> {
   const db = getDb();
   const [
     specifications,
@@ -220,38 +251,94 @@ export async function loadProductPayload(productId: string): Promise<ProductPayl
     faqs,
     tables,
   ] = await Promise.all([
-    db
-      .select()
-      .from(productSpecifications)
-      .where(eq(productSpecifications.productId, productId))
-      .orderBy(asc(productSpecifications.sortOrder)),
-    db.select().from(productFeatures).where(eq(productFeatures.productId, productId)).orderBy(asc(productFeatures.sortOrder)),
-    db
-      .select()
-      .from(productApplications)
-      .where(eq(productApplications.productId, productId))
-      .orderBy(asc(productApplications.sortOrder)),
-    db.select().from(productDocuments).where(eq(productDocuments.productId, productId)).orderBy(asc(productDocuments.sortOrder)),
-    db.select().from(productOptions).where(eq(productOptions.productId, productId)).orderBy(asc(productOptions.sortOrder)),
-    db
-      .select()
-      .from(productTechnicalTables)
-      .where(eq(productTechnicalTables.productId, productId))
-      .orderBy(asc(productTechnicalTables.sortOrder)),
-    db.select().from(productRelations).where(eq(productRelations.productId, productId)).orderBy(asc(productRelations.sortOrder)),
+    schemaRows(
+      db
+        .select()
+        .from(productSpecifications)
+        .where(eq(productSpecifications.productId, productId))
+        .orderBy(asc(productSpecifications.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productFeatures)
+        .where(eq(productFeatures.productId, productId))
+        .orderBy(asc(productFeatures.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productApplications)
+        .where(eq(productApplications.productId, productId))
+        .orderBy(asc(productApplications.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productDocuments)
+        .where(eq(productDocuments.productId, productId))
+        .orderBy(asc(productDocuments.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productOptions)
+        .where(eq(productOptions.productId, productId))
+        .orderBy(asc(productOptions.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productTechnicalTables)
+        .where(eq(productTechnicalTables.productId, productId))
+        .orderBy(asc(productTechnicalTables.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(productRelations)
+        .where(eq(productRelations.productId, productId))
+        .orderBy(asc(productRelations.sortOrder)),
+    ),
     loadProductPostRelations(productId),
-    db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.sortOrder)),
-    db.select().from(pageSections).where(eq(pageSections.productId, productId)).orderBy(asc(pageSections.sortOrder)),
-    db
-      .select()
-      .from(contentFaqs)
-      .where(and(eq(contentFaqs.entityKind, "product"), eq(contentFaqs.entityId, productId)))
-      .orderBy(asc(contentFaqs.sortOrder)),
-    db
-      .select()
-      .from(contentTables)
-      .where(and(eq(contentTables.entityKind, "product"), eq(contentTables.entityId, productId)))
-      .orderBy(asc(contentTables.sortOrder)),
+    schemaRows(
+      db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.productId, productId))
+        .orderBy(asc(productImages.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(pageSections)
+        .where(eq(pageSections.productId, productId))
+        .orderBy(asc(pageSections.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(contentFaqs)
+        .where(
+          and(
+            eq(contentFaqs.entityKind, "product"),
+            eq(contentFaqs.entityId, productId),
+          ),
+        )
+        .orderBy(asc(contentFaqs.sortOrder)),
+    ),
+    schemaRows(
+      db
+        .select()
+        .from(contentTables)
+        .where(
+          and(
+            eq(contentTables.entityKind, "product"),
+            eq(contentTables.entityId, productId),
+          ),
+        )
+        .orderBy(asc(contentTables.sortOrder)),
+    ),
   ]);
 
   return {
@@ -350,8 +437,12 @@ export async function saveProductPayload(
   productId: string,
   payload: ProductPayload,
 ) {
-  await tx.delete(productSpecifications).where(eq(productSpecifications.productId, productId));
-  const specs = payload.specifications.filter((row) => row.label.trim() || row.value.trim());
+  await tx
+    .delete(productSpecifications)
+    .where(eq(productSpecifications.productId, productId));
+  const specs = payload.specifications.filter(
+    (row) => row.label.trim() || row.value.trim(),
+  );
   if (specs.length) {
     await tx.insert(productSpecifications).values(
       specs.map((row, sortOrder) => ({
@@ -365,7 +456,9 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productFeatures).where(eq(productFeatures.productId, productId));
+  await tx
+    .delete(productFeatures)
+    .where(eq(productFeatures.productId, productId));
   if (payload.features.length) {
     await tx.insert(productFeatures).values(
       payload.features.map((row, sortOrder) => ({
@@ -379,7 +472,9 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productApplications).where(eq(productApplications.productId, productId));
+  await tx
+    .delete(productApplications)
+    .where(eq(productApplications.productId, productId));
   if (payload.applications.length) {
     await tx.insert(productApplications).values(
       payload.applications.map((row, sortOrder) => ({
@@ -392,14 +487,23 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productDocuments).where(eq(productDocuments.productId, productId));
+  await tx
+    .delete(productDocuments)
+    .where(eq(productDocuments.productId, productId));
   if (payload.documents.length) {
     await tx.insert(productDocuments).values(
       payload.documents.map((row, sortOrder) => ({
         productId,
         title: row.title,
         mediaId: row.mediaId,
-        documentType: row.documentType as "datasheet" | "brochure" | "catalogue" | "manual" | "technical_drawing" | "certificate" | "other",
+        documentType: row.documentType as
+          | "datasheet"
+          | "brochure"
+          | "catalogue"
+          | "manual"
+          | "technical_drawing"
+          | "certificate"
+          | "other",
         description: row.description,
         version: row.version,
         documentDate: row.documentDate ? new Date(row.documentDate) : null,
@@ -408,7 +512,9 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productOptions).where(eq(productOptions.productId, productId));
+  await tx
+    .delete(productOptions)
+    .where(eq(productOptions.productId, productId));
   if (payload.options.length) {
     await tx.insert(productOptions).values(
       payload.options.map((row, sortOrder) => ({
@@ -422,7 +528,9 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productTechnicalTables).where(eq(productTechnicalTables.productId, productId));
+  await tx
+    .delete(productTechnicalTables)
+    .where(eq(productTechnicalTables.productId, productId));
   if (payload.technicalTables.length) {
     await tx.insert(productTechnicalTables).values(
       payload.technicalTables.map((row, sortOrder) => ({
@@ -435,8 +543,12 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(productRelations).where(eq(productRelations.productId, productId));
-  const related = payload.relatedProducts.filter((row) => row.relatedProductId && row.relatedProductId !== productId);
+  await tx
+    .delete(productRelations)
+    .where(eq(productRelations.productId, productId));
+  const related = payload.relatedProducts.filter(
+    (row) => row.relatedProductId && row.relatedProductId !== productId,
+  );
   if (related.length) {
     await tx.insert(productRelations).values(
       related.map((row, sortOrder) => ({
@@ -459,16 +571,30 @@ export async function saveProductPayload(
       ...new Set(payload.relatedPosts.map((row) => row.postId).filter(Boolean)),
     ];
     if (relatedPosts.length) {
-      await tx.insert(productPostRelations).values(
-        relatedPosts.map((postId, sortOrder) => ({ productId, postId, sortOrder })),
-      );
+      await tx
+        .insert(productPostRelations)
+        .values(
+          relatedPosts.map((postId, sortOrder) => ({
+            productId,
+            postId,
+            sortOrder,
+          })),
+        );
     }
   }
 
   const gallery = [...new Set(payload.galleryMediaIds.filter(Boolean))];
   await tx.delete(productImages).where(eq(productImages.productId, productId));
   if (gallery.length) {
-    await tx.insert(productImages).values(gallery.map((mediaId, sortOrder) => ({ productId, mediaId, sortOrder })));
+    await tx
+      .insert(productImages)
+      .values(
+        gallery.map((mediaId, sortOrder) => ({
+          productId,
+          mediaId,
+          sortOrder,
+        })),
+      );
   }
 
   await tx.delete(pageSections).where(eq(pageSections.productId, productId));
@@ -476,7 +602,8 @@ export async function saveProductPayload(
     await tx.insert(pageSections).values(
       payload.sections.map((row, sortOrder) => ({
         productId,
-        sectionType: row.sectionType as typeof pageSections.$inferInsert.sectionType,
+        sectionType:
+          row.sectionType as typeof pageSections.$inferInsert.sectionType,
         title: row.title,
         subtitle: row.subtitle,
         eyebrow: row.eyebrow,
@@ -498,7 +625,14 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(contentFaqs).where(and(eq(contentFaqs.entityKind, "product"), eq(contentFaqs.entityId, productId)));
+  await tx
+    .delete(contentFaqs)
+    .where(
+      and(
+        eq(contentFaqs.entityKind, "product"),
+        eq(contentFaqs.entityId, productId),
+      ),
+    );
   if (payload.faqs.length) {
     await tx.insert(contentFaqs).values(
       payload.faqs.map((row, sortOrder) => ({
@@ -512,7 +646,14 @@ export async function saveProductPayload(
     );
   }
 
-  await tx.delete(contentTables).where(and(eq(contentTables.entityKind, "product"), eq(contentTables.entityId, productId)));
+  await tx
+    .delete(contentTables)
+    .where(
+      and(
+        eq(contentTables.entityKind, "product"),
+        eq(contentTables.entityId, productId),
+      ),
+    );
   if (payload.contentTables.length) {
     await tx.insert(contentTables).values(
       payload.contentTables.map((row, sortOrder) => ({
@@ -531,7 +672,11 @@ export async function saveProductPayload(
 
 export async function loadPageSections(pageId: string) {
   const db = getDb();
-  const rows = await db.select().from(pageSections).where(eq(pageSections.pageId, pageId)).orderBy(asc(pageSections.sortOrder));
+  const rows = await db
+    .select()
+    .from(pageSections)
+    .where(eq(pageSections.pageId, pageId))
+    .orderBy(asc(pageSections.sortOrder));
   return rows.map((row, sortOrder) => ({
     id: row.id,
     sectionType: row.sectionType,
@@ -565,7 +710,8 @@ export async function savePageSections(
   await tx.insert(pageSections).values(
     sections.map((row, sortOrder) => ({
       pageId,
-      sectionType: row.sectionType as typeof pageSections.$inferInsert.sectionType,
+      sectionType:
+        row.sectionType as typeof pageSections.$inferInsert.sectionType,
       title: row.title,
       subtitle: row.subtitle,
       eyebrow: row.eyebrow,
@@ -602,19 +748,38 @@ export async function saveCategoryRelated(
   categoryId: string,
   relatedCategoryIds: string[],
 ) {
-  await tx.delete(categoryRelatedCategories).where(eq(categoryRelatedCategories.categoryId, categoryId));
-  const ids = [...new Set(relatedCategoryIds.filter((id) => id && id !== categoryId))];
+  await tx
+    .delete(categoryRelatedCategories)
+    .where(eq(categoryRelatedCategories.categoryId, categoryId));
+  const ids = [
+    ...new Set(relatedCategoryIds.filter((id) => id && id !== categoryId)),
+  ];
   if (!ids.length) return;
-  await tx.insert(categoryRelatedCategories).values(ids.map((relatedCategoryId, sortOrder) => ({ categoryId, relatedCategoryId, sortOrder })));
+  await tx
+    .insert(categoryRelatedCategories)
+    .values(
+      ids.map((relatedCategoryId, sortOrder) => ({
+        categoryId,
+        relatedCategoryId,
+        sortOrder,
+      })),
+    );
 }
 
 export async function loadPostTagIds(postId: string) {
   const db = getDb();
-  const rows = await db.select().from(postTags).where(eq(postTags.postId, postId));
+  const rows = await db
+    .select()
+    .from(postTags)
+    .where(eq(postTags.postId, postId));
   return rows.map((row) => row.tagId);
 }
 
-export async function savePostTags(tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">, postId: string, tagIds: string[]) {
+export async function savePostTags(
+  tx: Pick<ReturnType<typeof getDb>, "delete" | "insert">,
+  postId: string,
+  tagIds: string[],
+) {
   await tx.delete(postTags).where(eq(postTags.postId, postId));
   const ids = [...new Set(tagIds.filter(Boolean))];
   if (!ids.length) return;

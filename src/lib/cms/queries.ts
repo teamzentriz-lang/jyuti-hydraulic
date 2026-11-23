@@ -497,7 +497,12 @@ export async function relationOptions(
 export async function blogPostOptions() {
   const db = getDb();
   const rows = await db
-    .select({ id: posts.id, title: posts.title, path: posts.path, status: posts.status })
+    .select({
+      id: posts.id,
+      title: posts.title,
+      path: posts.path,
+      status: posts.status,
+    })
     .from(posts)
     .orderBy(asc(posts.title))
     .limit(2000);
@@ -703,7 +708,11 @@ export async function publishedPosts(
 
 /** Fetch selected published posts in the same order as their supplied paths. */
 export async function publishedPostsByPaths(paths: string[], limit = 3) {
-  const unique = [...new Set(paths.map((path) => path.replace(/^\/+|\/+$/g, "")).filter(Boolean))].slice(0, limit);
+  const unique = [
+    ...new Set(
+      paths.map((path) => path.replace(/^\/+|\/+$/g, "")).filter(Boolean),
+    ),
+  ].slice(0, limit);
   if (!unique.length) return [];
   const db = getDb();
   const rows = await db
@@ -722,10 +731,21 @@ export async function publishedPostsByPaths(paths: string[], limit = 3) {
     .from(posts)
     .leftJoin(media, eq(posts.coverMediaId, media.id))
     .where(and(eq(posts.status, "published"), inArray(posts.path, unique)));
-  const byPath = new Map(rows.map((row) => [row.path.replace(/^\/+|\/+$/g, ""), row]));
+  const byPath = new Map(
+    rows.map((row) => [row.path.replace(/^\/+|\/+$/g, ""), row]),
+  );
   return unique.flatMap((path) => {
     const row = byPath.get(path);
-    return row ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }] : [];
+    return row
+      ? [
+          {
+            ...row,
+            coverUrl: row.coverMediaId
+              ? `/api/media/${row.coverMediaId}`
+              : null,
+          },
+        ]
+      : [];
   });
 }
 
@@ -754,7 +774,14 @@ export async function publishedPostsByIds(ids: string[], limit = 3) {
   return unique.flatMap((id) => {
     const row = byId.get(id);
     return row
-      ? [{ ...row, coverUrl: row.coverMediaId ? `/api/media/${row.coverMediaId}` : null }]
+      ? [
+          {
+            ...row,
+            coverUrl: row.coverMediaId
+              ? `/api/media/${row.coverMediaId}`
+              : null,
+          },
+        ]
       : [];
   });
 }
@@ -967,6 +994,8 @@ export async function homeCategoryShowcases(
         title: products.title,
         path: products.path,
         summary: products.summary,
+        featuredImageId: products.featuredImageId,
+        thumbnailId: products.thumbnailId,
       })
       .from(products)
       .where(
@@ -981,6 +1010,7 @@ export async function homeCategoryShowcases(
     const images = await db
       .select({
         productId: productImages.productId,
+        mediaId: media.id,
         url: media.url,
         legacyUrl: media.legacyUrl,
         alt: media.alt,
@@ -998,7 +1028,14 @@ export async function homeCategoryShowcases(
     const imageByProduct = new Map<string, { url: string; alt: string }>();
     for (const row of images) {
       if (!imageByProduct.has(row.productId)) {
-        imageByProduct.set(row.productId, { url: row.url, alt: row.alt ?? "" });
+        imageByProduct.set(row.productId, {
+          url: mediaDeliveryUrl({
+            id: row.mediaId,
+            url: row.url,
+            legacyUrl: row.legacyUrl,
+          }),
+          alt: row.alt ?? "",
+        });
       }
     }
 
@@ -1006,9 +1043,12 @@ export async function homeCategoryShowcases(
       ...category,
       products: productRows.map((row) => {
         const image = imageByProduct.get(row.id);
+        const directImageId = row.thumbnailId || row.featuredImageId;
         return {
           ...row,
-          imageUrl: image?.url ?? null,
+          imageUrl:
+            image?.url ??
+            (directImageId ? `/api/media/${directImageId}` : null),
           imageAlt: image?.alt || row.title,
         };
       }),
@@ -1069,6 +1109,8 @@ export async function migratedCategoryShowcases(
         title: products.title,
         path: products.path,
         summary: products.summary,
+        featuredImageId: products.featuredImageId,
+        thumbnailId: products.thumbnailId,
       })
       .from(products)
       .where(
@@ -1113,9 +1155,12 @@ export async function migratedCategoryShowcases(
       ...category,
       products: productRows.map((row) => {
         const image = imageByProduct.get(row.id);
+        const directImageId = row.thumbnailId || row.featuredImageId;
         return {
           ...row,
-          imageUrl: image?.url ?? null,
+          imageUrl:
+            image?.url ??
+            (directImageId ? `/api/media/${directImageId}` : null),
           imageAlt: image?.alt || row.title,
         };
       }),
@@ -1134,6 +1179,8 @@ export async function featuredProductsForHome(productIds: string[]) {
       title: products.title,
       path: products.path,
       summary: products.summary,
+      featuredImageId: products.featuredImageId,
+      thumbnailId: products.thumbnailId,
     })
     .from(products)
     .where(and(inArray(products.id, ordered), isNotNull(products.legacyId)));
@@ -1166,10 +1213,12 @@ export async function featuredProductsForHome(productIds: string[]) {
     const row = byId.get(id);
     if (!row) return [];
     const image = imageByProduct.get(id);
+    const directImageId = row.thumbnailId || row.featuredImageId;
     return [
       {
         ...row,
-        imageUrl: image?.url ?? null,
+        imageUrl:
+          image?.url ?? (directImageId ? `/api/media/${directImageId}` : null),
         imageAlt: image?.alt || row.title,
       },
     ];
@@ -1282,7 +1331,11 @@ export async function catalogueListing() {
   for (const row of productImageRows) {
     if (!productImageById.has(row.productId)) {
       productImageById.set(row.productId, {
-        url: mediaDeliveryUrl({ id: row.mediaId, url: row.url, legacyUrl: row.legacyUrl }),
+        url: mediaDeliveryUrl({
+          id: row.mediaId,
+          url: row.url,
+          legacyUrl: row.legacyUrl,
+        }),
         alt: row.alt ?? "",
       });
     }
