@@ -307,13 +307,6 @@ export function CKEditorField({
         >
           Table
         </button>
-        <button
-          type="button"
-          onClick={openImagePicker}
-          disabled={mode !== "visual"}
-        >
-          Insert image
-        </button>
         <span className="admin-editor-toolbar__spacer" />
         <button
           type="button"
@@ -367,6 +360,18 @@ export function CKEditorField({
         Media / Featured image fields — use Insert image only for inline
         illustrations inside the article.
       </p>
+      <button
+        type="button"
+        className="mt-2 rounded-md border border-line px-3 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+        disabled={mode !== "visual"}
+        onMouseDown={(event) => {
+          rememberSelection();
+          event.preventDefault();
+        }}
+        onClick={openImagePicker}
+      >
+        Insert image
+      </button>
       {legacyNoteVisible ? (
         <div className="admin-editor-legacy-note">
           <span>
