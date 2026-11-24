@@ -3658,9 +3658,14 @@ html.is-navigating a[href] {
   align-items: center;
   gap: 0.5rem;
 }
-.catalogue-banner-crumbs .crumbs li + li::before {
+.catalogue-banner-crumbs .crumbs li:not(:last-child)::after {
+  /* Prefer the white catalogue separator; hide the default dark crumbs slash. */
   content: "/";
+  margin: 0 0.4rem;
   color: rgba(255, 255, 255, 0.4);
+}
+.catalogue-banner-crumbs .crumbs li + li::before {
+  content: none;
 }
 .catalogue-banner-crumbs .crumbs a {
   color: rgba(255, 255, 255, 0.75);
@@ -4472,13 +4477,28 @@ html.is-navigating a[href] {
   padding-bottom: 3.25rem;
 }
 .location-page__content {
-  padding-top: 2rem;
+  padding-top: 1.25rem;
+}
+.location-page__article.catalogue-bottom-content__card {
+  max-width: none;
+  margin-inline: 0;
+  padding: 1.45rem 1.65rem 1.75rem;
+}
+.location-page__article .catalogue-bottom-content__header {
+  margin-bottom: 1rem;
 }
 .location-page__article .product-prose img {
   width: min(100%, 42rem);
   max-height: 26rem;
   margin: 1.25rem auto;
   object-fit: contain;
+}
+.location-hub.catalogue-page__inner {
+  padding-block: 0 4rem;
+}
+.location-hub .catalogue-bottom-content {
+  margin-top: -1.4rem;
+  margin-bottom: 2rem;
 }
 .product-page__detail {
   min-width: 0;
