@@ -95,6 +95,15 @@ export function StoryView({ content }: { content: PublishedContent }) {
               </p>
               <h2>About {title}</h2>
             </div>
+            {content.image ? (
+              <figure className="location-page__product-figure">
+                <CmsImage
+                  item={content.image}
+                  alt={content.image.alt || title}
+                  className="location-page__product-image"
+                />
+              </figure>
+            ) : null}
             <RichTextHtml html={content.body} className="product-prose" />
           </article>
           <aside className="product-quote-card" aria-labelledby="location-quote-title">
