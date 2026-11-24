@@ -342,20 +342,10 @@ export function CKEditorField({
           data-placeholder="Write the page or product description here…"
           hidden={mode !== "visual"}
           tabIndex={0}
-          onMouseDown={() => {
-            if (mode !== "visual") return;
-            lockScroll();
-          }}
-          onFocus={() => {
-            unlockScroll();
-          }}
           onInput={() => sync()}
           onBlur={() => sync()}
           onKeyUp={() => rememberSelection()}
-          onMouseUp={() => {
-            rememberSelection();
-            unlockScroll();
-          }}
+          onPointerUp={rememberSelection}
         />
         <textarea
           ref={sourceRef}
