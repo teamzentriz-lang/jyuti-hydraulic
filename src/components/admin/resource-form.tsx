@@ -141,16 +141,20 @@ export function ResourceForm({
         <section key={group.name} className="rounded-lg border border-line bg-white p-4 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-muted">{group.name}</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {group.fields.map((field) => (
-              <label key={field.name} className={field.wide ? "md:col-span-2" : undefined}>
+            {group.fields.map((field) => {
+              // A wrapping label forwards body clicks to the editor's toolbar select.
+              const FieldWrapper = field.type === "richtext" ? "div" : "label";
+              return (
+              <FieldWrapper key={field.name} className={field.wide ? "md:col-span-2" : undefined}>
                 <span className={labelClass}>
                   {field.label}
                   {field.required ? <span className="text-signal"> *</span> : null}
                 </span>
                 {renderField(field, { title, slug, path, initial, media, onTitle, setSlug, setPath, slugEdited, pathEdited })}
                 {field.help ? <span className={helpClass}>{field.help}</span> : null}
-              </label>
-            ))}
+              </FieldWrapper>
+              );
+            })}
           </div>
         </section>
       ))}
