@@ -88,17 +88,42 @@ export function readableProductArticle(html: string) {
 }
 
 /**
+ * Strip WordPress chrome that does not belong in city/export body copy:
+ * mid-article product images (product media lives on Related product),
+ * contact CTAs (quote form is separate), empty spacer blocks, and the
+ * common “Ovierview” typo from the import.
+ */
+function stripLocationBodyChrome(html: string) {
+  return removeLegacyContactBlocks(removeLegacyBlogEmbed(html))
+    .replace(/inquiry now/gi, "")
+    .replace(/<(h[1-6])\b[^>]*>\s*ovierview\s*<\/\1>/gi, "<$1>Overview</$1>")
+    .replace(
+      /<(h[1-6])\b[^>]*>\s*(?:contact\s+with\s+us|feel\s+free\s+to\s+write[\s\S]*?anytime)\s*<\/\1>/gi,
+      "",
+    )
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, "")
+    .replace(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/\sclass="[^"]*elementor[^"]*"/gi, "")
+    .replace(/\sdata-(?:start|end|element_type|id|settings|widget_type)="[^"]*"/gi, "")
+    .replace(/<(h[1-6]|p|div|span|strong|em|ul|ol|li)\s+>/gi, "<$1>")
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
+    .replace(/<ul>\s*<\/ul>/gi, "")
+    .replace(/(?:&nbsp;|\s){2,}/g, " ")
+    .replace(/(?:\s*\n){3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * Imported location pages occasionally contain copy from the Bihar template.
  * Keep the public page aligned with its saved location until the CMS record is
- * manually corrected, and remove imported blog-card markup from the article.
+ * manually corrected, and remove imported blog-card / mid-body image markup.
  */
 export function normalizeLocationBody(html: string, locationName: string) {
+  const cleaned = stripLocationBodyChrome(html);
   const location = locationName.trim();
-  if (!location) return removeLegacyBlogEmbed(html);
-  return removeLegacyBlogEmbed(html).replace(
-    /\bBihar(?:\s+Sharif)?\b/gi,
-    location,
-  );
+  if (!location) return cleaned;
+  return cleaned.replace(/\bBihar(?:\s+Sharif)?\b/gi, location);
 }
 
 export function normalizeSeoDescription(value: string | null | undefined) {

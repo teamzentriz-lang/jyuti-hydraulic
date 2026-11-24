@@ -76,6 +76,27 @@ test("removes typical blog cards from city copy while keeping headings", () => {
   assert.doesNotMatch(result, /Our Blogs|Read More|blog\.jpg/);
 });
 
+test("strips mid-body product images and contact chrome from city copy", () => {
+  const html = `
+    <h2>15 Hp Hydraulic Power Pack in Chhota Udaipur</h2>
+    <p>Industrial power packs for local manufacturers.</p>
+    inquiry now
+    <img src="https://jyotihydraulic.com/wp-content/uploads/2025/07/Hydraulic-Power-Pack-New.png" alt="pack" />
+    <h2>Ovierview</h2>
+    <p>Overview details stay.</p>
+    <h3>Contact With Us</h3>
+    <h2>Feel free to write our team anytime</h2>
+  `;
+  const result = normalizeLocationBody(html, "Chhota Udaipur");
+  assert.match(result, /Industrial power packs/);
+  assert.match(result, /Overview details stay/);
+  assert.match(result, /<h2>Overview<\/h2>/);
+  assert.doesNotMatch(
+    result,
+    /Hydraulic-Power-Pack-New|inquiry now|Contact With Us|Feel free to write|Ovierview|<img/i,
+  );
+});
+
 test("keeps legitimate product images and links outside the blog embed", () => {
   const html = `
     <p>Overview of the 20 ton jack.</p>

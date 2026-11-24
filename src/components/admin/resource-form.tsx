@@ -233,7 +233,12 @@ function renderField(
   }
   if (field.type === "richtext") {
     const raw = asText(state.initial[field.name]);
-    const value = field.name === "body" && state.initial.locationName ? normalizeLocationBody(raw, asText(state.initial.locationName)) : removeLegacyBlogEmbed(raw);
+    const placeName =
+      asText(state.initial.locationName) || asText(state.initial.country);
+    const value =
+      field.name === "body" && placeName
+        ? normalizeLocationBody(raw, placeName)
+        : removeLegacyBlogEmbed(raw);
     return <RichTextEditor name={field.name} defaultValue={value} media={state.media} />;
   }
   if (field.type === "select") {

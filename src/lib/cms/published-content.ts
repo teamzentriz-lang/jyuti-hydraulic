@@ -444,6 +444,36 @@ async function loadProductExtras(
   };
 }
 
+/** Featured / gallery image for the related product linked on city/export pages. */
+async function relatedProductImage(
+  db: Db,
+  productId: string | null | undefined,
+): Promise<MediaItem | null> {
+  if (!productId) return null;
+  const [product] = await db
+    .select({
+      featuredImageId: products.featuredImageId,
+      thumbnailId: products.thumbnailId,
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+  const directId = product?.featuredImageId || product?.thumbnailId;
+  if (directId) {
+    const items = await mediaItems([directId]);
+    if (items[0]) return items[0];
+  }
+  const [gallery] = await db
+    .select({ mediaId: productImages.mediaId })
+    .from(productImages)
+    .where(eq(productImages.productId, productId))
+    .orderBy(asc(productImages.sortOrder))
+    .limit(1);
+  if (!gallery?.mediaId) return null;
+  const [item] = await mediaItems([gallery.mediaId]);
+  return item ?? null;
+}
+
 export async function buildPublishedContent(
   db: Db,
   target: PublishedTarget,
@@ -776,6 +806,7 @@ export async function buildPublishedContent(
       .where(eq(locationPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
+    const productImage = await relatedProductImage(db, row.productId);
     return {
       kind,
       path: row.path,
@@ -783,7 +814,11 @@ export async function buildPublishedContent(
       seoTitle: row.seoTitle,
       seoDescription: normalizeSeoDescription(row.seoDescription),
       body: normalizeLocationBody(row.body, row.locationName),
-      meta: { locationName: row.locationName, region: row.region },
+      image: productImage,
+      meta: {
+        locationName: row.locationName,
+        region: row.region ?? "",
+      },
     };
   }
 
@@ -794,6 +829,7 @@ export async function buildPublishedContent(
       .where(eq(exportPages.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
+    const productImage = await relatedProductImage(db, row.productId);
     return {
       kind,
       path: row.path,
@@ -801,7 +837,11 @@ export async function buildPublishedContent(
       seoTitle: row.seoTitle,
       seoDescription: normalizeSeoDescription(row.seoDescription),
       body: normalizeLocationBody(row.body, row.country),
-      meta: { country: row.country, productLine: row.productLine },
+      image: productImage,
+      meta: {
+        country: row.country,
+        productLine: row.productLine ?? "",
+      },
     };
   }
 

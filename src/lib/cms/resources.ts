@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CmsError } from "@/db/errors";
-import { removeLegacyBlogEmbed } from "@/lib/cms/legacy-blog-embed";
+import { normalizeLocationBody } from "@/lib/cms/product-article";
 
 const slug = z
   .string()
@@ -688,6 +688,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         type: "richtext",
         wide: true,
         group: "Content",
+        help: "Text only. Product photos come from Related product — do not paste images into the body.",
       },
       contentFields.seoTitle,
       contentFields.seoDescription,
@@ -770,6 +771,7 @@ export const resources: Record<ResourceKey, ResourceConfig> = {
         type: "richtext",
         wide: true,
         group: "Content",
+        help: "Text only. Product photos come from Related product — do not paste images into the body.",
       },
       contentFields.seoTitle,
       contentFields.seoDescription,
@@ -2527,10 +2529,18 @@ export function parseResource(
     );
   }
   const data = parsed.data as Record<string, unknown>;
-  // City pages imported related-blog cards into the body. Strip them on save
-  // so the CMS never reintroduces legacy embeds.
-  if (resource === "locations" && typeof data.body === "string") {
-    data.body = removeLegacyBlogEmbed(data.body);
+  // City/export pages imported blog cards, mid-body product images, and contact
+  // CTAs into the body. Strip them on save so Related product / quote UI stay
+  // the only homes for that content.
+  if (
+    (resource === "locations" || resource === "exports") &&
+    typeof data.body === "string"
+  ) {
+    const place =
+      resource === "locations"
+        ? String(data.locationName ?? "")
+        : String(data.country ?? "");
+    data.body = normalizeLocationBody(data.body, place);
   }
   return data;
 }
