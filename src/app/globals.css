@@ -447,6 +447,8 @@ html.is-navigating a[href] {
 .admin-editor-surface {
   padding: 0.85rem 1rem;
   outline: none;
+  overflow-anchor: none;
+  overflow-wrap: anywhere;
 }
 .admin-editor-surface:empty::before {
   content: attr(data-placeholder);
@@ -3743,6 +3745,32 @@ html.is-navigating a[href] {
 .catalogue-bottom-content__body {
   margin-top: 0.75rem;
 }
+.catalogue-bottom-content__body img,
+.catalogue-bottom-content__body figure {
+  display: block;
+  max-width: min(100%, 420px);
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  margin: 0.85rem 0;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fff;
+}
+.catalogue-bottom-content__body a {
+  color: var(--color-navy);
+  text-decoration: none;
+  font-weight: 700;
+}
+.catalogue-bottom-content__body a:hover {
+  color: var(--color-signal);
+  text-decoration: underline;
+}
+.catalogue-bottom-content__body p a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 @media (max-width: 767px) {
   .catalogue-page-banner {
     padding-block: 2rem 2.25rem;
@@ -3884,8 +3912,8 @@ html.is-navigating a[href] {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
-  padding: 0.85rem 1rem;
+  height: 168px;
+  padding: 0.75rem 0.9rem;
   background: #ffffff;
   border-bottom: 1px solid var(--color-line);
 }

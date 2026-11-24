@@ -117,7 +117,10 @@ export function CKEditorField({
 
   const insertImage = (item: MediaItem) => {
     if (!visualRef.current) return;
-    visualRef.current.focus();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    visualRef.current.focus({ preventScroll: true });
+    restoreSelection();
     const url = mediaDeliveryUrl(item).replace(/"/g, "&quot;");
     const alt = (item.alt || item.filename).replace(/"/g, "&quot;");
     document.execCommand(
@@ -127,6 +130,7 @@ export function CKEditorField({
     );
     sync();
     setImagePickerOpen(false);
+    window.scrollTo(scrollX, scrollY);
   };
 
   const removeBlogEmbed = () => {
@@ -205,6 +209,18 @@ export function CKEditorField({
         hidden={mode !== "visual"}
         dangerouslySetInnerHTML={{ __html: defaultValue ?? "" }}
         tabIndex={0}
+        onMouseDown={(event) => {
+          // Remember scroll before the browser tries to bring the focused
+          // contentEditable top into view when clicking near the bottom.
+          if (mode !== "visual") return;
+          const scrollX = window.scrollX;
+          const scrollY = window.scrollY;
+          window.requestAnimationFrame(() => {
+            window.scrollTo(scrollX, scrollY);
+          });
+          // Keep caret placement logic in click; just freeze scroll early.
+          void event;
+        }}
         onClick={(event) => {
           // contentEditable occasionally receives focus without receiving a
           // caret when a long imported HTML document is clicked. Explicitly
@@ -212,12 +228,20 @@ export function CKEditorField({
           if (event.detail !== 1 || mode !== "visual") return;
           const root = visualRef.current;
           if (!root) return;
+          const scrollX = window.scrollX;
+          const scrollY = window.scrollY;
           window.requestAnimationFrame(() => {
             const doc = document as Document & {
-              caretPositionFromPoint?: (x: number, y: number) => CaretPosition | null;
+              caretPositionFromPoint?: (
+                x: number,
+                y: number,
+              ) => CaretPosition | null;
               caretRangeFromPoint?: (x: number, y: number) => Range | null;
             };
-            const position = doc.caretPositionFromPoint?.(event.clientX, event.clientY);
+            const position = doc.caretPositionFromPoint?.(
+              event.clientX,
+              event.clientY,
+            );
             const range = position
               ? (() => {
                   const next = document.createRange();
@@ -226,13 +250,23 @@ export function CKEditorField({
                   return next;
                 })()
               : doc.caretRangeFromPoint?.(event.clientX, event.clientY);
-            if (!range || !root.contains(range.startContainer)) return;
+            if (!range || !root.contains(range.startContainer)) {
+              window.scrollTo(scrollX, scrollY);
+              return;
+            }
             root.focus({ preventScroll: true });
             const selection = window.getSelection();
             selection?.removeAllRanges();
             selection?.addRange(range);
             selectionRef.current = range.cloneRange();
+            window.scrollTo(scrollX, scrollY);
           });
+        }}
+        onFocus={() => {
+          // Some browsers still jump after focus; re-assert current scroll.
+          const scrollX = window.scrollX;
+          const scrollY = window.scrollY;
+          window.requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
         }}
         onInput={() => sync()}
         onBlur={() => sync()}
