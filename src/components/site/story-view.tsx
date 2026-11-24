@@ -53,28 +53,48 @@ export function StoryView({ content }: { content: PublishedContent }) {
   const verifiedByRole = meta.verifiedByRole?.trim();
   const verifiedByUrl = meta.verifiedByUrl?.trim();
 
-  if (content.kind === "location") {
+  if (content.kind === "location" || content.kind === "export") {
+    const place =
+      content.kind === "location"
+        ? [content.meta?.locationName, content.meta?.region]
+            .filter(Boolean)
+            .filter((value, index, list) => list.indexOf(value) === index)
+            .join(", ")
+        : [content.meta?.country, content.meta?.productLine]
+            .filter(Boolean)
+            .join(" · ");
+    const hub =
+      content.kind === "location"
+        ? { href: "/city/", label: "City" }
+        : { href: "/exports/", label: "Exports" };
+
     return (
       <main className="product-page location-page">
-        <section className="product-title-band">
-          <div className="site-container">
-            <Breadcrumbs
-              items={[
-                { href: "/", label: "Home" },
-                { href: "/products/", label: "Products" },
-                { label: title },
-              ]}
-            />
-            <h1>{title}</h1>
-            <p>
-              {[content.meta?.locationName, content.meta?.region]
-                .filter(Boolean)
-                .join(", ") || "Jyoti Hydraulic"}
+        <section className="site-page-banner catalogue-page-banner">
+          <div className="site-container page-banner-inner">
+            <div className="catalogue-banner-crumbs">
+              <Breadcrumbs
+                items={[
+                  { href: "/", label: "Home" },
+                  hub,
+                  { label: title },
+                ]}
+              />
+            </div>
+            <h1 className="catalogue-banner-title">{title}</h1>
+            <p className="catalogue-banner-subtitle">
+              {place || "ISO-9001:2015 Certified Company"}
             </p>
           </div>
         </section>
         <div className="site-container product-content-grid location-page__content">
-          <article className="product-page__detail location-page__article">
+          <article className="product-page__detail location-page__article catalogue-bottom-content__card">
+            <div className="catalogue-bottom-content__header">
+              <p className="eyebrow dark">
+                {content.kind === "location" ? "Location overview" : "Export overview"}
+              </p>
+              <h2>About {title}</h2>
+            </div>
             <RichTextHtml html={content.body} className="product-prose" />
           </article>
           <aside className="product-quote-card" aria-labelledby="location-quote-title">

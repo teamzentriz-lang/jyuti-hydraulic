@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
+import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { getDb } from "@/db";
 import { locationPages } from "@/db/schema";
 import { getSettings } from "@/lib/cms/queries";
@@ -47,18 +48,41 @@ export default async function CityHubPage() {
   const letters = [...grouped.keys()].sort((a, b) => a.localeCompare(b));
 
   return (
-    <main className="listing-page location-hub-page">
-      <div className="site-page-banner">
+    <main className="catalogue-browser-root location-hub-page">
+      <section className="site-page-banner catalogue-page-banner" aria-label="Page Header">
         <div className="site-container page-banner-inner">
-          <p className="page-kicker">Service coverage</p>
-          <h1>City Pages</h1>
-          <p>
-            Browse Jyoti Hydraulic location pages across India. Each city page
-            highlights local product availability and engineering support.
+          <div className="catalogue-banner-crumbs">
+            <Breadcrumbs
+              items={[
+                { href: "/", label: "Home" },
+                { label: "City Pages" },
+              ]}
+            />
+          </div>
+          <h1 className="catalogue-banner-title">City Pages</h1>
+          <p className="catalogue-banner-subtitle">
+            ISO-9001:2015 Certified Company
           </p>
         </div>
-      </div>
-      <div className="site-container location-hub">
+      </section>
+
+      <div className="site-container catalogue-page__inner location-hub">
+        <section className="catalogue-bottom-content" aria-labelledby="city-hub-title">
+          <div className="catalogue-bottom-content__card">
+            <div className="catalogue-bottom-content__header">
+              <p className="eyebrow dark">Service coverage</p>
+              <h2 id="city-hub-title">About our city pages</h2>
+            </div>
+            <div className="catalogue-bottom-content__summary">
+              <p>
+                Browse Jyoti Hydraulic location pages across India. Each city
+                page highlights local product availability and engineering
+                support for industrial buyers.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className="location-hub__heading">
           <div>
             <p className="section-label">Locations</p>
@@ -69,20 +93,26 @@ export default async function CityHubPage() {
             nationwide with hydraulic equipment, jigs and fixtures.
           </p>
         </div>
+
         {letters.length ? (
           <div className="location-hub__groups">
             {letters.map((letter) => (
               <section key={letter} className="location-hub__group">
                 <h3>{letter}</h3>
                 <ul className="location-hub__list">
-                  {(grouped.get(letter) ?? []).map((item) => (
-                    <li key={item.id}>
-                      <Link href={publicPath(item.path)}>
-                        <span>{item.locationName || item.title}</span>
-                        {item.region ? <small>{item.region}</small> : null}
-                      </Link>
-                    </li>
-                  ))}
+                  {(grouped.get(letter) ?? []).map((item) => {
+                    const name = item.locationName || item.title;
+                    const region =
+                      item.region && item.region !== name ? item.region : null;
+                    return (
+                      <li key={item.id}>
+                        <Link href={publicPath(item.path)}>
+                          <span>{name}</span>
+                          {region ? <small>{region}</small> : null}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}

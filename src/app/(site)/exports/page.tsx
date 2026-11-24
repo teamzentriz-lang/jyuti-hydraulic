@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
+import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { getDb } from "@/db";
 import { exportPages } from "@/db/schema";
 import { getSettings } from "@/lib/cms/queries";
@@ -34,18 +35,41 @@ export default async function ExportsHubPage() {
     .orderBy(asc(exportPages.country), asc(exportPages.title));
 
   return (
-    <main className="listing-page location-hub-page">
-      <div className="site-page-banner">
+    <main className="catalogue-browser-root location-hub-page">
+      <section className="site-page-banner catalogue-page-banner" aria-label="Page Header">
         <div className="site-container page-banner-inner">
-          <p className="page-kicker">Global reach</p>
-          <h1>Export Markets</h1>
-          <p>
-            Jyoti Hydraulic supplies hydraulic equipment to international
-            markets. Browse export pages by country and product line.
+          <div className="catalogue-banner-crumbs">
+            <Breadcrumbs
+              items={[
+                { href: "/", label: "Home" },
+                { label: "Exports" },
+              ]}
+            />
+          </div>
+          <h1 className="catalogue-banner-title">Export Markets</h1>
+          <p className="catalogue-banner-subtitle">
+            ISO-9001:2015 Certified Company
           </p>
         </div>
-      </div>
-      <div className="site-container location-hub">
+      </section>
+
+      <div className="site-container catalogue-page__inner location-hub">
+        <section className="catalogue-bottom-content" aria-labelledby="exports-hub-title">
+          <div className="catalogue-bottom-content__card">
+            <div className="catalogue-bottom-content__header">
+              <p className="eyebrow dark">Global reach</p>
+              <h2 id="exports-hub-title">About our export pages</h2>
+            </div>
+            <div className="catalogue-bottom-content__summary">
+              <p>
+                Jyoti Hydraulic supplies hydraulic equipment to international
+                markets. Browse export pages by country and product line for
+                cylinders, power packs, screw jacks and more.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className="location-hub__heading">
           <div>
             <p className="section-label">Exports</p>
@@ -56,6 +80,7 @@ export default async function ExportsHubPage() {
             solutions for overseas industrial buyers.
           </p>
         </div>
+
         {rows.length ? (
           <ul className="location-hub__list location-hub__list--exports">
             {rows.map((item) => (
