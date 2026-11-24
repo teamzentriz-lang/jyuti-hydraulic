@@ -27,6 +27,7 @@ import {
   normalizeSeoDescription,
   removeLegacyBlogEmbed,
 } from "@/lib/cms/product-article";
+import { removeLegacyProductListing } from "@/lib/cms/legacy-product-listing";
 import type { RouteKind } from "@/lib/paths";
 
 type Db = ReturnType<typeof getDb>;
@@ -610,7 +611,7 @@ export async function buildPublishedContent(
       focusKeyword: row.focusKeyword,
       canonicalUrl: row.canonicalUrl,
       ogImage,
-      body: removeLegacyBlogEmbed(row.body),
+      body: removeLegacyProductListing(removeLegacyBlogEmbed(row.body)),
       summary: row.summary,
       image,
       childCategories,
