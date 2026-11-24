@@ -5,6 +5,7 @@ import { publicPath } from "@/lib/paths";
 import { getHome } from "@/lib/cms/queries";
 import { defaultClients } from "@/lib/brand";
 import { removeLegacyBlogEmbed } from "@/lib/cms/product-article";
+import { removeLegacyProductListing } from "@/lib/cms/legacy-product-listing";
 
 export async function CategoryListing({ content }: { content: PublishedContent }) {
   const home = await getHome();
@@ -65,7 +66,9 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       title={categoryHeading}
       subtitle={content.subtitle || "ISO-9001:2015 Certified Company"}
       summary={content.summary ?? ""}
-      body={removeLegacyBlogEmbed(content.body ?? "")}
+      body={removeLegacyProductListing(
+        removeLegacyBlogEmbed(content.body ?? ""),
+      )}
       bannerImageUrl={content.image ? mediaDeliveryUrl(content.image) : undefined}
       chips={chips}
       cards={cards}

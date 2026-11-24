@@ -186,7 +186,9 @@ export function CatalogueBrowser({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={card.imageUrl || "/placeholders/product.svg"}
-                          alt={card.imageUrl ? card.imageAlt : ""}
+                          alt={card.imageUrl ? card.imageAlt : card.title}
+                          loading="lazy"
+                          decoding="async"
                         />
                       </Link>
                       <div className="catalogue-card__body">
