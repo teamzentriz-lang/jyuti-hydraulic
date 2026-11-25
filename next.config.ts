@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { indexingHost } from "./src/lib/indexing";
 
 const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [];
 
@@ -34,11 +35,12 @@ const nextConfig: NextConfig = {
     remotePatterns,
   },
 
-  // Prevent search engines from indexing the entire site
   async headers() {
+    const host = indexingHost();
     return [
       {
         source: "/:path*",
+        ...(host ? { missing: [{ type: "host" as const, value: host.replaceAll(".", "\\.") }] } : {}),
         headers: [
           {
             key: "X-Robots-Tag",

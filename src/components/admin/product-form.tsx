@@ -546,8 +546,9 @@ export function ProductForm({
                     </div>
                     <div>
                       <span className={helpClass}>
-                        Add a document with type “Certificate” to enable the
-                        public View Certificates button and certificate icons.
+                        Attached files appear in the product’s Documents tab.
+                        Choose “Certificate” for certificates. Include “ISO 9001”
+                        or “CE” in the title to show the matching badge.
                       </span>
                       <DocumentsEditor
                         name="_documents"

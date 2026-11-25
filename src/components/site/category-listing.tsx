@@ -38,11 +38,6 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       scope: "item" as const,
     })) ?? [];
   const cards = [...childCards, ...productCards];
-  const categoryHeading = (() => {
-    const match = content.body?.match(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>/i);
-    const text = match?.[1]?.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
-    return text || content.title;
-  })();
   const chips = [
     { id: "all", label: "All Products", href: "/products/" },
     ...(content.filterCategories ?? [])
@@ -59,9 +54,9 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       crumbs={[
         { href: "/", label: "Home" },
         { href: "/products/", label: "Products" },
-        { label: categoryHeading },
+        { label: content.title, preserveLabel: true },
       ]}
-      title={categoryHeading}
+      title={content.title}
       subtitle={content.subtitle || "ISO-9001:2015 Certified Company"}
       summary={content.summary ?? ""}
       body={content.body ?? ""}

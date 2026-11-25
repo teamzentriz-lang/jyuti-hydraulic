@@ -285,10 +285,12 @@ export async function ProductDetail({
   const faqs = (content.faqs ?? []).filter(
     (item) => item.question.trim() || item.answer.trim(),
   );
-  const certificate = (content.documents ?? []).find(
-    (document) => document.documentType === "certificate" && document.url,
+  const documents = (content.documents ?? []).filter(
+    (doc): doc is typeof doc & { url: string } => Boolean(doc.url),
   );
-  const certificateHref = certificate?.url || "/certificates/";
+  const certificates = documents.filter((doc) => doc.documentType === "certificate");
+  const iso = certificates.find((doc) => /\bISO[\s-]*9001\b/i.test(doc.title));
+  const ce = certificates.find((doc) => /\bCE\b/i.test(doc.title));
   const youtubeHref =
     videoSections.length > 0
       ? "#product-tab-video"
@@ -397,29 +399,43 @@ export async function ProductDetail({
         </>
       ),
     },
-    {
-      visible: Boolean(content.features?.length),
-      id: "features",
-      label: labels.productFeaturesLabel,
-      icon: "features",
-      content: content.features?.length ? (
+    ...[
+      { id: "features", label: labels.productFeaturesLabel, items: content.features },
+      { id: "applications", label: "Applications", items: content.applications },
+      { id: "options", label: "Options", items: content.options },
+    ].map(({ id, label, items }) => ({
+      visible: Boolean(items?.length), id, label, icon: id,
+      content: (
         <ul className="product-feature-list">
-          {content.features.map((item, index) => (
-            <li key={`${item.title}-${index}`}>
-              {item.image ? (
+          {items?.map((item, index) => (
+            <li key={index}>
+              {item.image && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaDeliveryUrl(item.image)} alt={item.title} />
-              ) : null}
+                <img src={mediaDeliveryUrl(item.image)} alt={item.image.alt || item.title} />
+              )}
               <div>
-                <h3>{item.title}</h3>
-                {item.description ? <p>{item.description}</p> : null}
+                {item.title && <h3>{item.title}</h3>}
+                {item.description && <p>{item.description}</p>}
               </div>
             </li>
           ))}
         </ul>
-      ) : (
-        comingSoon
       ),
+    })),
+    {
+      visible: documents.length > 0, id: "downloads", label: "Documents", icon: "downloads",
+      content: <ul className="product-feature-list">
+        {documents.map((doc, index) => (
+          <li key={index}>
+            <div>
+              <a className="article-link" href={doc.url} target="_blank" rel="noopener noreferrer">
+                {doc.title || "View document"}
+              </a>
+              {doc.description && <p>{doc.description}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>,
     },
     {
       visible: videoSections.length > 0,
@@ -494,7 +510,9 @@ export async function ProductDetail({
     .filter((tab) => tab.visible)
     .map(({ id, label, icon, content }) => ({ id, label, icon, content }));
 
-  const enquireHref = `/contact/?product=${encodeURIComponent(title)}`;
+  const enquiryParams = new URLSearchParams({ product: title });
+  if (content.productId) enquiryParams.set("productId", content.productId);
+  const enquireHref = `/contact/?${enquiryParams.toString()}`;
 
   return (
     <main className="product-page">
@@ -595,42 +613,16 @@ export async function ProductDetail({
                 <YouTubeIcon />
               </a>
             ) : null}
-            <Link
-              className="resource-icon resource-icon--badge resource-icon--iso"
-              href={certificateHref}
-              {...(certificateHref.startsWith("http")
-                ? { target: "_blank", rel: "noopener noreferrer" }
-                : {})}
-              title="ISO 9001:2015 Certified Company"
-              aria-label="ISO 9001:2015 Certified Company"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/iso-9001-certified.png"
-                alt="ISO 9001:2015 Certified Company"
-                width={48}
-                height={48}
-                className="resource-badge-img"
-              />
-            </Link>
-            <Link
-              className="resource-icon resource-icon--badge resource-icon--ce"
-              href={certificateHref}
-              {...(certificateHref.startsWith("http")
-                ? { target: "_blank", rel: "noopener noreferrer" }
-                : {})}
-              title="Quality CE Certificate"
-              aria-label="Quality CE Certificate"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/quality-ce-certified.svg"
-                alt="Quality CE Certificate"
-                width={48}
-                height={48}
-                className="resource-badge-img"
-              />
-            </Link>
+            {[
+              { doc: iso, image: "/brand/iso-9001-certified.png", type: "iso" },
+              { doc: ce, image: "/brand/quality-ce-certified.svg", type: "ce" },
+            ].map(({ doc, image, type }) => doc?.url && (
+              <a key={type} className={`resource-icon resource-icon--badge resource-icon--${type}`}
+                href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.title}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image} alt={doc.title} width={48} height={48} className="resource-badge-img" />
+              </a>
+            ))}
             <span className="resource-strip__divider" aria-hidden="true" />
             <a
               className="resource-icon resource-icon--email"
@@ -654,16 +646,11 @@ export async function ProductDetail({
             ) : null}
           </nav>
           <div className="product-summary__actions product-summary__actions--detailed">
-            <Link
-              href={certificateHref}
-              className="site-btn-outline"
-              {...(certificateHref.startsWith("http")
-                ? { target: "_blank", rel: "noopener noreferrer" }
-                : {})}
-            >
-              <Award className="h-4 w-4" aria-hidden="true" />
-              View Certificates
-            </Link>
+            {certificates.length > 0 && (
+              <a href={certificates.length === 1 ? certificates[0].url : "#product-tab-downloads"} className="site-btn-outline">
+                <Award className="h-4 w-4" aria-hidden="true" /> View Certificates
+              </a>
+            )}
             {content.brochureUrl ? (
               <a
                 href={content.brochureUrl}
@@ -696,7 +683,7 @@ export async function ProductDetail({
             >
               <h2 id="product-quote-title">Get a Quote</h2>
               <p>Share your requirement and our team will contact you.</p>
-              <QuoteForm subject={title} pagePath={publicPath(content.path)} />
+              <QuoteForm productId={content.productId} subject={title} pagePath={publicPath(content.path)} />
             </aside>
           ) : null}
         </div>

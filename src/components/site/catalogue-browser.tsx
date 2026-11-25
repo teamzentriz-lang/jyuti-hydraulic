@@ -51,7 +51,7 @@ export function CatalogueBrowser({
   initialQuery?: string;
   initialChip?: string;
   activeChip?: string;
-  crumbs?: { href?: string; label: string }[];
+  crumbs?: { href?: string; label: string; preserveLabel?: boolean }[];
   bannerImageUrl?: string;
   clientLogos?: { name: string; logo: string }[];
   faqs?: { question: string; answer: string }[];
@@ -89,7 +89,7 @@ export function CatalogueBrowser({
       <div className="catalogue-bottom-content__card">
         <div className="catalogue-bottom-content__header">
           <p className="eyebrow dark">Category Overview</p>
-          <h2 id="cat-desc-title">About {cleanPublicTitle(title)}</h2>
+          <h2 id="cat-desc-title">About {title}</h2>
         </div>
         {!bodyMarkup && summaryCopy ? (
           <div className="catalogue-bottom-content__summary">
@@ -119,7 +119,7 @@ export function CatalogueBrowser({
               <Breadcrumbs items={crumbs} />
             </div>
           ) : null}
-          <h1 className="catalogue-banner-title">{cleanPublicTitle(title)}</h1>
+          <h1 className="catalogue-banner-title">{title}</h1>
           <p className="catalogue-banner-subtitle">
             {subtitle || "ISO-9001:2015 Certified Company"}
           </p>

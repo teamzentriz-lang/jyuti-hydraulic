@@ -29,6 +29,24 @@ function productForm(overrides: Record<string, string> = {}) {
   return data;
 }
 
+test("category form preserves separate search and social metadata on save", () => {
+  const form = productForm({
+    subtitle: "Catalogue", seoTitle: "Hydraulic Cylinders | Jyoti",
+    seoDescription: "Call +91 9541424317 for cylinder prices.",
+    focusKeyword: "cylinder", canonicalUrl: "https://jyotihydraulic.com/products/hydraulic-cylinders/",
+    ogTitle: "Cylinder sharing title", ogDescription: "Social description",
+    twitterTitle: "Cylinder X title", twitterDescription: "X description",
+    robotsFollow: "on",
+  });
+  const category = parseResource("product-categories", readFormData("product-categories", form));
+  for (const key of ["seoTitle", "seoDescription", "canonicalUrl", "focusKeyword",
+    "ogTitle", "ogDescription", "twitterTitle", "twitterDescription"]) {
+    assert.equal(category[key], form.get(key));
+  }
+  assert.equal(category.robotsIndex, false);
+  assert.equal(category.robotsFollow, true);
+});
+
 test("category editor removes imported cards and preserves the paragraphs either side", () => {
   const intro = "<p>Cylinder selection.</p>";
   const article = '<p>Installation notes.</p><img src="/diagram.png">';
@@ -36,6 +54,14 @@ test("category editor removes imported cards and preserves the paragraphs either
   assert.equal(cleanCategoryEditorBody(intro + "<h2>Our Products</h2>" + card.repeat(2) + article), intro + article);
   const ordinary = "<h2>Our Products</h2>" + article;
   assert.equal(cleanCategoryEditorBody(ordinary), ordinary);
+});
+
+test("category editor removes nested WordPress cards with different image and CTA targets", () => {
+  const intro = '<p>Power pack sizing.</p><img src="/diagram.png">';
+  const card = '<a href="/old/image-target/"><img src="/pack.png">12V DC Hydraulic Power Pack<p></p>Description <a href="/products/12v/">Read More</a> inquiry now<p></p></a>';
+  const article = '<h2>Overview</h2><p>24V systems are also available.</p>';
+  assert.equal(cleanCategoryEditorBody(intro + "<h2>Our Products</h2>" + card.repeat(2) + article), intro + article);
+  assert.equal(cleanCategoryEditorBody(article), article);
 });
 
 test("product summary is reduced to a usable public excerpt", () => {

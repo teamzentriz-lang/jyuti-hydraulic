@@ -9,9 +9,11 @@ import {
 
 export function QuoteForm({
   subject = "",
+  productId,
   pagePath = "/contact/",
 }: {
   subject?: string;
+  productId?: string;
   pagePath?: string;
 }) {
   const [state, action, pending] = useActionState<InquiryState, FormData>(
@@ -31,7 +33,8 @@ export function QuoteForm({
 
   return (
     <form className="quote-form quote-form--compact" action={action}>
-      <input type="hidden" name="source" value="quote" />
+      <input type="hidden" name="source" value={productId ? "product" : "quote"} />
+      {productId && <input type="hidden" name="productId" value={productId} />}
       <input type="hidden" name="pagePath" value={pagePath} />
       <input type="hidden" name="subject" value={subject || "Website enquiry"} />
       <input type="hidden" name="company" value="" />
