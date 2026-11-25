@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { eq, getTableColumns, sql, type AnyColumn } from "drizzle-orm";
+import { and, eq, getTableColumns, lte, sql, type AnyColumn } from "drizzle-orm";
 import type { AnyPgTable } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 import { revalidatePublicSite } from "@/lib/cms/revalidate-public";
@@ -1403,7 +1403,9 @@ export async function loginAction(
     ) {
       return { error: "Those details do not match an account." };
     }
-    await db.delete(sessions).where(eq(sessions.userId, user.id));
+    await db.delete(sessions).where(
+      and(eq(sessions.userId, user.id), lte(sessions.expiresAt, new Date())),
+    );
     await db
       .update(users)
       .set({ lastLoginAt: new Date(), updatedAt: new Date() })

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
+import { cleanPublicExcerpt } from "@/lib/cms/clean-copy";
 import { publicPath } from "@/lib/paths";
 
 export function ProductCard({
@@ -15,24 +15,23 @@ export function ProductCard({
   imageUrl?: string | null;
   imageAlt?: string;
 }) {
-  const label = cleanPublicTitle(title);
   return (
     <article className="product-card">
       <Link
         href={publicPath(path)}
         className="product-card__image"
-        aria-label={label}
+        aria-label={title}
         prefetch={false}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl || "/placeholders/product.svg"}
-          alt={imageUrl ? imageAlt || label : ""}
+          alt={imageUrl ? imageAlt || title : ""}
         />
       </Link>
       <div className="product-card__body">
         <h3>
-          <Link href={publicPath(path)} prefetch={false}>{label}</Link>
+          <Link href={publicPath(path)} prefetch={false}>{title}</Link>
         </h3>
         {summary && cleanPublicExcerpt(summary, 180) ? (
           <p>{cleanPublicExcerpt(summary, 180)}</p>
