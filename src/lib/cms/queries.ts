@@ -72,6 +72,7 @@ import {
   resources,
 } from "@/lib/cms/resources";
 import { linkedArticlePaths } from "@/lib/cms/product-article";
+import { cleanCategoryEditorBody } from "@/lib/cms/legacy-product-listing";
 
 export const tables = {
   pages,
@@ -308,18 +309,11 @@ export async function getRecord(
     // overview. Surface those links in the manager so existing relationships
     // can be saved or deleted explicitly.
     if (!productPayload.relatedPosts.length) {
-      const legacyHtml = [record.overview, record.body, record.richContent]
-        .filter((value): value is string => typeof value === "string")
-        .join("\n");
-      const legacyPaths = linkedArticlePaths(legacyHtml);
-      if (legacyPaths.length) {
-        const legacyPosts = await publishedPostsByPaths(legacyPaths, 50);
-        productPayload.relatedPosts = legacyPosts.map((post, sortOrder) => ({
-          postId: post.id,
-          sortOrder,
-        }));
-        record.productPayload = productPayload;
-      }
+      const legacyPosts = await legacyProductPosts(record.overview, record.body, record.richContent);
+      productPayload.relatedPosts = legacyPosts.map((post, sortOrder) => ({
+        postId: post.id,
+        sortOrder,
+      }));
     }
     record.galleryMediaIds = (
       record.productPayload as { galleryMediaIds: string[] }
@@ -332,6 +326,7 @@ export async function getRecord(
   }
 
   if (resource === "product-categories") {
+    if (typeof record.body === "string") record.body = cleanCategoryEditorBody(record.body);
     record.categoryFaqs = await loadContentFaqs("category", id);
   }
 
@@ -783,6 +778,21 @@ export async function publishedPostsByPaths(paths: string[], limit = 3) {
         ]
       : [];
   });
+}
+
+async function legacyProductPosts(overview: unknown, body: unknown, details: unknown) {
+  const html = [overview, body, details]
+    .filter((value): value is string => typeof value === "string")
+    .join("\n");
+  return publishedPostsByPaths(linkedArticlePaths(html), 50);
+}
+
+export async function productInsightPosts(
+  ids: string[], overview?: string, body?: string, details?: string,
+) {
+  if (ids.length) return publishedPostsByIds(ids, ids.length);
+  const legacy = await legacyProductPosts(overview, body, details);
+  return legacy.length ? legacy : publishedPosts(3);
 }
 
 /** Fetch selected published posts in the order chosen for a product. */

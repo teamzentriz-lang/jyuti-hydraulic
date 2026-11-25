@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CmsError } from "@/db/errors";
 import { normalizeLocationBody } from "@/lib/cms/product-article";
+import { cleanCategoryEditorBody } from "@/lib/cms/legacy-product-listing";
 
 const slug = z
   .string()
@@ -2529,6 +2530,9 @@ export function parseResource(
     );
   }
   const data = parsed.data as Record<string, unknown>;
+  if (resource === "product-categories" && typeof data.body === "string") {
+    data.body = cleanCategoryEditorBody(data.body);
+  }
   // City/export pages imported blog cards, mid-body product images, and contact
   // CTAs into the body. Strip them on save so Related product / quote UI stay
   // the only homes for that content.

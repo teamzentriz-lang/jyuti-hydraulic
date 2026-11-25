@@ -5,6 +5,25 @@
  * so each product image appears once, cleanly, with site-relative URLs.
  */
 
+/** Remove only complete imported card runs when preparing editable category copy. */
+export function cleanCategoryEditorBody(html: string) {
+  const heading = /<(h[1-6]|p)\b[^>]*>\s*(?:<strong>\s*)?(?:our\s+)?products\s*(?:<\/strong>\s*)?<\/\1>/gi;
+  const card = /(?:\s|<p>\s*<\/p>)*<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>\s*<img\b[^>]*>(?:(?!<\/?a\b)[\s\S])*?<\/a>\s*<a\b[^>]*\bhref=["']\1["'][^>]*>\s*Read\s+More\s*<\/a>(?:\s*inquiry\s+now\b)?(?:\s*<p>\s*<\/p>)*/iy;
+  let result = "";
+  let cursor = 0;
+  for (const marker of html.matchAll(heading)) {
+    const start = marker.index!;
+    if (start < cursor) continue;
+    let end = start + marker[0].length;
+    card.lastIndex = end;
+    while (card.test(html)) end = card.lastIndex;
+    if (end === start + marker[0].length) continue;
+    result += html.slice(cursor, start);
+    cursor = end;
+  }
+  return result + html.slice(cursor);
+}
+
 function tidyEmptyBlocks(html: string) {
   return html
     .replace(/(?:<p>\s*(?:&nbsp;|\s)*<\/p>\s*){2,}/gi, "")
@@ -89,6 +108,8 @@ export function rewriteLegacySiteUrls(html: string) {
  */
 export function removeLegacyProductListing(html: string) {
   if (!html) return html;
+  const withoutCards = cleanCategoryEditorBody(html);
+  if (withoutCards !== html) return rewriteLegacySiteUrls(withoutCards);
   let current = html;
   let changed = false;
 

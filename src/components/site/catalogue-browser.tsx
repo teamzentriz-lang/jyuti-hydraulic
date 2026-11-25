@@ -193,7 +193,9 @@ export function CatalogueBrowser({
                       </Link>
                       <div className="catalogue-card__body">
                         <h2>
-                          <Link href={publicPath(card.path)}>{cleanPublicTitle(card.title)}</Link>
+                          <Link href={publicPath(card.path)}>
+                            {card.scope === "item" ? card.title : cleanPublicTitle(card.title)}
+                          </Link>
                         </h2>
                         {excerpt ? <p>{excerpt}</p> : null}
                         <Link href={publicPath(card.path)} className="catalogue-card__cta">

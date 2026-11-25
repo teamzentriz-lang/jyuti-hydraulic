@@ -10,6 +10,7 @@ import {
   splitProductIntroduction,
 } from "../src/lib/cms/product-article";
 import { readPageScalars } from "../src/lib/cms/page-save";
+import { cleanCategoryEditorBody } from "../src/lib/cms/legacy-product-listing";
 import { parseResource, readFormData } from "../src/lib/cms/resources";
 
 function productForm(overrides: Record<string, string> = {}) {
@@ -27,6 +28,15 @@ function productForm(overrides: Record<string, string> = {}) {
   for (const [key, value] of Object.entries(values)) data.set(key, value);
   return data;
 }
+
+test("category editor removes imported cards and preserves the paragraphs either side", () => {
+  const intro = "<p>Cylinder selection.</p>";
+  const article = '<p>Installation notes.</p><img src="/diagram.png">';
+  const card = '<a href="/products/cylinder/"><img src="/card.jpg">Double Acting Cylinder</a><a href="/products/cylinder/">Read More</a> inquiry now<p></p>';
+  assert.equal(cleanCategoryEditorBody(intro + "<h2>Our Products</h2>" + card.repeat(2) + article), intro + article);
+  const ordinary = "<h2>Our Products</h2>" + article;
+  assert.equal(cleanCategoryEditorBody(ordinary), ordinary);
+});
 
 test("product summary is reduced to a usable public excerpt", () => {
   const summary = "Long imported content. ".repeat(500);

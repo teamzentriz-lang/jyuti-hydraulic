@@ -11,6 +11,7 @@ import {
   getHome,
   getSettings,
   getSiteLabels,
+  productInsightPosts,
 } from "@/lib/cms/queries";
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
@@ -20,15 +21,6 @@ import { removeLeadingSummaryHtml, readableProductArticle } from "@/lib/cms/prod
 function withoutTables(html: string) {
   return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
 }
-
-type ProductInsight = {
-  id: string;
-  path: string;
-  title: string;
-  coverUrl: string | null;
-  publishedAt: Date | null;
-  excerpt: string;
-};
 
 function promoteLegacyHeadings(html: string) {
   return html.replace(
@@ -215,32 +207,27 @@ export async function ProductDetail({
 }: {
   content: PublishedContent;
 }) {
-  const [settings, home, labels] = await Promise.all([
+  const sourceOverviewHtml = content.detailBlocks?.find(
+    (block) => block.heading === "Overview",
+  )?.html;
+  const detailsHtml = content.detailBlocks?.find((block) => block.heading === "Details")?.html;
+  const [settings, home, labels, posts] = await Promise.all([
     getSettings(),
     getHome(),
     getSiteLabels(),
+    productInsightPosts(content.relatedPostIds ?? [], sourceOverviewHtml, content.body, detailsHtml),
   ]);
   const image = content.gallery?.[0];
   const pills = (content.features ?? [])
     .map((item) => item.title.trim())
     .filter(Boolean)
     .slice(0, 4);
-  const sourceOverviewHtml = content.detailBlocks?.find(
-    (block) => block.heading === "Overview",
-  )?.html;
-  const legacyArticleHtml =
-    content.body ||
-    content.detailBlocks?.find((block) => block.heading === "Details")?.html ||
-    "";
+  const legacyArticleHtml = content.body || detailsHtml || "";
   // Overview is the editable product description. Do not merge the legacy
   // body back into it, otherwise an old imported article wins over a saved edit.
   const combinedArticleHtml = sourceOverviewHtml?.trim()
     ? sourceOverviewHtml
     : legacyArticleHtml;
-  // Blog posts are managed separately from product content and are not shown
-  // inside product pages. This also prevents legacy imported blog cards from
-  // reappearing when an old product record has no explicit relations.
-  const posts: ProductInsight[] = [];
   const cleanedArticleHtml = readableProductArticle(
     promoteLegacyHeadings(
       withoutTables(
@@ -248,7 +235,7 @@ export async function ProductDetail({
       ),
     ),
   );
-  const title = cleanPublicTitle(content.title);
+  const title = content.title;
   const introductionLead = cleanPublicExcerpt(textOf(cleanedArticleHtml), 360);
   const summaryLead = content.summary
     ? cleanPublicExcerpt(content.summary, 360)
@@ -262,12 +249,12 @@ export async function ProductDetail({
   const galleryImages = (content.gallery ?? []).map((item, index) => ({
     id: item.id,
     src: mediaDeliveryUrl(item),
-    alt: item.alt || `${cleanPublicTitle(content.title)} image ${index + 1}`,
+    alt: item.alt || `${title} image ${index + 1}`,
   }));
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: cleanPublicTitle(content.title),
+    name: title,
     description: lead || undefined,
     image: imageUrl,
     url: `${siteOrigin()}${publicPath(content.path)}`,
@@ -531,7 +518,7 @@ export async function ProductDetail({
                     },
                   ]
                 : []),
-              { label: title },
+              { label: title, preserveLabel: true },
             ]}
           />
           <h1>{title}</h1>
@@ -873,7 +860,7 @@ export async function ProductDetail({
                           {cleanPublicTitle(post.title)}
                         </Link>
                       </h3>
-                      {post.excerpt ? <p>{post.excerpt}</p> : null}
+                      {post.excerpt ? <p>{cleanPublicExcerpt(post.excerpt, 180)}</p> : null}
                       <Link
                         className="article-link"
                         href={publicPath(post.path)}

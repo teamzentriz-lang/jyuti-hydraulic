@@ -783,6 +783,7 @@ export async function buildPublishedContent(
           imageAlt: image?.alt || item.title,
         };
       }),
+      relatedPostIds: extras.relatedPostIds,
       brochureUrl: brochure ? mediaDeliveryUrl(brochure) : null,
       enquiryEnabled: row.enquiryEnabled,
       sections: extras.sections,
