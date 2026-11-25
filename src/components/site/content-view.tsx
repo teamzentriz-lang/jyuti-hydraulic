@@ -1,3 +1,4 @@
+import { CategorySocialMeta } from "@/components/site/category-social-meta";
 import Link from "next/link";
 import { AboutView } from "@/components/site/about-view";
 import { CategoryListing } from "@/components/site/category-listing";
@@ -31,14 +32,16 @@ export function ContentView({
   cataloguePdfUrl = null,
   catalogues = [],
   inquirySubject = "",
+  inquiryProductId,
 }: {
   content: PublishedContent;
   cataloguePdfUrl?: string | null;
   catalogues?: CatalogueCard[];
   inquirySubject?: string;
+  inquiryProductId?: string;
 }) {
   if (content.kind === "product") return <ProductDetail content={content} />;
-  if (content.kind === "category") return <CategoryListing content={content} />;
+  if (content.kind === "category") return <><CategorySocialMeta type={content.liveCategoryMeta?.["og:type"]} /><CategoryListing content={content} /></>;
   if (
     content.kind === "post" ||
     content.kind === "location" ||
@@ -54,7 +57,7 @@ export function ContentView({
   }
   if (content.kind === "page" && content.path === "contact") {
     return (
-      <ContactSection subject={inquirySubject} pagePath={`/${content.path}/`} />
+      <ContactSection productId={inquiryProductId} subject={inquirySubject} pagePath={`/${content.path}/`} />
     );
   }
 
@@ -538,10 +541,11 @@ export function contentMetadata(
     content.cover ??
     content.hero ??
     null;
-  const image = visual ? absoluteUrl(mediaDeliveryUrl(visual)) : undefined;
+  const live = content.liveCategoryMeta;
+  const image = live && !content.ogImage ? live["og:image"] : visual ? absoluteUrl(mediaDeliveryUrl(visual)) : undefined;
   const twitterImage = content.twitterImage
     ? absoluteUrl(mediaDeliveryUrl(content.twitterImage))
-    : image;
+    : live ? live["twitter:image"] || (content.ogImage ? image : undefined) : image;
   const keywords = content.focusKeyword
     ?.split(",")
     .map((keyword) => keyword.trim())
@@ -557,25 +561,30 @@ export function contentMetadata(
     // Absolute titles keep live WordPress SEO strings intact (no " · Brand").
     title: { absolute: title },
     description,
-    keywords: keywords?.length ? keywords : [companyName, content.title],
+    keywords: keywords?.length ? keywords : content.liveCategoryMeta ? undefined : [companyName, content.title],
     alternates: { canonical: url },
     authors: [{ name: companyName, url: siteOrigin() }],
-    robots: {
+    robots: content.liveCategoryMeta ? [
+      content.robotsIndex === false ? "noindex" : "index",
+      content.robotsFollow === false ? "nofollow" : "follow",
+      content.liveCategoryMeta.robots,
+    ].filter(Boolean).join(", ") : {
       index: content.robotsIndex ?? true,
       follow: content.robotsFollow ?? true,
     },
     openGraph: {
       // Next.js Metadata only accepts its OG union (website/article/…).
       // "product" throws at runtime and blanks the whole product page.
-      type: content.kind === "post" ? ("article" as const) : ("website" as const),
+      ...(live ? {} : { type: content.kind === "post" ? ("article" as const) : ("website" as const) }),
       title: ogTitle,
       description: ogDescription,
-      siteName: companyName,
+      siteName: live?.["og:site_name"] || companyName,
+      locale: live?.["og:locale"],
       url,
       images: image ? [{ url: image }] : undefined,
     },
     twitter: {
-      card: twitterImage ? "summary_large_image" : "summary",
+      card: twitterImage || live?.["twitter:card"] === "summary_large_image" ? "summary_large_image" : "summary",
       title: twitterTitle,
       description: twitterDescription,
       images: twitterImage ? [twitterImage] : undefined,

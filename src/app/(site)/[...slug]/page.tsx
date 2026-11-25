@@ -27,7 +27,7 @@ export async function generateMetadata({
 export default async function CmsRoutePage({
   params,
   searchParams,
-}: PageProps & { searchParams: Promise<{ product?: string }> }) {
+}: PageProps & { searchParams: Promise<{ product?: string; productId?: string }> }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const requestPath = `/${slug.join("/")}/`;
   const rule = await findActiveRedirect(requestPath);
@@ -55,6 +55,7 @@ export default async function CmsRoutePage({
       content={content}
       cataloguePdfUrl={cataloguePdfUrl}
       catalogues={catalogues}
+      inquiryProductId={query.productId}
       inquirySubject={query.product ?? ""}
     />
   );

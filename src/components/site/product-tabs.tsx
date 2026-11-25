@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type ProductTab = {
   id: string;
@@ -37,17 +37,24 @@ function TabIcon({ name }: { name: string }) {
   );
 }
 
+function subscribeToHashChange(listener: () => void) {
+  window.addEventListener("hashchange", listener);
+  return () => window.removeEventListener("hashchange", listener);
+}
+
 export function ProductTabs({
   tabs,
 }: {
   tabs: ProductTab[];
 }) {
-  const [active, setActive] = useState(tabs[0]?.id ?? "");
+  const active = useSyncExternalStore(subscribeToHashChange,
+    () => window.location.hash.replace(/^#product-tab-/, ""), () => "",
+  );
   const current = tabs.find((tab) => tab.id === active) ?? tabs[0];
   if (!current) return null;
 
   return (
-    <div className="product-tabs">
+    <div className="product-tabs" id={tabs.length === 1 ? `product-tab-${current.id}` : undefined}>
       {tabs.length > 1 ? (
         <div className="product-tabs__bar" role="tablist">
           {tabs.map((tab) => (
@@ -59,7 +66,7 @@ export function ProductTabs({
               aria-selected={tab.id === current.id}
               aria-controls={`product-panel-${tab.id}`}
               className={tab.id === current.id ? "is-active" : ""}
-              onClick={() => setActive(tab.id)}
+              onClick={() => { window.location.hash = `product-tab-${tab.id}`; }}
             >
               {tab.icon ? <TabIcon name={tab.icon} /> : null}
               <span>{tab.label}</span>
@@ -71,7 +78,8 @@ export function ProductTabs({
         className="product-tabs__panel"
         id={`product-panel-${current.id}`}
         role="tabpanel"
-        aria-labelledby={`product-tab-${current.id}`}
+        aria-labelledby={tabs.length > 1 ? `product-tab-${current.id}` : undefined}
+        aria-label={tabs.length === 1 ? current.label : undefined}
         tabIndex={0}
       >
         {current.content}

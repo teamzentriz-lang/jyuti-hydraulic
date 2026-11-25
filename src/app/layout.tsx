@@ -4,10 +4,10 @@ import { headers } from "next/headers";
 import { Source_Sans_3 } from "next/font/google";
 import { getDb } from "@/db";
 import { pageHtmlOverrides, siteHtmlSettings } from "@/db/schema-cms";
-import { eq } from "drizzle-orm";
+import { productCategories } from "@/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 import { getHeaderSettings, getSettings, mediaItems } from "@/lib/cms/queries";
 import { siteOrigin } from "@/lib/paths";
-import { noIndexRobots } from "@/lib/seo-robots";
 import { NavigationFeedback } from "@/components/site/navigation-feedback";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { PwaServiceWorker } from "@/components/site/pwa-service-worker";
@@ -30,6 +30,7 @@ function normalizePath(value: string) {
 async function requestPathname() {
   const requestHeaders = await headers();
   const candidates = [
+    requestHeaders.get("x-site-pathname"),
     requestHeaders.get("x-invoke-path"),
     requestHeaders.get("next-url"),
     requestHeaders.get("x-forwarded-uri"),
@@ -48,7 +49,7 @@ async function publicHeadHtml() {
     const pathname = await requestPathname();
     if (pathname === "/admin" || pathname.startsWith("/admin/")) return "";
     const db = getDb();
-    const [settings, override] = await Promise.all([
+    const [settings, override, category] = await Promise.all([
       db
         .select({ commonHeaderHtml: siteHtmlSettings.commonHeaderHtml })
         .from(siteHtmlSettings)
@@ -58,11 +59,17 @@ async function publicHeadHtml() {
         .select({ path: pageHtmlOverrides.path, headerHtml: pageHtmlOverrides.headerHtml })
         .from(pageHtmlOverrides)
         .where(eq(pageHtmlOverrides.isActive, true)),
+      db.select({ type: sql<string | null>`${productCategories.listingConfig} #>> '{liveMeta,og:type}'` }).from(productCategories)
+        .where(and(eq(productCategories.path, pathname.slice(1)), eq(productCategories.status, "published"))).limit(1),
     ]);
     const matchingOverride = override.find(
       (item) => normalizePath(item.path) === pathname,
     );
-    return [settings[0]?.commonHeaderHtml, matchingOverride?.headerHtml]
+    // Next metadata rejects the WordPress OG type "product". Emit the validated type in the actual head.
+    const type = category[0]?.type;
+    const categoryType = type && /^[a-z][a-z0-9._:-]*$/i.test(type)
+      ? `<meta data-category-og-type="" property="og:type" content="${type}">` : "";
+    return [settings[0]?.commonHeaderHtml, matchingOverride?.headerHtml, categoryType]
       .filter((value): value is string => Boolean(value?.trim()))
       .join("\n");
   } catch {
@@ -105,7 +112,6 @@ export async function generateMetadata(): Promise<Metadata> {
         siteName: settings.companyName,
         url: siteOrigin(),
       },
-      robots: noIndexRobots,
     };
   } catch {
     return {
@@ -123,7 +129,6 @@ export async function generateMetadata(): Promise<Metadata> {
         shortcut: "/brand/favicon.png",
         apple: "/brand/favicon.png",
       },
-      robots: noIndexRobots,
     };
   }
 }

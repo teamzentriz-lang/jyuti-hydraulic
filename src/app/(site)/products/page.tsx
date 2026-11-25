@@ -1,3 +1,7 @@
+import { cache } from "react";
+import { CategorySocialMeta } from "@/components/site/category-social-meta";
+import { contentMetadata } from "@/components/site/content-view";
+import { resolvePublishedContentByPath } from "@/lib/cms/published-content";
 import type { Metadata } from "next";
 import { CatalogueBrowser } from "@/components/site/catalogue-browser";
 import {
@@ -8,11 +12,14 @@ import {
 import { publicPath } from "@/lib/paths";
 import { sitePageMetadata } from "@/lib/site-metadata";
 
+const productsCategory = cache(() => resolvePublishedContentByPath("products"));
+
 export async function generateMetadata(): Promise<Metadata> {
-  const [settings, labels] = await Promise.all([
+  const [settings, labels, category] = await Promise.all([
     getSettings(),
-    getSiteLabels(),
+    getSiteLabels(), productsCategory(),
   ]);
+  if (category?.kind === "category") return contentMetadata(category, settings.companyName);
   return sitePageMetadata({
     companyName: settings.companyName,
     path: "products",
@@ -31,10 +38,10 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<{ q?: string; group?: string }>;
 }) {
-  const [query, listing, labels] = await Promise.all([
+  const [query, listing, labels, category] = await Promise.all([
     searchParams,
     catalogueListing(),
-    getSiteLabels(),
+    getSiteLabels(), productsCategory(),
   ]);
   const visibleGroups = listing.groups.filter(
     (group) => publicPath(group.path) !== "/products/",
@@ -66,6 +73,8 @@ export default async function ProductsPage({
   ];
 
   return (
+    <>
+    {category?.kind === "category" && <CategorySocialMeta type={category.liveCategoryMeta?.["og:type"]} />}
     <CatalogueBrowser
       crumbs={[{ href: "/", label: "Home" }, { label: "Products" }]}
       title={labels.productsTitle}
@@ -80,5 +89,6 @@ export default async function ProductsPage({
           : "all"
       }
     />
+    </>
   );
 }

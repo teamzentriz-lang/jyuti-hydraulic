@@ -150,7 +150,7 @@ export function ResourceForm({
                   {field.label}
                   {field.required ? <span className="text-signal"> *</span> : null}
                 </span>
-                {renderField(field, { title, slug, path, initial, media, onTitle, setSlug, setPath, slugEdited, pathEdited })}
+                {renderField(field, { resource, title, slug, path, initial, media, onTitle, setSlug, setPath, slugEdited, pathEdited })}
                 {field.help ? <span className={helpClass}>{field.help}</span> : null}
               </FieldWrapper>
               );
@@ -188,6 +188,7 @@ function DeleteControl() {
 function renderField(
   field: FieldDef,
   state: {
+    resource: ResourceKey;
     title: string;
     slug: string;
     path: string;
@@ -232,7 +233,7 @@ function renderField(
     );
   }
   if (field.type === "textarea") {
-    const value = field.name === "seoDescription" ? normalizeSeoDescription(asText(state.initial[field.name])) : asText(state.initial[field.name]);
+    const value = state.resource !== "product-categories" && field.name === "seoDescription" ? normalizeSeoDescription(asText(state.initial[field.name])) : asText(state.initial[field.name]);
     return <textarea className={inputClass} name={field.name} rows={4} defaultValue={value} required={field.required} />;
   }
   if (field.type === "richtext") {

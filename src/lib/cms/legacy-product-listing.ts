@@ -8,7 +8,10 @@
 /** Remove only complete imported card runs when preparing editable category copy. */
 export function cleanCategoryEditorBody(html: string) {
   const heading = /<(h[1-6]|p)\b[^>]*>\s*(?:<strong>\s*)?(?:our\s+)?products\s*(?:<\/strong>\s*)?<\/\1>/gi;
-  const card = /(?:\s|<p>\s*<\/p>)*<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>\s*<img\b[^>]*>(?:(?!<\/?a\b)[\s\S])*?<\/a>\s*<a\b[^>]*\bhref=["']\1["'][^>]*>\s*Read\s+More\s*<\/a>(?:\s*inquiry\s+now\b)?(?:\s*<p>\s*<\/p>)*/iy;
+  // Some imports nest the CTA inside the image link; others close the image
+  // link first. The legacy image and CTA can point at different products.
+  const card = /(?:\s|<p>\s*<\/p>)*<a\b[^>]*\bhref=["'][^"']+["'][^>]*>\s*<img\b[^>]*>(?:(?!<\/?a\b|<h[12]\b)[\s\S])*?(<\/a>\s*)?<a\b[^>]*\bhref=["'][^"']+["'][^>]*>\s*Read\s+More\s*<\/a>(?:\s*inquiry\s+now\b)?(?:\s*<p>\s*<\/p>)*/iy;
+  const closeWrapper = /\s*<\/a>/iy;
   let result = "";
   let cursor = 0;
   for (const marker of html.matchAll(heading)) {
@@ -16,7 +19,15 @@ export function cleanCategoryEditorBody(html: string) {
     if (start < cursor) continue;
     let end = start + marker[0].length;
     card.lastIndex = end;
-    while (card.test(html)) end = card.lastIndex;
+    let match;
+    while ((match = card.exec(html))) {
+      if (!match[1]) {
+        closeWrapper.lastIndex = card.lastIndex;
+        if (!closeWrapper.test(html)) break;
+        card.lastIndex = closeWrapper.lastIndex;
+      }
+      end = card.lastIndex;
+    }
     if (end === start + marker[0].length) continue;
     result += html.slice(cursor, start);
     cursor = end;

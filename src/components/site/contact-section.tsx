@@ -24,10 +24,12 @@ import {
 
 export async function ContactSection({
   subject = "",
+  productId,
   pagePath = "/contact/",
   embedded = false,
 }: {
   subject?: string;
+  productId?: string;
   pagePath?: string;
   embedded?: boolean;
 }) {
@@ -155,7 +157,7 @@ export async function ContactSection({
               {contact.formDescription ||
                 "Fill in the details and our team will get back to you shortly."}
             </p>
-            <QuoteForm subject={subject} pagePath={pagePath} />
+            <QuoteForm productId={productId} subject={subject} pagePath={pagePath} />
           </div>
         </section>
         {address ? (

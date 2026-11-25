@@ -2,7 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
+  if (!pathname.startsWith("/admin")) {
+    const headers = new Headers(request.headers);
+    headers.set("x-site-pathname", pathname);
+    return NextResponse.next({ request: { headers } });
+  }
   if (pathname.startsWith("/admin/login")) return NextResponse.next();
   if (request.cookies.get("jh_session")?.value) return NextResponse.next();
 
@@ -13,5 +17,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: ["/admin/:path*", "/((?!admin/|api/|_next/|.*\\..*).*)"],
 };

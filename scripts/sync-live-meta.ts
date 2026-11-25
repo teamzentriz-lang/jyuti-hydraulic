@@ -55,8 +55,8 @@ function arg(name: string, fallback: string) {
 }
 
 function attr(tag: string, name: string) {
-  const match = tag.match(new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, "i"));
-  return match?.[1]?.trim() || null;
+  const match = tag.match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i"));
+  return (match?.[1] ?? match?.[2])?.trim() || null;
 }
 
 function decodeHtmlEntities(value: string) {
@@ -110,6 +110,39 @@ function metadata(html: string) {
     twitterDescription: find("twitter:description"),
     ogImage: find("og:image"),
   };
+}
+
+async function syncCategory(db: postgres.Sql, id: string, html: string, url: string, dryRun: boolean) {
+  const head = html.split(/<\/head>/i)[0];
+  const meta = metadata(head);
+  const canonical = clean(meta.canonicalUrl);
+  if (!canonical || new URL(canonical).origin !== new URL(url).origin || !meta.seoTitle) {
+    throw new Error("Missing category title or canonical on the source site.");
+  }
+  const liveMeta: Record<string, string> = {};
+  const robots = new Set<string>();
+  let keywords: string | null = null;
+  for (const [tag] of head.matchAll(/<meta\b[^>]*>/gi)) {
+    const key = (attr(tag, "property") || attr(tag, "name"))?.toLowerCase();
+    const value = clean(attr(tag, "content"));
+    if (!key || !value) continue;
+    if (key === "keywords") keywords = value;
+    if (key === "robots") value.toLowerCase().split(/\s*,\s*/).forEach((rule) => robots.add(rule));
+    if (key.startsWith("og:") || key.startsWith("twitter:")) liveMeta[key] = value;
+  }
+  liveMeta.robots = [...robots].filter((rule) => !["index", "follow", "noindex", "nofollow", "all", "none"].includes(rule)).join(", ");
+  if (dryRun) return;
+  await db`
+    update product_categories set seo_title = ${clean(meta.seoTitle)}, seo_description = ${clean(meta.seoDescription)},
+      canonical_url = ${canonical}, focus_keyword = ${keywords},
+      robots_index = ${!robots.has("noindex") && !robots.has("none")},
+      robots_follow = ${!robots.has("nofollow") && !robots.has("none")},
+      og_title = ${clean(meta.ogTitle)}, og_description = ${clean(meta.ogDescription)},
+      twitter_title = ${clean(meta.twitterTitle)}, twitter_description = ${clean(meta.twitterDescription)},
+      og_image_id = null, twitter_image_id = null,
+      listing_config = jsonb_set(listing_config, '{liveMeta}', ${db.json(liveMeta)}),
+      updated_at = now() where id = ${id}
+  `;
 }
 
 function liveUrl(
@@ -192,7 +225,7 @@ async function main() {
 
   try {
     // Homepage SEO lives in site_settings (there is no pages row for "/").
-    {
+    if (!onlyTables.size || onlyTables.has("site_settings")) {
       checked += 1;
       const homeUrl = `${origin}/`;
       try {
@@ -260,7 +293,17 @@ async function main() {
             headers: { "user-agent": "JyotiHydraulic-MetadataSync/1.0" },
           });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = metadata(await response.text());
+          const html = await response.text();
+          if (target.table === "product_categories") {
+            if (response.url.replace(/\/$/, "") !== url.replace(/\/$/, "")) {
+              throw new Error("The source URL redirects to a different page.");
+            }
+            await syncCategory(db, row.id, html, url, dryRun);
+            updated += 1;
+            console.log(`${dryRun ? "AUDIT" : "SYNC"} ${url}`);
+            continue;
+          }
+          const data = metadata(html);
           const values: Record<string, string> = {};
           if (data.seoTitle && availableColumns.has("seo_title")) {
             values.seo_title = clean(data.seoTitle)!;
@@ -336,6 +379,7 @@ async function main() {
   console.log(
     `Checked: ${checked}; ${dryRun ? "Would update" : "Updated"}: ${updated}; Failed: ${failed}`,
   );
+  if (failed) process.exitCode = 1;
 }
 
 main().catch((error) => {

@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { inquiries, products } from "@/db/schema";
@@ -47,7 +47,13 @@ export async function submitInquiryAction(
   }
 
   const productId = String(formData.get("productId") ?? "").trim();
+  let productEmail: string | null = null;
   try {
+    const [product] = z.string().uuid().safeParse(productId).success
+      ? await getDb().select({ id: products.id, email: products.enquiryEmail }).from(products)
+          .where(and(eq(products.id, productId), eq(products.status, "published"))).limit(1)
+      : [];
+    productEmail = product?.email ?? null;
     await getDb()
       .insert(inquiries)
       .values({
@@ -59,9 +65,7 @@ export async function submitInquiryAction(
         message: parsed.data.message,
         source: parsed.data.source,
         pagePath: parsed.data.pagePath || null,
-        productId: z.string().uuid().safeParse(productId).success
-          ? productId
-          : null,
+        productId: product?.id ?? null,
       });
   } catch {
     return {
@@ -82,18 +86,7 @@ export async function submitInquiryAction(
 
   try {
     const settings = await getSettings();
-    const savedProductId = z.string().uuid().safeParse(productId).success
-      ? productId
-      : "";
-    const [product] = savedProductId
-      ? await getDb()
-          .select({ enquiryEmail: products.enquiryEmail })
-          .from(products)
-          .where(eq(products.id, savedProductId))
-          .limit(1)
-      : [];
-    const to =
-      product?.enquiryEmail || settings.enquiryToEmail || settings.emailPrimary;
+    const to = productEmail || settings.enquiryToEmail || settings.emailPrimary;
     const lines = [
       `Name: ${parsed.data.name}`,
       `Email: ${parsed.data.email}`,

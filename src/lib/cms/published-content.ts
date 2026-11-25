@@ -111,6 +111,7 @@ export type PublishedContent = {
     imageAlt: string;
   }[];
   brochureUrl?: string | null;
+  productId?: string;
   enquiryEnabled?: boolean;
   filterCategories?: { id: string; title: string; path: string }[];
   childCategories?: {
@@ -135,12 +136,14 @@ export type PublishedContent = {
   detailBlocks?: DetailBlock[];
   features?: PublishedFeature[];
   applications?: PublishedApplication[];
+  options?: PublishedApplication[];
   faqs?: PublishedFaq[];
   contentTables?: PublishedContentTable[];
   technicalTables?: PublishedTechnicalTable[];
   documents?: PublishedDocument[];
   relatedPostIds?: string[];
   parent?: { title: string; path: string } | null;
+  liveCategoryMeta?: Record<string, string>;
   robotsIndex?: boolean;
   robotsFollow?: boolean;
 };
@@ -388,6 +391,7 @@ async function loadProductExtras(
       item.iconMediaId,
       item.imageMediaId,
     ]),
+    ...payload.options.map((item) => item.imageMediaId),
     ...payload.applications.map((item) => item.imageMediaId),
     ...payload.documents.map((item) => item.mediaId),
   ].filter((id): id is string => Boolean(id));
@@ -414,8 +418,13 @@ async function loadProductExtras(
         icon: item.iconMediaId ? (byId.get(item.iconMediaId) ?? null) : null,
         image: item.imageMediaId ? (byId.get(item.imageMediaId) ?? null) : null,
       })),
+    options: payload.options.map((item) => ({
+      title: [item.optionName, item.optionValue].filter(Boolean).join(" – "),
+      description: item.description,
+      image: item.imageMediaId ? (byId.get(item.imageMediaId) ?? null) : null,
+    })).filter((item) => item.title || item.description || item.image),
     applications: payload.applications
-      .filter((item) => item.title.trim() || item.description.trim())
+      .filter((item) => item.title.trim() || item.description.trim() || item.imageMediaId)
       .map((item) => ({
         title: item.title,
         description: item.description,
@@ -432,12 +441,15 @@ async function loadProductExtras(
     ),
     documents: payload.documents
       .filter((doc) => doc.title.trim() || doc.mediaId)
-      .map((doc) => ({
-        title: doc.title,
-        url: doc.mediaId ? (byId.get(doc.mediaId)?.url ?? null) : null,
-        documentType: doc.documentType,
-        description: doc.description,
-      })),
+      .map((doc) => {
+        const file = doc.mediaId ? byId.get(doc.mediaId) : undefined;
+        return {
+          title: doc.title || file?.filename || "",
+          url: file ? mediaDeliveryUrl(file) : null,
+          documentType: doc.documentType,
+          description: doc.description,
+        };
+      }),
     gallery: await mediaItems(payload.galleryMediaIds),
     relatedProductIds: payload.relatedProducts,
     relatedPostIds: payload.relatedPosts.map((item) => item.postId),
@@ -509,6 +521,8 @@ export async function buildPublishedContent(
       twitterTitle: row.twitterTitle,
       twitterDescription: row.twitterDescription,
       twitterImage,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
       body: removeLegacyBlogEmbed(row.body),
       summary: row.excerpt || row.shortDescription || undefined,
       hero,
@@ -540,6 +554,8 @@ export async function buildPublishedContent(
       ogDescription: row.ogDescription,
       ogImage,
       twitterImage,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
       body: row.body,
       summary: row.excerpt,
       cover,
@@ -571,9 +587,10 @@ export async function buildPublishedContent(
       .where(eq(productCategories.id, entityId))
       .limit(1);
     if (!row || row.status !== "published") return null;
-    const [image, ogImage] = await Promise.all([
+    const [image, ogImage, twitterImage] = await Promise.all([
       optionalMedia(row.imageId),
       optionalMedia(row.ogImageId),
+      optionalMedia(row.twitterImageId),
     ]);
     const childCategoryRows = await db
       .select({
@@ -641,6 +658,14 @@ export async function buildPublishedContent(
       focusKeyword: row.focusKeyword,
       canonicalUrl: row.canonicalUrl,
       ogImage,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      twitterTitle: row.twitterTitle,
+      twitterDescription: row.twitterDescription,
+      twitterImage,
+      liveCategoryMeta: row.listingConfig.liveMeta as Record<string, string> | undefined,
+      robotsIndex: row.robotsIndex,
+      robotsFollow: row.robotsFollow,
       body: removeLegacyProductListing(removeLegacyBlogEmbed(row.body)),
       summary: row.summary,
       image,
@@ -785,6 +810,8 @@ export async function buildPublishedContent(
       }),
       relatedPostIds: extras.relatedPostIds,
       brochureUrl: brochure ? mediaDeliveryUrl(brochure) : null,
+      productId: row.id,
+      options: extras.options,
       enquiryEnabled: row.enquiryEnabled,
       sections: extras.sections,
       detailBlocks: extras.detailBlocks,
