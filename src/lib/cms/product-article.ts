@@ -190,6 +190,27 @@ function normalizedHeading(value: string) {
 }
 
 /**
+ * The public article header already renders the post title. Imports also
+ * placed that title as the first heading inside the saved article body.
+ */
+export function removeOpeningArticleTitle(html: string, title: string) {
+  const expected = normalizedHeading(title);
+  return html.replace(
+    /^\s*<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/i,
+    (match, _level, heading) => {
+      const actual = normalizedHeading(heading);
+      if (!actual || !expected) return match;
+      const shortest = Math.min(actual.length, expected.length);
+      return shortest >= 18 &&
+        (actual.includes(expected.slice(0, shortest)) ||
+          expected.includes(actual.slice(0, shortest)))
+        ? ""
+        : match;
+    },
+  );
+}
+
+/**
  * Keeps the opening product introduction for the hero overview. Everything
  * from the first actual section heading onward remains in the Overview tab.
  * This prevents the short hero copy from being repeated below the gallery.

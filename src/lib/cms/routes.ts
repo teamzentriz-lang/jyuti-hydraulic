@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
 import { CmsError } from "@/db/errors";
 import { routes } from "@/db/schema";
@@ -22,7 +22,11 @@ export async function reserveRoute(
     throw new CmsError(`/${path}/ is already used by a ${taken.kind}.`);
   }
 
-  await tx.delete(routes).where(and(eq(routes.entityId, input.entityId), eq(routes.kind, input.kind)));
+  // A record can have a stale route left under an older kind after an import
+  // or a resource type change. Remove every route owned by this entity before
+  // claiming its current path, otherwise the routes.path primary key can make
+  // an otherwise valid CMS save fail with a generic database error.
+  await tx.delete(routes).where(eq(routes.entityId, input.entityId));
   await tx.insert(routes).values({
     path,
     kind: input.kind,

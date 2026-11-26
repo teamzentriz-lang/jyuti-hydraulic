@@ -4,6 +4,7 @@ import { CmsImage } from "@/components/site/cms-image";
 import { QuoteForm } from "@/components/site/quote-form";
 import { RichTextHtml } from "@/components/site/rich-text-html";
 import { cleanPublicExcerpt, cleanPublicTitle } from "@/lib/cms/clean-copy";
+import { removeOpeningArticleTitle } from "@/lib/cms/product-article";
 import type { PublishedContent } from "@/lib/cms/published-content";
 
 function formatDate(value: string | undefined) {
@@ -32,6 +33,9 @@ export function StoryView({ content }: { content: PublishedContent }) {
     content.meta?.productLine,
   ].filter((item): item is string => Boolean(item));
   const title = cleanPublicTitle(content.title);
+  const articleBody = isPost
+    ? removeOpeningArticleTitle(content.body, content.title)
+    : content.body;
   const lead = cleanPublicExcerpt(content.summary ?? "", 320);
   const cover = content.cover ?? content.hero ?? null;
 
@@ -227,10 +231,10 @@ export function StoryView({ content }: { content: PublishedContent }) {
               className="story-page__cover"
             />
           ) : null}
-          {content.body.trim() ? (
+          {articleBody.trim() ? (
             <article className="story-page__article">
               <RichTextHtml
-                html={content.body}
+                html={articleBody}
                 className="rich-text story-prose"
               />
             </article>
