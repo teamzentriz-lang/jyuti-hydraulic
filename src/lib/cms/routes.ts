@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
 import { CmsError } from "@/db/errors";
 import { routes } from "@/db/schema";
