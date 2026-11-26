@@ -5,6 +5,7 @@ import {
   linkedArticlePaths,
   normalizeProductEditorHtml,
   normalizeProductSummary,
+  removeOpeningArticleTitle,
   removeLeadingSummaryHtml,
   readableProductArticle,
   splitProductIntroduction,
@@ -69,6 +70,23 @@ test("product summary is reduced to a usable public excerpt", () => {
   const parsed = readProductScalars(productForm({ summary }));
   assert.ok(parsed.summary.length <= 320);
   assert.doesNotMatch(parsed.summary, /Long imported content\.\s+Long imported content\./);
+});
+
+test("article body removes only an imported opening duplicate title", () => {
+  const title = "How to Select the Right Hydraulic Pump for an Industrial Power Pack? | Jyoti Hydraulic";
+  const body =
+    "<h2>How to Select the Right Hydraulic Pump for an Industrial Power Pack?</h2><p>Choose the pump by pressure and flow.</p><h2>Selection factors</h2><p>Check duty cycle.</p>";
+  const result = removeOpeningArticleTitle(body, title);
+  assert.doesNotMatch(result, /^\s*<h2>How to Select/i);
+  assert.match(result, /Selection factors/);
+});
+
+test("article body keeps a meaningful opening heading", () => {
+  const body = "<h2>Selection factors</h2><p>Check duty cycle.</p>";
+  assert.equal(
+    removeOpeningArticleTitle(body, "Hydraulic Pump Buying Guide"),
+    body,
+  );
 });
 
 test("public product article keeps content after contact calls to action", () => {

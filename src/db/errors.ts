@@ -92,6 +92,18 @@ export function constraintMessage(error: unknown, action: "save" | "delete") {
   if (pg.code === "23514") {
     return "A value is outside the allowed range.";
   }
+  if (pg.code === "22P02") {
+    return "One of the selected IDs or dates is invalid. Refresh the form and try again.";
+  }
+  if (pg.code === "23502") {
+    return "A required field is missing. Refresh the form and try again.";
+  }
+  if (pg.code === "22001") {
+    return "One of the entered values is too long.";
+  }
+  if (pg.code === "42703" || pg.code === "42804") {
+    return "The CMS database schema is out of date. Apply the latest database migration.";
+  }
   return null;
 }
 
