@@ -14,7 +14,11 @@ export function formatWhen(value: unknown) {
   if (!value) return "—";
   const date = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Kolkata",
+  }).format(date);
 }
 
 export function formatBytes(value: unknown) {

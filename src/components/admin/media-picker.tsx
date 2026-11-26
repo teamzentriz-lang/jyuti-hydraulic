@@ -123,21 +123,21 @@ export function MediaPicker({
   const selected = ids.map((id) => items.find((item) => item.id === id) ?? { id, url: "", filename: "Missing file", alt: "", mimeType: "" });
 
   return (
-    <div>
+    <div className="min-w-0">
       <input type="hidden" name={name} value={multiple ? JSON.stringify(ids) : ids[0] ?? ""} />
       <ul className="mb-2 space-y-2">
         {selected.map((item, index) => (
-          <li key={`${item.id}-${index}`} className="flex items-center gap-3 rounded-md border border-line bg-white p-2">
+          <li key={`${item.id}-${index}`} className="flex min-w-0 items-center gap-3 overflow-hidden rounded-md border border-line bg-white p-2">
             {isImageMimeType(item.mimeType) && item.url ? (
               // Admin previews are local or R2 URLs that are not worth optimizing here.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={mediaDeliveryUrl(item)} alt="" className="h-14 w-14 rounded object-cover" />
+              <img src={mediaDeliveryUrl(item)} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
             ) : isVideoMimeType(item.mimeType) ? (
-              <span className="flex h-14 w-14 items-center justify-center rounded bg-paper text-xs font-semibold text-muted">Video</span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-paper text-xs font-semibold text-muted">Video</span>
             ) : (
-              <span className="flex h-14 w-14 items-center justify-center rounded bg-paper text-xs font-semibold text-muted">PDF</span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-paper text-xs font-semibold text-muted">PDF</span>
             )}
-            <span className="min-w-0 flex-1">
+            <span className="min-w-0 flex-1 overflow-hidden">
               <span className="block truncate text-sm font-medium">{item.filename}</span>
               <span className="block truncate text-xs text-muted">{item.alt || "No alt text"}</span>
             </span>

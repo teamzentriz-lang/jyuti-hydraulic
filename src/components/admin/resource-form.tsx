@@ -31,6 +31,14 @@ function toLocalInput(value: unknown) {
 
 function DateTimeField({ name, defaultIso }: { name: string; defaultIso: string }) {
   const [iso, setIso] = useState(defaultIso);
+  // Local timezone formatting differs between Vercel (UTC) and the browser.
+  // Keep the first paint empty on both sides, then fill after mount.
+  const [localValue, setLocalValue] = useState("");
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setLocalValue(toLocalInput(iso));
+    setReady(true);
+  }, [iso]);
   useEffect(() => {
     const restore = (event: Event) => {
       const values = (event as CustomEvent<Record<string, string[]>>).detail;
@@ -44,7 +52,7 @@ function DateTimeField({ name, defaultIso }: { name: string; defaultIso: string 
       <input
         className={inputClass}
         type="datetime-local"
-        value={toLocalInput(iso)}
+        value={ready ? localValue : ""}
         onChange={(event) => setIso(event.target.value ? new Date(event.target.value).toISOString() : "")}
       />
       <input type="hidden" name={name} value={iso} />
@@ -142,8 +150,16 @@ export function ResourceForm({
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-muted">{group.name}</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {group.fields.map((field) => {
-              // A wrapping label forwards body clicks to the editor's toolbar select.
-              const FieldWrapper = field.type === "richtext" ? "div" : "label";
+              // Labels must not wrap interactive controls (editor, media picker,
+              // specs). That nesting breaks clicks and can confuse hydration.
+              const FieldWrapper =
+                field.type === "richtext" ||
+                field.type === "media" ||
+                field.type === "mediaMany" ||
+                field.type === "specs" ||
+                field.type === "relationMany"
+                  ? "div"
+                  : "label";
               return (
               <FieldWrapper key={field.name} className={field.wide ? "md:col-span-2" : undefined}>
                 <span className={labelClass}>
