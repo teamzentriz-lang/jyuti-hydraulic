@@ -21,6 +21,7 @@ export type DatabaseFailure = {
 
 type PgLike = {
   code?: string;
+  column?: string;
   constraint?: string;
   constraint_name?: string;
   message?: string;
@@ -96,7 +97,9 @@ export function constraintMessage(error: unknown, action: "save" | "delete") {
     return "One of the selected IDs or dates is invalid. Refresh the form and try again.";
   }
   if (pg.code === "23502") {
-    return "A required field is missing. Refresh the form and try again.";
+    return pg.column
+      ? `Required field “${pg.column}” is missing. Refresh the form and try again.`
+      : "A required field is missing. Refresh the form and try again.";
   }
   if (pg.code === "22001") {
     return "One of the entered values is too long.";
