@@ -228,6 +228,12 @@ export async function saveResourceAction(
     if (mode === "location") row.path = `city/${data.slug}`;
     if (mode === "export") row.path = `exports/${data.slug}`;
     if (typeof row.email === "string") row.email = row.email.toLowerCase();
+    // NOT NULL text columns must never be written as SQL NULL (Postgres 23502).
+    if (resource === "posts") {
+      if (row.author == null) row.author = "";
+      if (row.excerpt == null) row.excerpt = "";
+      if (row.body == null) row.body = "";
+    }
     if ("publishedAt" in row) {
       row.publishedAt = row.publishedAt
         ? new Date(String(row.publishedAt))

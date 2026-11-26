@@ -274,7 +274,9 @@ export function AdminShell({
     );
     return new Set([active?.label ?? "Site"]);
   });
-  const [now, setNow] = useState(() => new Date());
+  // null until mount — rendering `new Date()` on the server vs client
+  // causes React #418 hydration text mismatches on every admin page.
+  const [now, setNow] = useState<Date | null>(null);
   const open = openPath === pathname;
   const roleLabel = user.systemRole.replace("_", " ");
   const initials = user.name
@@ -299,6 +301,7 @@ export function AdminShell({
   ];
 
   useEffect(() => {
+    setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
