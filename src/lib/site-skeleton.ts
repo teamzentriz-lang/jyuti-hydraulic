@@ -192,13 +192,18 @@ export const skeletonHeaderNav = [
   { label: "Contact", href: "/contact/" },
 ] as const;
 
+export const footerProductLinks = [
+  { label: "Worm Gear Screw Jack Manufacturers in India", href: "/worm-gear-screw-jack/" },
+  { label: "Baling Machine Manufacturers in India", href: "/baling-machine-manufacturers-in-india/" },
+  { label: "Hydraulic Rotary Union Manufacturers in India", href: "/hydraulic-rotary-union/" },
+  { label: "Hydraulic Power Pack Manufacturer in India", href: "/hydraulic-power-pack/" },
+] as const;
+
 export const skeletonFooterNav = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about-us/" },
   { label: "Products", href: "/hydraulic-cylinder-manufacturers/" },
   { label: "Blogs", href: "/blogs/" },
   { label: "Contact Us", href: "/contact/" },
-  { label: "Worm Gear Screw Jack Manufacturers in India", href: "/worm-gear-screw-jack/" },
-  { label: "Baling Machine Manufacturers in India", href: "/baling-machine-manufacturers-in-india/" },
-  { label: "Hydraulic Power Pack Manufacturer in India", href: "/hydraulic-power-pack/" },
+  ...footerProductLinks,
 ] as const;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readProductScalars } from "../src/lib/cms/product-save";
+import { sanitizeRichText } from "../src/lib/sanitize";
 import {
   linkedArticlePaths,
   normalizeProductEditorHtml,
@@ -29,6 +30,12 @@ function productForm(overrides: Record<string, string> = {}) {
   for (const [key, value] of Object.entries(values)) data.set(key, value);
   return data;
 }
+
+test("product Overview keeps editor line breaks, heading emphasis and lists on save", () => {
+  const overview = '<div>Product summary</div><div>New description</div><h2><i>Key features</i></h2><ul><li><b>High pressure</b></li></ul>';
+  const parsed = readProductScalars(productForm({ overview, body: "<p>Previous description</p>" }));
+  assert.equal(sanitizeRichText(parsed.overview), '<div>Product summary</div><div>New description</div><h2><em>Key features</em></h2><ul><li><strong>High pressure</strong></li></ul>');
+});
 
 test("category form preserves separate search and social metadata on save", () => {
   const form = productForm({

@@ -24,12 +24,12 @@ export function ProductGallery({ images }: { images: ProductGalleryImage[] }) {
               key={image.id}
               type="button"
               className={index === active ? "is-active" : ""}
-              aria-label={`View image ${index + 1}`}
+              aria-label={`View image ${index + 1}: ${image.alt}`}
               aria-pressed={index === active}
               onClick={() => setActive(index)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.src} alt="" />
+              <img src={image.src} alt={image.alt} />
             </button>
           ))}
         </div>

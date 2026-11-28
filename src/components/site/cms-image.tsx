@@ -14,7 +14,7 @@ export function CmsImage({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const label = alt || item.alt || item.filename || "Jyoti Hydraulic";
+  const label = item.alt || alt || item.filename || "Jyoti Hydraulic";
 
   if (failed) {
     return (

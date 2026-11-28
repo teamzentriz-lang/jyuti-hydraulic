@@ -9,6 +9,7 @@ import { PageHtmlBlock } from "@/components/site/page-html-block";
 
 import type { SiteContext } from "@/lib/cms/site";
 
+import { footerProductLinks } from "@/lib/site-skeleton";
 import { publicPath } from "@/lib/paths";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { getSiteLabels } from "@/lib/cms/queries";
@@ -109,6 +110,17 @@ export async function SiteShell({
   const { settings, header, footer, logo, mobileLogo, headerNav, footerNav } =
     site;
 
+  const isProductLink = (item: (typeof footerNav)[number]) =>
+    item.label.trim().toLowerCase() !== "products" &&
+    footerProductLinks.some((product) =>
+      publicPath(item.href) === product.href ||
+      item.label.trim().toLowerCase() === product.label.toLowerCase()
+    );
+  const quickLinks = footerNav.filter((item) => !isProductLink(item)).map((item) => ({
+    ...item,
+    children: item.children.filter((child) => !isProductLink(child)),
+  }));
+  const configuredLinks = footerNav.flatMap((item) => [item, ...item.children]).filter(isProductLink);
   const topEmail = header.email?.trim() || settings.emailPrimary;
 
   const configuredPhone = header.phone?.trim() || settings.phonePrimary;
@@ -240,16 +252,34 @@ export async function SiteShell({
 
           <div>
             <h2>{labels.footerLinksTitle}</h2>
-            {footerNav.length ? (
+            {quickLinks.length ? (
               <nav aria-label="Footer">
                 <NavList
-                  items={footerNav}
+                  items={quickLinks}
                   variant="footer"
                   className="site-footer__links"
                 />
               </nav>
             ) : null}
           </div>
+
+          <nav aria-label="Footer products">
+            <h2>Products</h2>
+            <ul className="site-footer__links">
+              {footerProductLinks.map((product) => {
+                const configured = configuredLinks.find((item) =>
+                  item.label.trim().toLowerCase() === product.label.toLowerCase()
+                );
+                return (
+                  <li key={product.href}>
+                    <Link href={configured?.href || product.href} prefetch={false} className="text-white/90 hover:underline">
+                      {product.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
           <div>
             <h2>{labels.footerContactTitle}</h2>

@@ -369,7 +369,7 @@ async function categoryProductCards(db: Db, categoryId: string) {
     const imageUrl = directImage
       ? mediaDeliveryUrl(directImage)
       : (galleryImage?.url ?? null);
-    const imageAlt = directImage?.alt || galleryImage?.alt || row.title;
+    const imageAlt = (directImage ? directImage.alt : galleryImage?.alt) || row.title;
     return {
       id: row.id,
       title: row.title,
@@ -864,6 +864,9 @@ export async function buildPublishedContent(
       title: row.title,
       seoTitle: row.seoTitle,
       seoDescription: normalizeSeoDescription(row.seoDescription),
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImage: await optionalMedia(row.ogImageId),
       body: normalizeLocationBody(row.body, row.country),
       image: productImage,
       meta: {

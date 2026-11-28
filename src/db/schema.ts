@@ -787,6 +787,9 @@ export const exportPages = pgTable(
     path: text("path").notNull(),
     country: text("country").notNull(),
     productLine: text("product_line").notNull().default(""),
+    ogTitle: text("og_title"),
+    ogDescription: text("og_description"),
+    ogImageId: uuid("og_image_id"),
     categoryId: uuid("category_id").references(() => productCategories.id, {
       onDelete: "set null",
     }),

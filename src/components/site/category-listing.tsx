@@ -20,7 +20,7 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       imageUrl: item.image
         ? mediaDeliveryUrl(item.image)
         : (item.fallbackImageUrl ?? null),
-      imageAlt: item.image?.alt || item.fallbackImageAlt || item.title,
+      imageAlt: item.image ? item.image.alt || item.title : item.fallbackImageAlt || item.title,
       cta: "View Products",
       chip: "all",
       scope: "group" as const,
@@ -66,7 +66,6 @@ export async function CategoryListing({ content }: { content: PublishedContent }
       activeChip={content.path}
       clientLogos={clientLogos}
       faqs={content.faqs ?? []}
-      contentBeforeCards
     />
   );
 }

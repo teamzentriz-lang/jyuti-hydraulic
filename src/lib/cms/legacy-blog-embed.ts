@@ -34,6 +34,7 @@ function isReadMoreLabel(text: string) {
  * that happens to mention the word "blogs".
  */
 function looksLikeLegacyBlogCardTrail(trailing: string) {
+  if (textOnlyBlogCardEnd(trailing) > 0) return true;
   const hasReadMore = /Read\s*More/i.test(trailing);
   const hasMedia = /<(?:img|figure)\b/i.test(trailing);
   const hasCardList =
@@ -120,6 +121,41 @@ function nextTopLevelChunk(html: string, from: number) {
   return { start, end, html: html.slice(start, end) };
 }
 
+// Some city imports kept only the post heading and its truncated teaser.
+function textOnlyBlogCardEnd(html: string) {
+  const list = /^\s*<(ul|ol)\b[^>]*>/i.exec(html);
+  if (list) {
+    let pos = list[0].length;
+    let count = 0;
+    for (let item = nextTopLevelChunk(html, pos); item; item = nextTopLevelChunk(html, pos)) {
+      const contents = /^<li\b[^>]*>([\s\S]*)<\/li>$/i.exec(item.html)?.[1];
+      if (!contents) break;
+      const end = textCardPairsEnd(contents);
+      if (!end || contents.slice(end).trim()) return 0;
+      pos = item.end;
+      count++;
+    }
+    const close = /^\s*<\/(ul|ol)>/i.exec(html.slice(pos));
+    return count && close && close[1].toLowerCase() === list[1].toLowerCase() ? pos + close[0].length : 0;
+  }
+  return textCardPairsEnd(html);
+}
+
+function textCardPairsEnd(html: string) {
+  let cursor = 0;
+  while (cursor < html.length) {
+    const heading = nextTopLevelChunk(html, cursor);
+    if (!heading || !/^<h[1-6]\b/i.test(heading.html)) break;
+    if (!/<a\b[^>]*\bhref\s*=/i.test(heading.html) &&
+        !/[|–—-]\s*jyoti hydraulic$/i.test(plainBlockText(heading.html))) break;
+    const teaser = nextTopLevelChunk(html, heading.end);
+    if (!teaser || (teaser.html.startsWith("<") && !/^<p\b/i.test(teaser.html))) break;
+    if (!/(?:…|\.{3}|&hellip;|&#8230;|&#x2026;)$/i.test(plainBlockText(teaser.html))) break;
+    cursor = teaser.end;
+  }
+  return cursor;
+}
+
 function upcomingHasReadMore(html: string, from: number) {
   let cursor = from;
   for (let i = 0; i < 6; i += 1) {
@@ -158,6 +194,8 @@ function chunkLooksLikeBlogCard(chunkHtml: string, trailingHtml: string, chunkEn
  * Uses balanced tag matching so nested <ul>/<li> card lists are removed whole.
  */
 function consumeBlogCardMarkup(trailing: string) {
+  const textCardsEnd = textOnlyBlogCardEnd(trailing);
+  if (textCardsEnd) return textCardsEnd;
   let cursor = 0;
   let consumed = 0;
   let sawCardSignal = false;

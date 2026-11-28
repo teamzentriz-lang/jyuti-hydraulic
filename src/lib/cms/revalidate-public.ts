@@ -17,7 +17,7 @@ export function revalidatePublicSite(extraPaths: Iterable<string> = []) {
     for (const path of paths) {
       const clean = path.trim().replace(/^\/+|\/+$/g, "");
       if (!clean) continue;
-      revalidatePath(publicPath(clean), "page");
+      revalidatePath(publicPath(clean));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

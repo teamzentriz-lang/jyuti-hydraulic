@@ -86,6 +86,8 @@ export function ResourceForm({
   const [title, setTitle] = useState(asText(initial.title));
   const [slug, setSlug] = useState(asText(initial.slug));
   const [path, setPath] = useState(asText(initial.path));
+  const [seoTitle, setSeoTitle] = useState(asText(initial.seoTitle));
+  const [seoDescription, setSeoDescription] = useState(asText(initial.seoDescription));
   const protectDraft = new Set<ResourceKey>([
     "posts",
     "product-categories",
@@ -122,7 +124,11 @@ export function ResourceForm({
   }
 
   return (
-    <form ref={formRef} action={action} className="space-y-6">
+    <form ref={formRef} action={action} className="space-y-6" onChange={resource === "exports" ? (event) => {
+      const field = event.target;
+      if (field instanceof HTMLInputElement && field.name === "seoTitle") setSeoTitle(field.value);
+      if (field instanceof HTMLTextAreaElement && field.name === "seoDescription") setSeoDescription(field.value);
+    } : undefined}>
       <input type="hidden" name="resource" value={resource} />
       <input type="hidden" name="id" value={id ?? ""} />
       {protectDraft ? (
@@ -132,6 +138,8 @@ export function ResourceForm({
           serverUpdatedAt={asText(initial.updatedAt) || null}
           pending={pending}
           onRestore={(draft) => {
+            if (draft.seoTitle?.[0] !== undefined) setSeoTitle(draft.seoTitle[0]);
+            if (draft.seoDescription?.[0] !== undefined) setSeoDescription(draft.seoDescription[0]);
             if (draft.title?.[0] !== undefined) setTitle(draft.title[0]);
             if (draft.slug?.[0] !== undefined) setSlug(draft.slug[0]);
             if (draft.path?.[0] !== undefined) setPath(draft.path[0]);
@@ -166,7 +174,14 @@ export function ResourceForm({
                   {field.label}
                   {field.required ? <span className="text-signal"> *</span> : null}
                 </span>
-                {renderField(field, { resource, title, slug, path, initial, media, onTitle, setSlug, setPath, slugEdited, pathEdited })}
+                {resource === "exports" && field.name === "ogTitle" ? (
+                  <input className={inputClass} name={field.name} defaultValue={asText(initial.ogTitle)} placeholder={seoTitle.trim() || title} />
+                ) : resource === "exports" && field.name === "ogDescription" ? (
+                  <textarea className={inputClass} name={field.name} rows={4} defaultValue={asText(initial.ogDescription)} placeholder={normalizeSeoDescription(seoDescription)} />
+                ) : renderField(field, { resource, title, slug, path, initial, media, onTitle, setSlug, setPath, slugEdited, pathEdited })}
+                {resource === "exports" && (field.name === "ogTitle" || field.name === "ogDescription") ? (
+                  <span className={helpClass}>Leave blank to follow the meta {field.name === "ogTitle" ? "title" : "description"} automatically.</span>
+                ) : null}
                 {field.help ? <span className={helpClass}>{field.help}</span> : null}
               </FieldWrapper>
               );

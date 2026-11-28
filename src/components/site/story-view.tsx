@@ -108,7 +108,7 @@ export function StoryView({ content }: { content: PublishedContent }) {
                 />
               </figure>
             ) : null}
-            <RichTextHtml html={content.body} className="product-prose" />
+            <RichTextHtml html={content.body} className="product-prose rich-text" />
           </article>
           <aside className="product-quote-card" aria-labelledby="location-quote-title">
             <h2 id="location-quote-title">Get a Quote</h2>

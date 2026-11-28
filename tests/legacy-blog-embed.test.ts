@@ -28,6 +28,20 @@ const typicalEmbed = `
 <p><a href="/manufacturers/">Read More</a></p>
 `;
 
+test("city editor and public body omit text-only Our Blogs cards and keep adjacent content", () => {
+  const intro = "<p>Our power packs deliver unmatched durability.</p>";
+  const ending = "<h2>Local support</h2><p>Call our service team.</p>";
+  const cards = '<h2><a href="/rotary-union/">What Is a Hydraulic Rotary Union?</a></h2><p>Reliable fluid transfer is essential…</p>' +
+    "<h2>Worm Gear Screw Jack vs Ball Screw Jack | Jyoti Hydraulic</h2><p>Choosing the right lifting mechanism&hellip;</p>";
+  for (const label of ["<p>Our Blogs</p>", " Our Blogs "]) {
+    const body = intro + label + cards + ending;
+    assert.equal(hasLegacyBlogEmbed(body), true);
+    assert.equal(normalizeLocationBody(body, "Delhi"), intro + ending);
+  }
+  assert.equal(normalizeLocationBody(intro + " Our Blogs <ul><li>" + cards + "</li></ul>" + ending, "Delhi"), intro + ending);
+  assert.equal(normalizeLocationBody(intro + "<p>Our Blogs</p>" + ending, "Delhi"), intro + "<p>Our Blogs</p>" + ending);
+});
+
 test("removes typical WordPress blog cards from product copy", () => {
   const result = removeLegacyBlogEmbed(typicalEmbed);
   assert.match(result, /Useful product conclusion/);
