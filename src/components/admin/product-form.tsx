@@ -13,7 +13,7 @@ import {
   RelatedProductsEditor,
   TechnicalTablesEditor,
 } from "@/components/admin/advanced-editors";
-import { MediaPicker } from "@/components/admin/media-picker";
+import { MediaPicker, ProductImageNameContext } from "@/components/admin/media-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { TabShell } from "@/components/admin/tab-shell";
 import {
@@ -173,6 +173,7 @@ export function ProductForm({
           </span>
         </p>
       ) : null}
+      <ProductImageNameContext.Provider value={title}>
       <TabShell
         stacked
         tabs={[
@@ -969,6 +970,7 @@ export function ProductForm({
           </button>
         ) : null}
       </div>
+      </ProductImageNameContext.Provider>
     </form>
   );
 }

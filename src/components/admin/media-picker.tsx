@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { helpClass, inputClass, secondaryButtonClass } from "@/components/admin/styles";
 import type { MediaItem } from "@/lib/cms/queries";
 import { ADMIN_UPLOAD_ACCEPT, isImageMimeType, isVideoMimeType } from "@/lib/media-upload";
 import { mediaDeliveryUrl } from "@/lib/media-url";
+
+export const ProductImageNameContext = createContext("");
 
 export function MediaPicker({
   name,
@@ -19,6 +21,7 @@ export function MediaPicker({
   known: MediaItem[];
   onChange?: (ids: string[]) => void;
 }) {
+  const productName = useContext(ProductImageNameContext).trim();
   const [ids, setIds] = useState<string[]>(() => [...(initialIds ?? [])]);
   const [dirty, setDirty] = useState(false);
 
@@ -101,7 +104,12 @@ export function MediaPicker({
     setUploading(true);
     setError("");
     const body = new FormData();
-    for (const file of files) body.append("files", file);
+    for (const file of files) {
+      const extension = file.name.match(/\.[a-z0-9]{1,10}$/i)?.[0];
+      const stem = productName.replace(/[\\/:*?"<>|]+/g, "-").trim();
+      const name = stem && extension && isImageMimeType(file.type) ? stem + extension : file.name;
+      body.append("files", file, name);
+    }
     try {
       const response = await fetch("/api/admin/media/", { method: "POST", body });
       const data = (await response.json()) as { items?: MediaItem[]; error?: string };
@@ -139,7 +147,12 @@ export function MediaPicker({
             )}
             <span className="min-w-0 flex-1 overflow-hidden">
               <span className="block truncate text-sm font-medium">{item.filename}</span>
-              <span className="block truncate text-xs text-muted">{item.alt || "No alt text"}</span>
+              <span className="block truncate text-xs text-muted">{item.alt || (isImageMimeType(item.mimeType) ? productName : "")}</span>
+              {isImageMimeType(item.mimeType) && item.url ? (
+                <a href={`/admin/media/${item.id}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-navy underline">
+                  Edit image alt text (opens in a new tab)
+                </a>
+              ) : null}
             </span>
             {multiple ? (
               <span className="flex gap-2 text-xs font-semibold">

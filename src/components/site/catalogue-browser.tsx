@@ -40,7 +40,6 @@ export function CatalogueBrowser({
   bannerImageUrl,
   clientLogos = [],
   faqs = [],
-  contentBeforeCards = false,
 }: {
   title: string;
   subtitle?: string;
@@ -55,7 +54,6 @@ export function CatalogueBrowser({
   bannerImageUrl?: string;
   clientLogos?: { name: string; logo: string }[];
   faqs?: { question: string; answer: string }[];
-  contentBeforeCards?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState(initialChip);
@@ -129,7 +127,6 @@ export function CatalogueBrowser({
       {/* 2. Main product listing & filtering section */}
       <main className="catalogue-page">
         <div className="site-container catalogue-page__inner">
-          {contentBeforeCards ? contentSection : null}
           <div className="catalogue-controls">
             {chips.length ? (
               <div className="catalogue-chips" role="tablist" aria-label="Product groups">
@@ -186,7 +183,7 @@ export function CatalogueBrowser({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={card.imageUrl || "/placeholders/product.svg"}
-                          alt={card.imageUrl ? card.imageAlt : card.title}
+                          alt={card.imageAlt || card.title}
                           loading="lazy"
                           decoding="async"
                         />
@@ -214,8 +211,7 @@ export function CatalogueBrowser({
             </div>
           )}
 
-          {/* 3. Bottom content description card (moved below products as requested) */}
-          {!contentBeforeCards ? contentSection : null}
+          {contentSection}
         </div>
       </main>
       {clientLogos.length ? (

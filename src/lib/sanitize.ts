@@ -40,7 +40,7 @@ const allowedHtmlBlockTags = [
 
 export function sanitizeRichText(html: string) {
   return sanitizeHtml(html, {
-    allowedTags,
+    allowedTags: [...allowedTags, "div"],
     allowedAttributes: {
       a: ["href", "target", "rel"],
       img: ["src", "alt"],
@@ -49,6 +49,15 @@ export function sanitizeRichText(html: string) {
     },
     allowedSchemes: ["http", "https", "mailto", "tel"],
     transformTags: {
+      h1: "h2",
+      i: "em",
+      b: "strong",
+      span: (tagName, attribs) => ({
+        tagName: /(?:^|;)\s*font-weight\s*:\s*(?:bold|bolder|[6-9]00)\s*(?:!important\s*)?(?:;|$)/i.test(attribs.style ?? "")
+          ? "strong"
+          : tagName,
+        attribs: {},
+      }),
       a: (tagName, attribs) => ({
         tagName,
         attribs: {

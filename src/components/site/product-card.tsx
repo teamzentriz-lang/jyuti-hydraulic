@@ -26,7 +26,7 @@ export function ProductCard({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl || "/placeholders/product.svg"}
-          alt={imageUrl ? imageAlt || title : ""}
+          alt={imageAlt || title}
         />
       </Link>
       <div className="product-card__body">

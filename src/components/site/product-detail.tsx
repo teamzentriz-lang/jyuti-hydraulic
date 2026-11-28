@@ -16,7 +16,8 @@ import {
 import type { PublishedContent } from "@/lib/cms/published-content";
 import { mediaDeliveryUrl } from "@/lib/media-url";
 import { publicPath, siteOrigin } from "@/lib/paths";
-import { removeLeadingSummaryHtml, readableProductArticle } from "@/lib/cms/product-article";
+import { normalizeProductEditorHtml, removeLeadingSummaryHtml, readableProductArticle } from "@/lib/cms/product-article";
+import { sanitizeRichText } from "@/lib/sanitize";
 
 function withoutTables(html: string) {
   return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, "");
@@ -225,31 +226,23 @@ export async function ProductDetail({
   const legacyArticleHtml = content.body || detailsHtml || "";
   // Overview is the editable product description. Do not merge the legacy
   // body back into it, otherwise an old imported article wins over a saved edit.
-  const combinedArticleHtml = sourceOverviewHtml?.trim()
-    ? sourceOverviewHtml
-    : legacyArticleHtml;
-  const cleanedArticleHtml = readableProductArticle(
-    promoteLegacyHeadings(
-      withoutTables(
-        combinedArticleHtml,
-      ),
-    ),
-  );
+  const cleanedArticleHtml = sourceOverviewHtml
+    ? sanitizeRichText(normalizeProductEditorHtml(sourceOverviewHtml))
+    : readableProductArticle(promoteLegacyHeadings(withoutTables(legacyArticleHtml)));
   const title = content.title;
   const introductionLead = cleanPublicExcerpt(textOf(cleanedArticleHtml), 360);
   const summaryLead = content.summary
     ? cleanPublicExcerpt(content.summary, 360)
     : "";
   const lead = summaryLead || introductionLead;
-  const overviewHtml = removeLeadingSummaryHtml(
-    cleanedArticleHtml,
-    summaryLead,
-  );
+  const overviewHtml = sourceOverviewHtml
+    ? cleanedArticleHtml
+    : removeLeadingSummaryHtml(cleanedArticleHtml, summaryLead);
   const imageUrl = image ? absoluteUrl(mediaDeliveryUrl(image)) : undefined;
-  const galleryImages = (content.gallery ?? []).map((item, index) => ({
+  const galleryImages = (content.gallery ?? []).map((item) => ({
     id: item.id,
     src: mediaDeliveryUrl(item),
-    alt: item.alt || `${title} image ${index + 1}`,
+    alt: item.alt || title,
   }));
   const structuredData = {
     "@context": "https://schema.org",
@@ -317,7 +310,11 @@ export async function ProductDetail({
       label: labels.productOverviewLabel,
       icon: "overview",
       content: overviewHtml ? (
-        <ArticleBlocks html={overviewHtml} pageTitle={content.title} />
+        sourceOverviewHtml ? (
+          <section className="product-article__block">
+            <RichTextHtml html={overviewHtml} className="product-prose rich-text" />
+          </section>
+        ) : <ArticleBlocks html={overviewHtml} pageTitle={content.title} />
       ) : (
         comingSoon
       ),
@@ -411,7 +408,7 @@ export async function ProductDetail({
             <li key={index}>
               {item.image && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaDeliveryUrl(item.image)} alt={item.image.alt || item.title} />
+                <img src={mediaDeliveryUrl(item.image)} alt={item.image.alt || title} />
               )}
               <div>
                 {item.title && <h3>{item.title}</h3>}
